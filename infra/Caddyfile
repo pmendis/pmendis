@@ -1,0 +1,53 @@
+# Single entry point for the app. Upstream hosts default to the compose service
+# names and can be overridden for local testing outside docker compose.
+{
+	admin off
+}
+
+:8080 {
+	encode gzip
+
+	# Allow the Flutter web build (served from another origin) to call the API.
+	# `defer` replaces any CORS headers the upstreams set, avoiding duplicates.
+	header {
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, POST, OPTIONS"
+		Access-Control-Allow-Headers "Content-Type"
+		defer
+	}
+
+	@preflight method OPTIONS
+	handle @preflight {
+		respond 204
+	}
+
+	handle /health {
+		respond "ok"
+	}
+
+	# Routing: /valhalla/route?json={...}
+	handle_path /valhalla/* {
+		reverse_proxy {$VALHALLA_UPSTREAM:valhalla:8002}
+	}
+
+	# Search: /geocode/search?q=..., /geocode/reverse?lat=..&lon=..
+	handle_path /geocode/* {
+		reverse_proxy {$NOMINATIM_UPSTREAM:nominatim:8080}
+	}
+
+	# Vector tiles: /tiles/srilanka/{z}/{x}/{y}.mvt
+	handle_path /tiles/* {
+		header Cache-Control "public, max-age=86400"
+		reverse_proxy {$TILES_UPSTREAM:tiles:8080}
+	}
+
+	# Map styles: /styles/light.json, /styles/dark.json
+	handle_path /styles/* {
+		root * /srv/styles
+		file_server
+	}
+
+	handle {
+		respond "Not found" 404
+	}
+}

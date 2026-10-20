@@ -232,9 +232,16 @@ rate-limit.
 
 ---
 
-## 12. Next steps
+## 12. Decisions and status
 
-1. Decide on the **launch region** (country/city).
-2. Decide on the **mobile stack**: Flutter, React Native, or native.
-3. Build the **Phase 0 spike** in this repo: a `docker-compose.yml` with Valhalla + Photon + PMTiles,
-   and a minimal web map that draws a route.
+- **Launch region:** Sri Lanka
+- **Mobile stack:** Flutter (Android, iOS and web from one codebase)
+- **Phase 0 (proof of concept):** done. See [README.md](README.md). Differences from the plan
+  above:
+  - Search uses **Nominatim** for now. Photon has no prebuilt Sri Lanka index, so it will be
+    added later, built from the Nominatim database, for better search-as-you-type.
+  - Tiles come from cutting Sri Lanka out of the daily Protomaps planet build
+    (`pipeline/fetch_tiles.sh`) instead of running Planetiler.
+
+**Next:** Phase 1–2 polish (place details sheet, saved places, recent searches), then phase 3
+turn-by-turn navigation with Ferrostar.
