@@ -10,7 +10,8 @@ class GeocodingService {
   GeocodingService({required this.baseUrl, http.Client? client})
     : _client = client ?? http.Client();
 
-  final String baseUrl;
+  /// Gateway address; changes when the user picks another server.
+  String baseUrl;
   final http.Client _client;
 
   Future<List<Place>> search(String query, {int limit = 8}) async {

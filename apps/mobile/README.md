@@ -43,6 +43,17 @@ flutter build apk --dart-define=API_BASE_URL=https://maps.example.lk
 flutter build ipa --dart-define=API_BASE_URL=https://maps.example.lk
 ```
 
+The server address can also be changed in the app under **Settings → Map
+server**, so one APK works with any server, for example a computer on your
+Wi-Fi at `http://192.168.1.20:8080`.
+
+## Download an APK
+
+Every push builds a release APK on GitHub Actions (`.github/workflows/android.yml`).
+Open the latest *Android APK* run in the repository's Actions tab and download
+the `lanka-maps-apk` artifact. It is signed with a debug key, so it is fine for
+installing directly on phones but not for the Play Store.
+
 Optional `--dart-define=OSM_API_URL=…` overrides where problem reports go.
 The default is the OSM test server in debug builds and openstreetmap.org in release builds.
 

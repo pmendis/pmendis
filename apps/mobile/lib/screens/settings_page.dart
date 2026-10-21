@@ -15,6 +15,13 @@ class SettingsPage extends StatelessWidget {
         listenable: settings,
         builder: (context, _) => ListView(
           children: [
+            const _Section('Map server'),
+            ListTile(
+              leading: const Icon(Icons.dns_outlined),
+              title: const Text('Server address'),
+              subtitle: Text(settings.serverUrl),
+              onTap: () => showServerDialog(context, settings),
+            ),
             const _Section('Navigation'),
             SwitchListTile(
               title: const Text('Voice guidance'),
@@ -85,4 +92,86 @@ class _Section extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Lets the user point the app at their own Lanka Maps server.
+Future<void> showServerDialog(BuildContext context, AppSettings settings) =>
+    showDialog<void>(
+      context: context,
+      builder: (_) => _ServerDialog(settings: settings),
+    );
+
+class _ServerDialog extends StatefulWidget {
+  const _ServerDialog({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  State<_ServerDialog> createState() => _ServerDialogState();
+}
+
+class _ServerDialogState extends State<_ServerDialog> {
+  late final _text = TextEditingController(text: widget.settings.serverUrl);
+  String? _error;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final url = normalizeServerUrl(_text.text);
+    if (url == null) {
+      setState(() => _error = 'Enter an address like http://192.168.1.20:8080');
+      return;
+    }
+    widget.settings.serverUrl = url;
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Map server'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'The address of your Lanka Maps server (the gateway started '
+            'with docker compose), as seen from this phone.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _text,
+            autofocus: true,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            onSubmitted: (_) => _save(),
+            decoration: InputDecoration(
+              hintText: 'http://192.168.1.20:8080',
+              border: const OutlineInputBorder(),
+              errorText: _error,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        if (widget.settings.hasCustomServer)
+          TextButton(
+            onPressed: () {
+              widget.settings.serverUrl = null;
+              Navigator.of(context).pop();
+            },
+            child: const Text('Reset'),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Save')),
+      ],
+    );
+  }
 }

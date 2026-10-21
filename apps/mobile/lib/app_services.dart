@@ -15,10 +15,15 @@ class AppServices {
     GeocodingService? geocoder,
     OsmNotesService? notes,
     Speech? speech,
-  }) : routing = routing ?? RoutingService(baseUrl: apiBaseUrl),
-       geocoder = geocoder ?? GeocodingService(baseUrl: apiBaseUrl),
+  }) : routing = routing ?? RoutingService(baseUrl: settings.serverUrl),
+       geocoder = geocoder ?? GeocodingService(baseUrl: settings.serverUrl),
        notes = notes ?? OsmNotesService(apiBaseUrl: osmApiBaseUrl),
-       speech = speech ?? TtsSpeech();
+       speech = speech ?? TtsSpeech() {
+    settings.addListener(() {
+      this.routing.baseUrl = settings.serverUrl;
+      this.geocoder.baseUrl = settings.serverUrl;
+    });
+  }
 
   final AppSettings settings;
   final SavedPlaces saved;

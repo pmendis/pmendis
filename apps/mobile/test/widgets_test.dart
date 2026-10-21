@@ -242,9 +242,14 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: SettingsPage(settings: settings)),
     );
-    await tester.tap(find.text('Avoid tolls'));
-    await tester.tap(find.text('Voice guidance'));
-    await tester.pump();
+    expect(find.text('Server address'), findsOneWidget);
+    for (final label in ['Voice guidance', 'Avoid tolls']) {
+      await tester.ensureVisible(find.text(label));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pump();
+    }
+
     await tester.ensureVisible(find.text('Dark'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dark'));

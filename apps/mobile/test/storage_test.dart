@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lanka_maps/app_services.dart';
 import 'package:lanka_maps/models/place.dart';
+import 'package:lanka_maps/navigation/speech.dart';
 import 'package:lanka_maps/models/route.dart';
 import 'package:lanka_maps/storage/app_settings.dart';
 import 'package:lanka_maps/storage/saved_places.dart';
@@ -104,4 +106,53 @@ void main() {
     expect(reloaded.travelMode, TravelMode.walk);
     expect(reloaded.voiceGuidance, isFalse);
   });
+
+  test('server address: default, custom, reset', () async {
+    final settings = AppSettings(await SharedPreferences.getInstance());
+    final builtIn = settings.serverUrl;
+    expect(settings.hasCustomServer, isFalse);
+
+    settings.serverUrl = ' 192.168.1.20:8080/ ';
+    expect(settings.serverUrl, 'http://192.168.1.20:8080');
+    expect(
+      AppSettings(await SharedPreferences.getInstance()).serverUrl,
+      'http://192.168.1.20:8080',
+    );
+
+    settings.serverUrl = null;
+    expect(settings.serverUrl, builtIn);
+    expect(settings.hasCustomServer, isFalse);
+  });
+
+  test('normalizeServerUrl', () {
+    expect(
+      normalizeServerUrl('https://maps.example.lk/'),
+      'https://maps.example.lk',
+    );
+    expect(normalizeServerUrl('maps.example.lk'), 'http://maps.example.lk');
+    expect(normalizeServerUrl(''), isNull);
+    expect(normalizeServerUrl('ftp://x'), isNull);
+    expect(normalizeServerUrl('http://'), isNull);
+  });
+
+  test('services follow a server change', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final settings = AppSettings(prefs);
+    final services = AppServices(
+      settings: settings,
+      saved: SavedPlaces(prefs),
+      speech: _NoSpeech(),
+    );
+    settings.serverUrl = 'https://maps.example.lk';
+    expect(services.routing.baseUrl, 'https://maps.example.lk');
+    expect(services.geocoder.baseUrl, 'https://maps.example.lk');
+  });
+}
+
+class _NoSpeech implements Speech {
+  @override
+  Future<void> speak(String text) async {}
+
+  @override
+  Future<void> stop() async {}
 }

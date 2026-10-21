@@ -26,7 +26,7 @@ import '../widgets/search_box.dart';
 import 'about_page.dart';
 import 'place_picker_page.dart';
 import 'saved_places_page.dart';
-import 'settings_page.dart';
+import 'settings_page.dart' show SettingsPage, showServerDialog;
 
 /// What the bottom of the screen is showing.
 enum _View { browse, place, directions, navigating }
@@ -56,6 +56,7 @@ class _MapScreenState extends State<MapScreen> {
   Brightness? _styleBrightness;
   String? _style;
   String? _styleError;
+  String? _loadedServer;
 
   bool _locationGranted = false;
   LatLng? _myLocation;
@@ -109,6 +110,9 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _onSettingsChanged() {
+    if (_services.settings.serverUrl != _loadedServer) {
+      _loadStyle(_styleBrightness ?? Brightness.light);
+    }
     final avoid = _services.settings.avoid;
     final changed =
         avoid.tolls != _avoid.tolls ||
@@ -123,21 +127,23 @@ class _MapScreenState extends State<MapScreen> {
   /// Fetches the style from the gateway and points its tile URLs at it.
   Future<void> _loadStyle(Brightness brightness) async {
     final name = brightness == Brightness.dark ? 'dark' : 'light';
+    final server = _services.settings.serverUrl;
+    _loadedServer = server;
     setState(() => _styleError = null);
     try {
       final res = await http
-          .get(Uri.parse('$apiBaseUrl/styles/$name.json'))
+          .get(Uri.parse('$server/styles/$name.json'))
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
       if (!mounted) return;
       setState(() {
         _layersReady = false;
-        _style = res.body.replaceAll('{{BASE_URL}}', apiBaseUrl);
+        _style = res.body.replaceAll('{{BASE_URL}}', server);
       });
     } catch (e) {
       if (!mounted) return;
       setState(
-        () => _styleError = 'Cannot reach the map server at $apiBaseUrl\n$e',
+        () => _styleError = 'Cannot reach the map server at $server\n$e',
       );
     }
   }
@@ -768,6 +774,9 @@ class _MapScreenState extends State<MapScreen> {
         onRetry: _styleError == null
             ? null
             : () => _loadStyle(_styleBrightness ?? Brightness.light),
+        onChangeServer: _styleError == null
+            ? null
+            : () => showServerDialog(context, _services.settings),
       );
     }
     return MapLibreMap(
@@ -931,10 +940,11 @@ class _MapScreenState extends State<MapScreen> {
 }
 
 class _StatusView extends StatelessWidget {
-  const _StatusView({required this.message, this.onRetry});
+  const _StatusView({required this.message, this.onRetry, this.onChangeServer});
 
   final String message;
   final VoidCallback? onRetry;
+  final VoidCallback? onChangeServer;
 
   @override
   Widget build(BuildContext context) {
@@ -950,6 +960,13 @@ class _StatusView extends StatelessWidget {
             if (onRetry != null) ...[
               const SizedBox(height: 16),
               FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
+            if (onChangeServer != null) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: onChangeServer,
+                child: const Text('Change server'),
+              ),
             ],
           ],
         ),

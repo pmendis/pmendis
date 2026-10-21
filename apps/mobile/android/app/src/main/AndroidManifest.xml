@@ -6,8 +6,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Cleartext HTTP is allowed so the app can reach a self-hosted server on
+         the local network (Settings → Map server). Remove for a store build
+         that only talks to an HTTPS server. -->
     <application
         android:label="Lanka Maps"
+        android:usesCleartextTraffic="true"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
