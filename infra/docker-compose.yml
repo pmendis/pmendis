@@ -1,0 +1,73 @@
+# Lanka Maps proof-of-concept backend.
+#
+#   gateway  :8080  ── /valhalla/*  → valhalla   (routing, turn-by-turn instructions)
+#                   ── /geocode/*   → nominatim  (search + reverse geocoding)
+#                   ── /tiles/*     → tiles      (vector map tiles from a PMTiles file)
+#                   ── /styles/*    → ../styles  (MapLibre style JSON)
+#
+# First start downloads the Sri Lanka OSM extract and builds the routing graph and
+# search index (roughly 15–40 minutes). Later starts reuse the data in ./data.
+# Map tiles are fetched separately: ../pipeline/fetch_tiles.sh
+
+name: lanka-maps
+
+services:
+  valhalla:
+    image: ghcr.io/valhalla/valhalla-scripted:3.9.1
+    restart: unless-stopped
+    environment:
+      tile_urls: ${OSM_PBF_URL:-https://download.geofabrik.de/asia/sri-lanka-latest.osm.pbf}
+      use_tiles_ignore_pbf: "True"
+      build_admins: "True"
+      build_time_zones: "True"
+      build_elevation: "False"
+      serve_tiles: "True"
+      server_threads: ${VALHALLA_THREADS:-2}
+    volumes:
+      - ./data/valhalla:/custom_files
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8002/status || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30m
+      retries: 3
+
+  nominatim:
+    image: mediagis/nominatim:5.3.2
+    restart: unless-stopped
+    shm_size: 1g
+    environment:
+      PBF_URL: ${OSM_PBF_URL:-https://download.geofabrik.de/asia/sri-lanka-latest.osm.pbf}
+      REPLICATION_URL: https://download.geofabrik.de/asia/sri-lanka-updates/
+      # Apply Geofabrik's daily diffs so search picks up OSM fixes by itself.
+      UPDATE_MODE: continuous
+      REPLICATION_UPDATE_INTERVAL: 86400
+      IMPORT_STYLE: full
+      THREADS: ${NOMINATIM_THREADS:-4}
+      NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD:-change-me}
+    volumes:
+      - ./data/nominatim:/var/lib/postgresql/16/main
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/status || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60m
+      retries: 3
+
+  tiles:
+    image: protomaps/go-pmtiles:v1.31.2
+    restart: unless-stopped
+    # Serves ./data/tiles/<name>.pmtiles as /<name>/{z}/{x}/{y}.mvt
+    command: ["serve", "/data", "--port=8080"]
+    volumes:
+      - ./data/tiles:/data:ro
+
+  gateway:
+    image: caddy:2.11.2-alpine
+    restart: unless-stopped
+    depends_on: [valhalla, nominatim, tiles]
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../styles:/srv/styles:ro
