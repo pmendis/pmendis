@@ -4,7 +4,10 @@
 	admin off
 }
 
-:8080 {
+# Plain HTTP on :8080 for development. Set SITE_ADDRESS to a domain name
+# (see docker-compose.prod.yml) and Caddy serves HTTPS with a Let's Encrypt
+# certificate instead.
+{$SITE_ADDRESS::8080} {
 	encode gzip
 
 	# Allow the Flutter web build (served from another origin) to call the API.

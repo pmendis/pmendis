@@ -21,3 +21,13 @@ final sriLankaBounds = LatLngBounds(
 );
 
 const sriLankaCenter = LatLng(7.87, 80.77);
+
+/// OpenStreetMap API used for map problem reports. Debug builds post to the
+/// OSM test server so trial reports don't reach real mappers.
+String get osmApiBaseUrl {
+  const fromEnv = String.fromEnvironment('OSM_API_URL');
+  if (fromEnv.isNotEmpty) return fromEnv;
+  return kReleaseMode
+      ? 'https://api.openstreetmap.org'
+      : 'https://master.apis.dev.openstreetmap.org';
+}

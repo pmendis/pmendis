@@ -236,12 +236,22 @@ rate-limit.
 
 - **Launch region:** Sri Lanka
 - **Mobile stack:** Flutter (Android, iOS and web from one codebase)
-- **Phase 0 (proof of concept):** done. See [README.md](README.md). Differences from the plan
-  above:
-  - Search uses **Nominatim** for now. Photon has no prebuilt Sri Lanka index, so it will be
-    added later, built from the Nominatim database, for better search-as-you-type.
-  - Tiles come from cutting Sri Lanka out of the daily Protomaps planet build
-    (`pipeline/fetch_tiles.sh`) instead of running Planetiler.
 
-**Next:** Phase 1–2 polish (place details sheet, saved places, recent searches), then phase 3
-turn-by-turn navigation with Ferrostar.
+| Phase | Status |
+|---|---|
+| 0. Spike | Done |
+| 1. Core map app | Done: map, location, search, place sheet, saved places, recents |
+| 2. Routing | Done: drive/cycle/walk, alternatives, avoid tolls/highways/ferries |
+| 3. Turn-by-turn | Done: voice prompts, rerouting, arrival, background GPS, simulated drive. Built in Dart rather than Ferrostar, which has no Flutter binding. |
+| 4. Hardening | Mostly done: weekly data refresh, HTTPS setup, OSM attribution/About page. **To do:** rate limiting, crash reporting, privacy policy page, app icon |
+| 5. Beta release | Next: build on real devices, TestFlight / Play internal testing |
+
+Additions beyond the original MVP:
+- **"Open in Google Maps" hand-off.** Free and needs no API key; users get live traffic.
+- **Report a map problem.** Posts OpenStreetMap Notes, so local mappers can fill gaps in Sri Lanka's map.
+
+Differences from the plan:
+- Search uses **Nominatim**. Photon has no prebuilt Sri Lanka index; it can be added later,
+  built from the Nominatim database.
+- Tiles are cut from the daily Protomaps planet build instead of running Planetiler.
+- No lane guidance yet. Valhalla can return lane data for a later version.

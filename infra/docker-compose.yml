@@ -39,6 +39,9 @@ services:
     environment:
       PBF_URL: ${OSM_PBF_URL:-https://download.geofabrik.de/asia/sri-lanka-latest.osm.pbf}
       REPLICATION_URL: https://download.geofabrik.de/asia/sri-lanka-updates/
+      # Apply Geofabrik's daily diffs so search picks up OSM fixes by itself.
+      UPDATE_MODE: continuous
+      REPLICATION_UPDATE_INTERVAL: 86400
       IMPORT_STYLE: full
       THREADS: ${NOMINATIM_THREADS:-4}
       NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD:-change-me}

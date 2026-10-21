@@ -3,9 +3,15 @@
 A free, Google Maps–style map and navigation app for Sri Lanka, built entirely on
 OpenStreetMap data and open-source software. See [PLAN.md](PLAN.md) for the full plan.
 
-This is the **phase 0 proof of concept**: a self-hosted backend plus a Flutter app
-(Android, iOS and web) that can browse the map, search for places, and plan
-driving, cycling and walking routes with alternatives and turn-by-turn steps.
+A self-hosted backend plus a Flutter app (Android, iOS and web) with:
+- map browsing and place search
+- saved places and recent searches
+- driving, cycling and walking directions
+- voice turn-by-turn navigation with rerouting
+- a hand-off to Google Maps
+- in-app reporting of map problems to OpenStreetMap
+
+See [apps/mobile/README.md](apps/mobile/README.md) for the app's features.
 
 ```
 apps/mobile/      Flutter app
@@ -23,7 +29,7 @@ styles/           MapLibre map styles (generated from @protomaps/basemaps)
 
 ## Quick start
 
-Requirements: Docker with Compose, about 8 GB RAM and 20 GB disk free, and Flutter 3.38+.
+Requirements: Docker with Compose, about 8 GB RAM and 20 GB disk free, and Flutter 3.44+.
 
 ```bash
 # 1. Vector tiles for Sri Lanka (a few minutes, ~100–200 MB)
@@ -49,21 +55,39 @@ On a physical phone, pass your computer's LAN address:
 
 ## Updating the data
 
-- **Tiles:** re-run `pipeline/fetch_tiles.sh`, then `docker compose restart tiles`.
-- **Routing:** set `force_rebuild: "True"` on the valhalla service for one start,
-  or delete `infra/data/valhalla`, then restart it.
-- **Search:** Nominatim is configured with Geofabrik's Sri Lanka replication feed.
-  See the [mediagis/nominatim docs](https://github.com/mediagis/nominatim-docker)
-  for update modes.
+- **Search** updates itself daily from Geofabrik's Sri Lanka replication feed.
+- **Tiles and routing:** run `pipeline/refresh_data.sh` weekly, for example from cron:
+  ```
+  0 3 * * 1  /path/to/repo/pipeline/refresh_data.sh >> /var/log/lanka-maps-refresh.log 2>&1
+  ```
+  It swaps in new tiles without downtime, then rebuilds the routing graph.
+  Routing is unavailable for about 5–10 minutes during the rebuild.
 
-## Proof-of-concept limits
+Edits made in OpenStreetMap, including fixes for the app's problem reports,
+reach the app through these refreshes.
 
-- Search uses **Nominatim**. Photon (search-as-you-type) has no ready-made Sri Lanka
-  index, so it is left for later, built from this Nominatim database.
-- Map fonts and icons load from Protomaps' public GitHub Pages. Self-host them
-  before launch.
-- No live traffic, voice guidance or rerouting yet. Those are phases 2–3 in the plan.
-- The gateway has no rate limiting or TLS. Put it behind HTTPS before exposing it
-  publicly.
+## Production
+
+```bash
+cd infra
+SITE_ADDRESS=maps.example.lk docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+Point the domain's DNS at the server first. Caddy then gets and renews an HTTPS
+certificate automatically. Build the app with
+`--dart-define=API_BASE_URL=https://maps.example.lk`.
+
+## Known limits
+
+- **No live traffic.** Arrival times assume free-flowing roads. The app offers
+  "Open in Google Maps" for traffic-aware trips. See PLAN.md §8 for options.
+- **Search uses Nominatim.** Photon (better search-as-you-type) has no
+  ready-made Sri Lanka index. It can be added later, built from this Nominatim database.
+- **Map fonts and icons** load from Protomaps' public GitHub Pages. Self-host
+  them for full independence.
+- **The gateway has no rate limiting.** Add it (for example a Caddy rate-limit
+  plugin or a CDN in front) before a public launch.
+- **No offline maps or public transit yet.** Both are v2 items in the plan.
+- **The app icon and store listing** still need designing before release.
 
 Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL.

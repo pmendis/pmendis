@@ -1,0 +1,23 @@
+# Production overrides: HTTPS on a real domain.
+#
+#   SITE_ADDRESS=maps.example.lk docker compose \
+#     -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Point the domain's DNS at this server first; Caddy then obtains and renews
+# the certificate automatically. Build the app with
+#   --dart-define=API_BASE_URL=https://maps.example.lk
+services:
+  gateway:
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS to your domain}
+    ports: !override
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
