@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:lanka_maps/main.dart';
 import 'package:lanka_maps/models/place.dart';
 import 'package:lanka_maps/models/route.dart';
 import 'package:lanka_maps/navigation/navigation_controller.dart';
@@ -346,5 +347,15 @@ void main() {
     final place = await result.future;
     expect(place!.name, 'Viharamahadevi Park');
     expect(saved.recents.single.name, 'Viharamahadevi Park');
+  });
+
+  testWidgets('startup errors are shown instead of a stuck splash', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      StartupErrorApp(error: Exception('prefs unavailable')),
+    );
+    expect(find.text('Lanka Maps could not start'), findsOneWidget);
+    expect(find.textContaining('prefs unavailable'), findsOneWidget);
   });
 }

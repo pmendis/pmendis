@@ -24,9 +24,12 @@ adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null
 started=false
 for _ in $(seq 1 30); do
   sleep 3
-  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || continue
+  # Fails ("could not get idle state") while a spinner is animating; the
+  # app log below is the more reliable signal.
+  adb shell uiautomator dump /sdcard/ui.xml >"$OUT/uiautomator.txt" 2>&1 || true
   adb shell cat /sdcard/ui.xml > "$OUT/ui.xml" 2>/dev/null || continue
-  if grep -q -E "Search places|map server|Loading map|could not start" "$OUT/ui.xml"; then
+  if adb logcat -d -s flutter | grep -q "Lanka Maps: first frame drawn" ||
+     grep -q -E "Search places|map server|Loading map|could not start" "$OUT/ui.xml" 2>/dev/null; then
     started=true
     break
   fi
@@ -39,8 +42,22 @@ pid=$(adb shell pidof "$PKG" | tr -d '\r')
 echo "== App process id: ${pid:-not running}"
 echo "== Screen text:"
 grep -o -E '(text|content-desc)="[^"]+"' "$OUT/ui.xml" 2>/dev/null | sort -u | head -40
-echo "== App log (flutter, crashes, plugin errors):"
-grep -E "flutter|Lanka Maps|AndroidRuntime|FATAL|$PKG|MissingPlugin|Exception" "$OUT/logcat.txt" | tail -150
+echo "== uiautomator: $(tail -1 "$OUT/uiautomator.txt" 2>/dev/null)"
+echo "== Screenshot colours (a splash screen is nearly one colour):"
+python3 - "$OUT/screen.png" <<'PY' || true
+import sys, zlib, struct, collections
+data = open(sys.argv[1], 'rb').read()
+w, h = struct.unpack('>II', data[16:24])
+raw = b''.join(data[i + 8:i + 8 + struct.unpack('>I', data[i:i + 4])[0]]
+              for i in [p for p in range(8, len(data)) if data[p + 4:p + 8] == b'IDAT'])
+print(f"{w}x{h}, {len(set(zlib.decompress(raw)[::997]))} distinct sampled byte values")
+PY
+echo "== Flutter log:"
+adb logcat -d -s flutter | tail -80
+echo "== Everything the app process logged:"
+if [[ -n "$pid" ]]; then adb logcat -d --pid="$pid" | tail -150; fi
+echo "== Crashes:"
+grep -E "FATAL|AndroidRuntime: (FATAL|Process: $PKG)" "$OUT/logcat.txt" | tail -40
 
 if [[ "$started" != true ]]; then
   echo "FAIL: the app did not get past the splash screen within 90 seconds"
