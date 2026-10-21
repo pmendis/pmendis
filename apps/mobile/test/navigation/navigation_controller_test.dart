@@ -88,6 +88,9 @@ void main() {
       final from = (body['locations'] as List).first as Map;
       expect(from['lat'], closeTo(6.917, 1e-9));
       expect(from['heading'], 180);
+      expect(from['radius'], 10); // fix accuracy 5 m, floored to 10
+      // Rerouting must still snap to whatever road the car is on.
+      expect(from.containsKey('search_filter'), isFalse);
       expect(body['alternates'], 0);
       expect(body['costing_options'], {
         'auto': {'use_tolls': 0.0},

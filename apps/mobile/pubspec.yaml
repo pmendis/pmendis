@@ -1,7 +1,7 @@
 name: lanka_maps
 description: "Lanka Maps: free OpenStreetMap-based maps and navigation for Sri Lanka."
 publish_to: 'none'
-version: 0.3.0+3
+version: 0.3.1+4
 
 environment:
   sdk: ^3.12.0

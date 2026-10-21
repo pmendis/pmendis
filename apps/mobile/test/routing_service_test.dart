@@ -38,6 +38,37 @@ void main() {
     expect(locations[1]['lon'], closeTo(79.865, 1e-9));
   });
 
+  test(
+    'planning keeps both ends off motorways and uses the GPS radius',
+    () async {
+      late Uri captured;
+      final service = RoutingService(
+        baseUrl: 'http://gw/valhalla',
+        client: MockClient((req) async {
+          captured = req.url;
+          return http.Response(fixture, 200);
+        }),
+      );
+
+      await service.route(from, to, originRadius: 4, snapOffMotorways: true);
+
+      final locations =
+          (jsonDecode(captured.queryParameters['json']!) as Map)['locations']
+              as List;
+      expect(locations[0]['radius'], 10); // never below 10 m
+      expect(locations[0]['search_filter'], {'max_road_class': 'trunk'});
+      expect(locations[1]['search_filter'], {'max_road_class': 'trunk'});
+      expect(locations[1].containsKey('radius'), isFalse);
+
+      await service.route(from, to, originRadius: 250);
+      final loose =
+          (jsonDecode(captured.queryParameters['json']!) as Map)['locations']
+              as List;
+      expect(loose[0]['radius'], 100); // and never above 100 m
+      expect(loose[0].containsKey('search_filter'), isFalse);
+    },
+  );
+
   test('parses the main route and alternates', () async {
     final service = RoutingService(
       baseUrl: 'http://gw/valhalla',

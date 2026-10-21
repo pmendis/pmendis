@@ -32,7 +32,15 @@ class RoutingService {
     RouteAvoid avoid = const RouteAvoid(),
     int alternates = 2,
     double? heading,
+    double? originRadius,
+    bool snapOffMotorways = false,
   }) async {
+    // Snapping a start or end point onto an expressway sends the route to the
+    // next exit and back. When planning a trip (as opposed to rerouting while
+    // driving) nobody starts or ends on one, so keep both off motorways.
+    const offMotorways = {
+      'search_filter': {'max_road_class': 'trunk'},
+    };
     final request = {
       'locations': [
         {
@@ -40,8 +48,16 @@ class RoutingService {
           'lon': from.longitude,
           // When rerouting, prefer roads in the direction already travelling.
           if (heading != null) 'heading': heading.round(),
+          // GPS accuracy: consider every road within it, not just the nearest.
+          if (originRadius != null)
+            'radius': originRadius.clamp(10, 100).round(),
+          if (snapOffMotorways) ...offMotorways,
         },
-        {'lat': to.latitude, 'lon': to.longitude},
+        {
+          'lat': to.latitude,
+          'lon': to.longitude,
+          if (snapOffMotorways) ...offMotorways,
+        },
       ],
       'costing': mode.costing,
       'costing_options': {mode.costing: _costingOptions(mode, avoid)},

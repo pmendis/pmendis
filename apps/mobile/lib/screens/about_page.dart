@@ -5,7 +5,7 @@ import '../services/external_navigation.dart';
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
-  static const version = '0.3.0';
+  static const version = '0.3.1';
 
   @override
   Widget build(BuildContext context) {

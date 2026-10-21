@@ -19,7 +19,7 @@ const publicPhotonUrl = 'https://photon.komoot.io';
 
 /// Sent with requests so the public services can see who is calling, as
 /// their usage policies ask.
-const appUserAgent = 'LankaMaps/0.3.0 (+https://github.com/pmendis/pmendis)';
+const appUserAgent = 'LankaMaps/0.3.1 (+https://github.com/pmendis/pmendis)';
 
 /// Sri Lanka plus a small margin; the camera and search stay inside it.
 final sriLankaBounds = LatLngBounds(

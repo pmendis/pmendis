@@ -62,6 +62,7 @@ class _MapScreenState extends State<MapScreen> {
 
   bool _locationGranted = false;
   LatLng? _myLocation;
+  double? _myLocationAccuracy;
 
   _View _view = _View.browse;
   Place? _place;
@@ -279,7 +280,10 @@ class _MapScreenState extends State<MapScreen> {
       if (mounted) setState(() => _locationGranted = true);
       final pos = await Geolocator.getCurrentPosition();
       if (!mounted) return;
-      setState(() => _myLocation = LatLng(pos.latitude, pos.longitude));
+      setState(() {
+        _myLocation = LatLng(pos.latitude, pos.longitude);
+        _myLocationAccuracy = pos.accuracy;
+      });
       if (moveCamera) {
         await _map?.animateCamera(CameraUpdate.newLatLngZoom(_myLocation!, 15));
       }
@@ -401,13 +405,40 @@ class _MapScreenState extends State<MapScreen> {
 
   // ----------------------------------------------------------- directions
 
-  void _openDirections(Place destination) {
+  Future<void> _openDirections(Place destination) async {
     setState(() {
       _view = _View.directions;
       _destination = destination;
       _origin = _myLocationPlace;
+      _loading = _origin != null;
     });
+    // The position from app start may be stale or rough; get a fresh one so
+    // the route starts where the user actually is.
+    if (_origin?.isMyLocation ?? false) {
+      await _refreshMyLocation();
+      if (!mounted || _destination != destination) return;
+      if (_origin?.isMyLocation ?? false) _origin = _myLocationPlace;
+    }
     _updateRoute(fitCamera: true);
+  }
+
+  Future<void> _refreshMyLocation() async {
+    if (!_locationGranted) return;
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 6),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _myLocation = LatLng(pos.latitude, pos.longitude);
+        _myLocationAccuracy = pos.accuracy;
+      });
+    } catch (_) {
+      // Keep the last known position.
+    }
   }
 
   void _setOrigin(Place place, {bool lookUpName = false}) {
@@ -496,6 +527,8 @@ class _MapScreenState extends State<MapScreen> {
         to.location,
         mode: _mode,
         avoid: _services.settings.avoid,
+        originRadius: from.isMyLocation ? _myLocationAccuracy : null,
+        snapOffMotorways: true,
       );
       if (!mounted || id != _routeRequest) return;
       setState(() {

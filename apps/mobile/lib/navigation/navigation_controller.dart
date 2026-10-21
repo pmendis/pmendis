@@ -163,6 +163,7 @@ class NavigationController extends ChangeNotifier {
         avoid: routeAvoid(),
         alternates: 0,
         heading: fix.heading,
+        originRadius: fix.accuracy,
       );
       if (session != _session) return;
       _setRoute(routes.first, announceStart: false);
