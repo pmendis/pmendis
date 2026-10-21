@@ -49,10 +49,11 @@ Wi-Fi at `http://192.168.1.20:8080`.
 
 ## Download an APK
 
-Every push builds a release APK on GitHub Actions (`.github/workflows/android.yml`).
-Open the latest *Android APK* run in the repository's Actions tab and download
-the `lanka-maps-apk` artifact. It is signed with a debug key, so it is fine for
-installing directly on phones but not for the Play Store.
+Every push builds a release APK on GitHub Actions (`.github/workflows/android.yml`),
+starts it on an Android emulator, and then publishes it as a pre-release on the
+repository's **Releases** page, where the `.apk` can be downloaded directly onto
+a phone. It is signed with a debug key, so it is fine for installing directly on
+phones but not for the Play Store.
 
 Optional `--dart-define=OSM_API_URL=…` overrides where problem reports go.
 The default is the OSM test server in debug builds and openstreetmap.org in release builds.

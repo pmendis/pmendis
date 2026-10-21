@@ -96,3 +96,30 @@ jobs:
         with:
           name: emulator-smoke-test
           path: smoke-test/
+
+  # Publishes the APK as a GitHub pre-release once it has started on the
+  # emulator, so it can be downloaded directly (no zip, no sign-in).
+  publish-apk:
+    needs: [build, emulator-smoke-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: lanka-maps-apk
+          path: apk
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Lanka Maps build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          files: apk/*.apk
+          body: |
+            Test build from commit ${{ github.sha }} (`${{ github.ref_name }}`).
+            Debug-signed: fine for installing directly on a phone, not for the Play Store.
+
+            After installing, set your server under **Settings → Map server**
+            (or tap **Change server** on the error screen), e.g. `http://192.168.1.20:8080`.
