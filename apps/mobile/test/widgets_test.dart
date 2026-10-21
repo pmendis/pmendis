@@ -243,7 +243,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: SettingsPage(settings: settings)),
     );
-    expect(find.text('Server address'), findsOneWidget);
+    expect(find.text('Map data source'), findsOneWidget);
     for (final label in ['Voice guidance', 'Avoid tolls']) {
       await tester.ensureVisible(find.text(label));
       await tester.pumpAndSettle();

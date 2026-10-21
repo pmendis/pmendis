@@ -17,7 +17,7 @@ void main() {
   test('sends a GET request with the Valhalla JSON query', () async {
     late Uri captured;
     final service = RoutingService(
-      baseUrl: 'http://gw',
+      baseUrl: 'http://gw/valhalla',
       client: MockClient((req) async {
         captured = req.url;
         return http.Response(fixture, 200);
@@ -40,7 +40,7 @@ void main() {
 
   test('parses the main route and alternates', () async {
     final service = RoutingService(
-      baseUrl: 'http://gw',
+      baseUrl: 'http://gw/valhalla',
       client: MockClient((_) async => http.Response(fixture, 200)),
     );
 
@@ -71,7 +71,7 @@ void main() {
 
   test('surfaces Valhalla error messages', () async {
     final service = RoutingService(
-      baseUrl: 'http://gw',
+      baseUrl: 'http://gw/valhalla',
       client: MockClient(
         (_) async => http.Response(
           '{"error_code":171,"error":"No suitable edges near location",'
@@ -95,7 +95,7 @@ void main() {
 
   test('reports non-JSON gateway errors', () async {
     final service = RoutingService(
-      baseUrl: 'http://gw',
+      baseUrl: 'http://gw/valhalla',
       client: MockClient((_) async => http.Response('Bad Gateway', 502)),
     );
 

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../models/route.dart';
+import 'http_headers.dart';
 import 'polyline.dart';
 
 class RoutingException implements Exception {
@@ -13,12 +14,13 @@ class RoutingException implements Exception {
   String toString() => message;
 }
 
-/// Client for the Valhalla `/route` API behind the gateway.
+/// Client for the Valhalla `/route` API.
 class RoutingService {
   RoutingService({required this.baseUrl, http.Client? client})
     : _client = client ?? http.Client();
 
-  /// Gateway address; changes when the user picks another server.
+  /// Valhalla root, e.g. `https://valhalla1.openstreetmap.de` or the own
+  /// server's `/valhalla` endpoint. Changes with the Map data source setting.
   String baseUrl;
   final http.Client _client;
 
@@ -48,12 +50,14 @@ class RoutingService {
     };
     // GET keeps the request "simple" so browsers skip the CORS preflight.
     final uri = Uri.parse(
-      '$baseUrl/valhalla/route',
+      '$baseUrl/route',
     ).replace(queryParameters: {'json': jsonEncode(request)});
 
     final http.Response response;
     try {
-      response = await _client.get(uri).timeout(const Duration(seconds: 20));
+      response = await _client
+          .get(uri, headers: apiHeaders)
+          .timeout(const Duration(seconds: 20));
     } catch (e) {
       throw RoutingException('Routing server unreachable ($e)');
     }

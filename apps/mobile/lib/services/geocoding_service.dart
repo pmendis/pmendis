@@ -4,20 +4,23 @@ import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../models/place.dart';
+import 'geocoder.dart';
+import 'http_headers.dart';
 
-/// Client for the Nominatim search API behind the gateway.
-class GeocodingService {
+/// Client for a Nominatim server: the own server's `/geocode` endpoint.
+class GeocodingService implements Geocoder {
   GeocodingService({required this.baseUrl, http.Client? client})
     : _client = client ?? http.Client();
 
-  /// Gateway address; changes when the user picks another server.
-  String baseUrl;
+  /// Nominatim root, e.g. `http://192.168.1.20:8080/geocode`.
+  final String baseUrl;
   final http.Client _client;
 
+  @override
   Future<List<Place>> search(String query, {int limit = 8}) async {
     final q = query.trim();
     if (q.isEmpty) return const [];
-    final uri = Uri.parse('$baseUrl/geocode/search').replace(
+    final uri = Uri.parse('$baseUrl/search').replace(
       queryParameters: {
         'q': q,
         'format': 'jsonv2',
@@ -30,9 +33,9 @@ class GeocodingService {
     return [for (final r in results) _parsePlace(r as Map<String, dynamic>)];
   }
 
-  /// The nearest named place, or null when nothing is close enough.
+  @override
   Future<Place?> reverse(LatLng location) async {
-    final uri = Uri.parse('$baseUrl/geocode/reverse').replace(
+    final uri = Uri.parse('$baseUrl/reverse').replace(
       queryParameters: {
         'lat': '${location.latitude}',
         'lon': '${location.longitude}',
@@ -52,7 +55,7 @@ class GeocodingService {
 
   Future<Object?> _getJson(Uri uri) async {
     final response = await _client
-        .get(uri)
+        .get(uri, headers: apiHeaders)
         .timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) {
       throw Exception('Search failed (HTTP ${response.statusCode})');

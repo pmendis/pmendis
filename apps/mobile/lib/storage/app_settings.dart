@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import '../models/route.dart';
+import '../services/backend.dart';
 
 /// User preferences, persisted on the device.
 class AppSettings extends ChangeNotifier {
@@ -18,22 +19,7 @@ class AppSettings extends ChangeNotifier {
   static const _theme = 'themeMode';
   static const _mode = 'travelMode';
   static const _server = 'serverUrl';
-
-  /// The map server (gateway) the app talks to: the user's choice, or the
-  /// address the app was built with.
-  String get serverUrl => _prefs.getString(_server) ?? apiBaseUrl;
-
-  bool get hasCustomServer => _prefs.containsKey(_server);
-
-  /// Sets the server, or resets to the built-in one when [url] is null.
-  set serverUrl(String? url) {
-    if (url == null) {
-      _prefs.remove(_server);
-    } else {
-      _prefs.setString(_server, normalizeServerUrl(url)!);
-    }
-    notifyListeners();
-  }
+  static const _backend = 'backendMode';
 
   bool get voiceGuidance => _prefs.getBool(_voice) ?? true;
   set voiceGuidance(bool v) => _setBool(_voice, v);
@@ -64,6 +50,35 @@ class AppSettings extends ChangeNotifier {
       TravelMode.values.asNameMap()[_prefs.getString(_mode)] ?? TravelMode.car;
   set travelMode(TravelMode v) {
     _prefs.setString(_mode, v.name);
+    notifyListeners();
+  }
+
+  /// Where map, routes and search come from. Until the user chooses, a build
+  /// with a baked-in server address uses it; otherwise the public services.
+  Backend get backend {
+    final mode = _prefs.getString(_backend);
+    final url = _prefs.getString(_server);
+    if (mode == 'own' && url != null) return Backend.ownServer(url);
+    if (mode == 'public') return const Backend.publicServices();
+    return builtInServerUrl.isEmpty
+        ? const Backend.publicServices()
+        : const Backend.ownServer(builtInServerUrl);
+  }
+
+  /// The own-server address to offer in the settings dialog, if any.
+  String? get ownServerUrl =>
+      _prefs.getString(_server) ??
+      (builtInServerUrl.isEmpty ? null : builtInServerUrl);
+
+  void usePublicServices() {
+    _prefs.setString(_backend, 'public');
+    notifyListeners();
+  }
+
+  /// [url] must already be valid; see [normalizeServerUrl].
+  void useOwnServer(String url) {
+    _prefs.setString(_server, normalizeServerUrl(url)!);
+    _prefs.setString(_backend, 'own');
     notifyListeners();
   }
 

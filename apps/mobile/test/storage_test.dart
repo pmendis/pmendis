@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lanka_maps/app_services.dart';
+import 'package:lanka_maps/config.dart';
+import 'package:lanka_maps/services/backend.dart';
+import 'package:lanka_maps/services/geocoding_service.dart';
+import 'package:lanka_maps/services/photon_geocoder.dart';
 import 'package:lanka_maps/models/place.dart';
 import 'package:lanka_maps/navigation/speech.dart';
 import 'package:lanka_maps/models/route.dart';
@@ -107,21 +111,53 @@ void main() {
     expect(reloaded.voiceGuidance, isFalse);
   });
 
-  test('server address: default, custom, reset', () async {
-    final settings = AppSettings(await SharedPreferences.getInstance());
-    final builtIn = settings.serverUrl;
-    expect(settings.hasCustomServer, isFalse);
+  test(
+    'map data source: public by default, own server, back to public',
+    () async {
+      final settings = AppSettings(await SharedPreferences.getInstance());
+      expect(settings.backend, const Backend.publicServices());
+      expect(settings.ownServerUrl, isNull);
 
-    settings.serverUrl = ' 192.168.1.20:8080/ ';
-    expect(settings.serverUrl, 'http://192.168.1.20:8080');
+      settings.useOwnServer(' 192.168.1.20:8080/ ');
+      expect(
+        settings.backend,
+        const Backend.ownServer('http://192.168.1.20:8080'),
+      );
+      expect(
+        AppSettings(await SharedPreferences.getInstance()).backend,
+        const Backend.ownServer('http://192.168.1.20:8080'),
+      );
+
+      settings.usePublicServices();
+      expect(settings.backend.isPublic, isTrue);
+      // The address is remembered for next time the dialog opens.
+      expect(settings.ownServerUrl, 'http://192.168.1.20:8080');
+    },
+  );
+
+  test('Backend derives service URLs', () {
+    const own = Backend.ownServer('https://maps.example.lk');
     expect(
-      AppSettings(await SharedPreferences.getInstance()).serverUrl,
-      'http://192.168.1.20:8080',
+      own.styleUrl(Brightness.light),
+      'https://maps.example.lk/styles/light.json',
     );
+    expect(
+      own.styleUrl(Brightness.dark),
+      'https://maps.example.lk/styles/dark.json',
+    );
+    expect(own.valhallaUrl, 'https://maps.example.lk/valhalla');
+    expect(own.createGeocoder(), isA<GeocodingService>());
+    expect(own.label, 'https://maps.example.lk');
 
-    settings.serverUrl = null;
-    expect(settings.serverUrl, builtIn);
-    expect(settings.hasCustomServer, isFalse);
+    const public = Backend.publicServices();
+    expect(
+      public.styleUrl(Brightness.light),
+      publicStyleUrls[Brightness.light],
+    );
+    expect(public.valhallaUrl, publicValhallaUrl);
+    expect(public.createGeocoder(), isA<PhotonGeocoder>());
+    expect(public, const Backend.publicServices());
+    expect(public, isNot(own));
   });
 
   test('normalizeServerUrl', () {
@@ -135,7 +171,7 @@ void main() {
     expect(normalizeServerUrl('http://'), isNull);
   });
 
-  test('services follow a server change', () async {
+  test('services follow a change of map data source', () async {
     final prefs = await SharedPreferences.getInstance();
     final settings = AppSettings(prefs);
     final services = AppServices(
@@ -143,9 +179,17 @@ void main() {
       saved: SavedPlaces(prefs),
       speech: _NoSpeech(),
     );
-    settings.serverUrl = 'https://maps.example.lk';
-    expect(services.routing.baseUrl, 'https://maps.example.lk');
-    expect(services.geocoder.baseUrl, 'https://maps.example.lk');
+    expect(services.routing.baseUrl, publicValhallaUrl);
+    final geocoder = services.geocoder;
+
+    settings.useOwnServer('https://maps.example.lk');
+    expect(
+      services.backend,
+      const Backend.ownServer('https://maps.example.lk'),
+    );
+    expect(services.routing.baseUrl, 'https://maps.example.lk/valhalla');
+    // Widgets keep their reference; the service behind it changed.
+    expect(services.geocoder, same(geocoder));
   });
 }
 

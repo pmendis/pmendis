@@ -20,7 +20,7 @@ const fixtureTo = LatLng(6.937, 79.865);
 /// The best route from [valhallaFixture].
 Future<RouteOption> fixtureRoute() async {
   final service = RoutingService(
-    baseUrl: 'http://gw',
+    baseUrl: 'http://gw/valhalla',
     client: MockClient((_) async => http.Response(valhallaFixture, 200)),
   );
   return (await service.route(fixtureFrom, fixtureTo)).first;

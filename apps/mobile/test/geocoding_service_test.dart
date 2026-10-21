@@ -18,7 +18,7 @@ void main() {
 
   GeocodingService serviceReturning(String body, {List<Uri>? requests}) =>
       GeocodingService(
-        baseUrl: 'http://gw',
+        baseUrl: 'http://gw/geocode',
         client: MockClient((req) async {
           requests?.add(req.url);
           return http.Response.bytes(utf8.encode(body), 200);

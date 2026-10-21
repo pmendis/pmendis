@@ -1,6 +1,10 @@
+import 'package:maplibre_gl/maplibre_gl.dart';
+
 import 'config.dart';
+import 'models/place.dart';
 import 'navigation/speech.dart';
-import 'services/geocoding_service.dart';
+import 'services/backend.dart';
+import 'services/geocoder.dart';
 import 'services/osm_notes_service.dart';
 import 'services/routing_service.dart';
 import 'storage/app_settings.dart';
@@ -12,23 +16,51 @@ class AppServices {
     required this.settings,
     required this.saved,
     RoutingService? routing,
-    GeocodingService? geocoder,
+    Geocoder? geocoder,
     OsmNotesService? notes,
     Speech? speech,
-  }) : routing = routing ?? RoutingService(baseUrl: settings.serverUrl),
-       geocoder = geocoder ?? GeocodingService(baseUrl: settings.serverUrl),
+  }) : _backend = settings.backend,
+       routing =
+           routing ?? RoutingService(baseUrl: settings.backend.valhallaUrl),
+       _geocoder = _SwitchingGeocoder(
+         geocoder ?? settings.backend.createGeocoder(),
+       ),
        notes = notes ?? OsmNotesService(apiBaseUrl: osmApiBaseUrl),
        speech = speech ?? TtsSpeech() {
-    settings.addListener(() {
-      this.routing.baseUrl = settings.serverUrl;
-      this.geocoder.baseUrl = settings.serverUrl;
-    });
+    settings.addListener(_onSettingsChanged);
   }
 
   final AppSettings settings;
   final SavedPlaces saved;
   final RoutingService routing;
-  final GeocodingService geocoder;
+  final _SwitchingGeocoder _geocoder;
   final OsmNotesService notes;
   final Speech speech;
+  Backend _backend;
+
+  /// Stays the same object while the service behind it follows the
+  /// Map data source setting.
+  Geocoder get geocoder => _geocoder;
+
+  Backend get backend => _backend;
+
+  void _onSettingsChanged() {
+    final backend = settings.backend;
+    if (backend == _backend) return;
+    _backend = backend;
+    routing.baseUrl = backend.valhallaUrl;
+    _geocoder.target = backend.createGeocoder();
+  }
+}
+
+class _SwitchingGeocoder implements Geocoder {
+  _SwitchingGeocoder(this.target);
+
+  Geocoder target;
+
+  @override
+  Future<List<Place>> search(String query) => target.search(query);
+
+  @override
+  Future<Place?> reverse(LatLng location) => target.reverse(location);
 }

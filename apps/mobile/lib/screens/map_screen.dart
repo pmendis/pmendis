@@ -16,7 +16,9 @@ import '../models/route.dart';
 import '../navigation/geo.dart';
 import '../navigation/navigation_controller.dart';
 import '../navigation/position_source.dart';
+import '../services/backend.dart';
 import '../services/external_navigation.dart';
+import '../services/http_headers.dart';
 import '../widgets/navigation_view.dart';
 import '../widgets/place_sheet.dart';
 import '../widgets/report_problem_dialog.dart';
@@ -26,7 +28,7 @@ import '../widgets/search_box.dart';
 import 'about_page.dart';
 import 'place_picker_page.dart';
 import 'saved_places_page.dart';
-import 'settings_page.dart' show SettingsPage, showServerDialog;
+import 'settings_page.dart' show SettingsPage, showBackendDialog;
 
 /// What the bottom of the screen is showing.
 enum _View { browse, place, directions, navigating }
@@ -56,7 +58,7 @@ class _MapScreenState extends State<MapScreen> {
   Brightness? _styleBrightness;
   String? _style;
   String? _styleError;
-  String? _loadedServer;
+  Backend? _loadedBackend;
 
   bool _locationGranted = false;
   LatLng? _myLocation;
@@ -110,7 +112,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _onSettingsChanged() {
-    if (_services.settings.serverUrl != _loadedServer) {
+    if (_services.settings.backend != _loadedBackend) {
       _loadStyle(_styleBrightness ?? Brightness.light);
     }
     final avoid = _services.settings.avoid;
@@ -125,26 +127,28 @@ class _MapScreenState extends State<MapScreen> {
   // ---------------------------------------------------------------- style
 
   /// Fetches the style from the gateway and points its tile URLs at it.
+  /// Fetches the map style for the current data source. For an own server
+  /// the style's tile URLs point back at that server.
   Future<void> _loadStyle(Brightness brightness) async {
-    final name = brightness == Brightness.dark ? 'dark' : 'light';
-    final server = _services.settings.serverUrl;
-    _loadedServer = server;
+    final backend = _services.settings.backend;
+    final url = backend.styleUrl(brightness);
+    _loadedBackend = backend;
     setState(() => _styleError = null);
     try {
       final res = await http
-          .get(Uri.parse('$server/styles/$name.json'))
-          .timeout(const Duration(seconds: 10));
+          .get(Uri.parse(url), headers: apiHeaders)
+          .timeout(const Duration(seconds: 15));
       if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
       if (!mounted) return;
       setState(() {
         _layersReady = false;
-        _style = res.body.replaceAll('{{BASE_URL}}', server);
+        _style = backend.isPublic
+            ? res.body
+            : res.body.replaceAll('{{BASE_URL}}', backend.serverUrl!);
       });
     } catch (e) {
       if (!mounted) return;
-      setState(
-        () => _styleError = 'Cannot reach the map server at $server\n$e',
-      );
+      setState(() => _styleError = 'Cannot load the map from $url\n$e');
     }
   }
 
@@ -776,7 +780,7 @@ class _MapScreenState extends State<MapScreen> {
             : () => _loadStyle(_styleBrightness ?? Brightness.light),
         onChangeServer: _styleError == null
             ? null
-            : () => showServerDialog(context, _services.settings),
+            : () => showBackendDialog(context, _services.settings),
       );
     }
     return MapLibreMap(
@@ -965,7 +969,7 @@ class _StatusView extends StatelessWidget {
               const SizedBox(height: 8),
               TextButton(
                 onPressed: onChangeServer,
-                child: const Text('Change server'),
+                child: const Text('Map data source'),
               ),
             ],
           ],

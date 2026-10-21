@@ -5,6 +5,13 @@ Maps, search and turn-by-turn navigation for Sri Lanka, using the backend in
 
 ## Features
 
+- **Works without a server.** By default the app uses free public
+  OpenStreetMap services: [OpenFreeMap](https://openfreemap.org) tiles,
+  the [FOSSGIS Valhalla](https://routing.openstreetmap.de) router and
+  [Photon](https://photon.komoot.io) search. They are volunteer-run and meant
+  for light, personal use. Switch to your own server (see `../../infra`) under
+  **Settings → Map data source** for anything bigger.
+
 - **Map** of Sri Lanka (OpenStreetMap data, light and dark styles)
 - **Search** for places, with Home, Work, favourites and recent searches
 - **Place details**: tap the map or a search result to get Directions, Save,
@@ -26,13 +33,15 @@ Maps, search and turn-by-turn navigation for Sri Lanka, using the backend in
 
 ## Run
 
-Start the backend first (see the root README), then:
-
 ```bash
 flutter pub get
 
-flutter run                       # Android emulator (reaches the host at 10.0.2.2:8080)
+flutter run                       # public services, no server needed
 flutter run -d chrome             # web
+
+# Against your own server (see the root README); on the Android emulator the
+# host machine is 10.0.2.2:
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
 flutter run --dart-define=API_BASE_URL=http://192.168.1.20:8080   # phone on your Wi-Fi
 ```
 
@@ -43,8 +52,8 @@ flutter build apk --dart-define=API_BASE_URL=https://maps.example.lk
 flutter build ipa --dart-define=API_BASE_URL=https://maps.example.lk
 ```
 
-The server address can also be changed in the app under **Settings → Map
-server**, so one APK works with any server, for example a computer on your
+The data source can also be changed in the app under **Settings → Map data
+source**: the public services, or your own server such as a computer on your
 Wi-Fi at `http://192.168.1.20:8080`.
 
 ## Download an APK
@@ -65,8 +74,9 @@ lib/
   main.dart, app_services.dart     startup and shared services
   config.dart                      gateway URL, OSM API URL, Sri Lanka bounds
   models/                          Place, RouteOption, Maneuver, TravelMode
-  services/                        Valhalla routing, Nominatim search,
-                                   OSM Notes, Google Maps hand-off
+  services/                        Backend (public services or own server),
+                                   Valhalla routing, Nominatim and Photon
+                                   search, OSM Notes, Google Maps hand-off
   navigation/
     geo.dart                       distances, bearings, snapping maths
     route_tracker.dart             snaps GPS to the route; progress, off-route, arrival

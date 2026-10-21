@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/place.dart';
-import '../services/geocoding_service.dart';
+import '../services/geocoder.dart';
 
 /// Debounced place search shared by the search bar and the place picker.
 class PlaceSearch extends ChangeNotifier {
   PlaceSearch(this._geocoder);
 
-  final GeocodingService _geocoder;
+  final Geocoder _geocoder;
   Timer? _debounce;
   int _requestId = 0;
 

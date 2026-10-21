@@ -5,7 +5,7 @@ import '../services/external_navigation.dart';
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
-  static const version = '0.2.0';
+  static const version = '0.3.0';
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +52,33 @@ class AboutPage extends StatelessWidget {
             'Improve the map: start editing OpenStreetMap',
             'https://www.openstreetmap.org/edit',
           ),
-          link('Map tiles: Protomaps', 'https://protomaps.com'),
-          link('Routing: Valhalla', 'https://github.com/valhalla/valhalla'),
-          link('Search: Nominatim', 'https://nominatim.org'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Public services', style: text.titleMedium),
+                const Text(
+                  'Unless you set up your own server, the app uses these free, '
+                  'volunteer-run services. Please use them considerately.',
+                ),
+              ],
+            ),
+          ),
+          link('Map tiles: OpenFreeMap', 'https://openfreemap.org'),
+          link(
+            'Routing: Valhalla by FOSSGIS',
+            'https://routing.openstreetmap.de',
+          ),
+          link('Search: Photon by komoot', 'https://photon.komoot.io'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text('Software', style: text.titleMedium),
+          ),
+          link('Protomaps (own-server tiles)', 'https://protomaps.com'),
+          link('Valhalla', 'https://github.com/valhalla/valhalla'),
+          link('Nominatim (own-server search)', 'https://nominatim.org'),
+          link('MapLibre', 'https://maplibre.org'),
           ListTile(
             title: const Text('Open-source licenses'),
             trailing: const Icon(Icons.chevron_right),

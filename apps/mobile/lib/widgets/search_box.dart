@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/place.dart';
-import '../services/geocoding_service.dart';
+import '../services/geocoder.dart';
 import '../storage/saved_places.dart';
 import 'place_search.dart';
 import 'place_tiles.dart';
@@ -17,7 +17,7 @@ class SearchBox extends StatefulWidget {
     required this.onMenu,
   });
 
-  final GeocodingService geocoder;
+  final Geocoder geocoder;
   final SavedPlaces saved;
   final ValueChanged<Place> onSelected;
   final VoidCallback onMenu;

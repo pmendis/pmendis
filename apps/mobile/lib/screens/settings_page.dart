@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/backend.dart';
 import '../storage/app_settings.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -15,12 +16,12 @@ class SettingsPage extends StatelessWidget {
         listenable: settings,
         builder: (context, _) => ListView(
           children: [
-            const _Section('Map server'),
+            const _Section('Map data'),
             ListTile(
-              leading: const Icon(Icons.dns_outlined),
-              title: const Text('Server address'),
-              subtitle: Text(settings.serverUrl),
-              onTap: () => showServerDialog(context, settings),
+              leading: const Icon(Icons.public),
+              title: const Text('Map data source'),
+              subtitle: Text(settings.backend.label),
+              onTap: () => showBackendDialog(context, settings),
             ),
             const _Section('Navigation'),
             SwitchListTile(
@@ -94,78 +95,101 @@ class _Section extends StatelessWidget {
   );
 }
 
-/// Lets the user point the app at their own Lanka Maps server.
-Future<void> showServerDialog(BuildContext context, AppSettings settings) =>
+/// Lets the user choose between the public services and their own server.
+Future<void> showBackendDialog(BuildContext context, AppSettings settings) =>
     showDialog<void>(
       context: context,
-      builder: (_) => _ServerDialog(settings: settings),
+      builder: (_) => _BackendDialog(settings: settings),
     );
 
-class _ServerDialog extends StatefulWidget {
-  const _ServerDialog({required this.settings});
+class _BackendDialog extends StatefulWidget {
+  const _BackendDialog({required this.settings});
 
   final AppSettings settings;
 
   @override
-  State<_ServerDialog> createState() => _ServerDialogState();
+  State<_BackendDialog> createState() => _BackendDialogState();
 }
 
-class _ServerDialogState extends State<_ServerDialog> {
-  late final _text = TextEditingController(text: widget.settings.serverUrl);
+class _BackendDialogState extends State<_BackendDialog> {
+  late BackendMode _mode = widget.settings.backend.mode;
+  late final _url = TextEditingController(
+    text: widget.settings.ownServerUrl ?? '',
+  );
   String? _error;
 
   @override
   void dispose() {
-    _text.dispose();
+    _url.dispose();
     super.dispose();
   }
 
   void _save() {
-    final url = normalizeServerUrl(_text.text);
-    if (url == null) {
-      setState(() => _error = 'Enter an address like http://192.168.1.20:8080');
-      return;
+    if (_mode == BackendMode.publicServices) {
+      widget.settings.usePublicServices();
+    } else {
+      final url = normalizeServerUrl(_url.text);
+      if (url == null) {
+        setState(
+          () => _error = 'Enter an address like http://192.168.1.20:8080',
+        );
+        return;
+      }
+      widget.settings.useOwnServer(url);
     }
-    widget.settings.serverUrl = url;
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Map server'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'The address of your Lanka Maps server (the gateway started '
-            'with docker compose), as seen from this phone.',
+      title: const Text('Map data source'),
+      contentPadding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
+      content: SingleChildScrollView(
+        child: RadioGroup<BackendMode>(
+          groupValue: _mode,
+          onChanged: (v) => setState(() => _mode = v!),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const RadioListTile(
+                value: BackendMode.publicServices,
+                title: Text('Public OpenStreetMap services'),
+                subtitle: Text(
+                  'Works without any setup. Free, volunteer-run; '
+                  'for personal use.',
+                ),
+              ),
+              const RadioListTile(
+                value: BackendMode.ownServer,
+                title: Text('My own server'),
+                subtitle: Text(
+                  'A Lanka Maps server you run (see the project README).',
+                ),
+              ),
+              if (_mode == BackendMode.ownServer)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                  child: TextField(
+                    controller: _url,
+                    autofocus: true,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    onSubmitted: (_) => _save(),
+                    decoration: InputDecoration(
+                      labelText: 'Server address',
+                      hintText: 'http://192.168.1.20:8080',
+                      border: const OutlineInputBorder(),
+                      errorText: _error,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _text,
-            autofocus: true,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            onSubmitted: (_) => _save(),
-            decoration: InputDecoration(
-              hintText: 'http://192.168.1.20:8080',
-              border: const OutlineInputBorder(),
-              errorText: _error,
-            ),
-          ),
-        ],
+        ),
       ),
       actions: [
-        if (widget.settings.hasCustomServer)
-          TextButton(
-            onPressed: () {
-              widget.settings.serverUrl = null;
-              Navigator.of(context).pop();
-            },
-            child: const Text('Reset'),
-          ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),

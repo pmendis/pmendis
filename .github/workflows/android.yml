@@ -37,6 +37,25 @@ jobs:
       - name: Install packages
         run: flutter pub get
 
+      - name: Check the public services the app uses by default
+        # The app's parsers are tested against fixtures; this makes sure the
+        # live services still answer in that shape (and that they are up).
+        run: |
+          ua="LankaMaps-CI (+https://github.com/${{ github.repository }})"
+          for style in liberty dark; do
+            curl -fsS -A "$ua" "https://tiles.openfreemap.org/styles/$style" \
+              | jq -e '.version == 8 and (.layers | length) > 0' >/dev/null
+          done
+          curl -fsS -A "$ua" -G https://valhalla1.openstreetmap.de/route \
+            --data-urlencode 'json={"locations":[{"lat":6.9344,"lon":79.8428},{"lat":7.2906,"lon":80.6337}],"costing":"auto"}' \
+            | jq -e '.trip.legs[0].maneuvers | length > 0' >/dev/null
+          curl -fsS -A "$ua" -G https://photon.komoot.io/api \
+            --data-urlencode q=Kandy -d lang=en -d limit=3 -d bbox=79.3,5.7,82.1,10.1 \
+            | jq -e '.features[0].properties.name and .features[0].geometry.coordinates[1]' >/dev/null
+          curl -fsS -A "$ua" -G https://photon.komoot.io/reverse -d lat=6.9271 -d lon=79.8612 -d lang=en \
+            | jq -e '.features | length > 0' >/dev/null
+          echo "Public services answer as expected."
+
       - name: Analyze
         run: flutter analyze
 
@@ -44,11 +63,12 @@ jobs:
         run: flutter test
 
       - name: Build release APK
-        # Set the API_BASE_URL repository variable to bake in a default server;
-        # it can always be changed in the app under Settings → Map server.
+        # Without API_BASE_URL the app starts on the public services. Set the
+        # repository variable to bake in an own server instead; either can be
+        # changed in the app under Settings → Map data source.
         run: >
           flutter build apk --release
-          --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'http://10.0.2.2:8080' }}
+          --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || '' }}
 
       - name: Name the APK
         run: |
@@ -121,5 +141,5 @@ jobs:
             Test build from commit ${{ github.sha }} (`${{ github.ref_name }}`).
             Debug-signed: fine for installing directly on a phone, not for the Play Store.
 
-            After installing, set your server under **Settings → Map server**
-            (or tap **Change server** on the error screen), e.g. `http://192.168.1.20:8080`.
+            Works out of the box using public OpenStreetMap services. To use your
+            own server instead, open **Settings → Map data source**.

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/place.dart';
-import '../services/geocoding_service.dart';
+import '../services/geocoder.dart';
 import '../storage/saved_places.dart';
 import '../widgets/place_search.dart';
 import '../widgets/place_tiles.dart';
@@ -17,7 +17,7 @@ class PlacePickerPage extends StatefulWidget {
   });
 
   final String title;
-  final GeocodingService geocoder;
+  final Geocoder geocoder;
   final SavedPlaces saved;
 
   /// Offered as the first choice when known.

@@ -29,6 +29,11 @@ styles/           MapLibre map styles (generated from @protomaps/basemaps)
 
 ## Quick start
 
+**Just want the app?** Install the APK from the
+[Releases page](https://github.com/pmendis/pmendis/releases). It works out of
+the box on free public OpenStreetMap services (for personal use). The server
+below is for running your own instance.
+
 Requirements: Docker with Compose, about 8 GB RAM and 20 GB disk free, and Flutter 3.44+.
 
 ```bash
