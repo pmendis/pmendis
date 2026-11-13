@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Anyone can read the house data (no account needed).
+    // Only a signed-in user (the organiser's account created in
+    // Firebase console → Authentication → Users) can write.
+    match /{collection}/{doc} {
+      allow read: if collection in ['settings', 'sports', 'players', 'games'];
+      allow write: if request.auth != null
+                   && collection in ['settings', 'sports', 'players', 'games'];
+    }
+  }
+}
