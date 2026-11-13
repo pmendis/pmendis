@@ -199,12 +199,16 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
           <input type="hidden" id="player-id">
           <label>Full name<input id="player-name" required maxlength="80"></label>
           <div class="row2">
-            <label>Staff / student ID<input id="player-ref" maxlength="30"></label>
+            <label>EPF number<input id="player-ref" maxlength="30" inputmode="numeric"></label>
             <label>Gender
               <select id="player-gender"><option value="">—</option><option>Female</option><option>Male</option><option>Other</option></select>
             </label>
           </div>
-          <label>Phone<input id="player-phone" type="tel" maxlength="20"></label>
+          <div class="row2">
+            <label>Department<input id="player-dept" maxlength="60" list="dept-options" placeholder="e.g. Finance"></label>
+            <label>Phone<input id="player-phone" type="tel" maxlength="20"></label>
+          </div>
+          <datalist id="dept-options"></datalist>
           <fieldset><legend>Sports</legend><div class="checks" id="player-sports"></div></fieldset>
           <div class="btns">
             <button class="btn primary" type="submit" id="player-save">Add player</button>
@@ -215,7 +219,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       <div class="panel">
         <h2>Squad list</h2>
         <div class="toolbar">
-          <input id="f-search" type="search" placeholder="Search name, number or ID">
+          <input id="f-search" type="search" placeholder="Search name, number, EPF or department">
           <select id="f-sport"></select>
           <button class="btn" type="button" id="export-csv">Export CSV</button>
         </div>
@@ -591,6 +595,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   }
 
   function renderFilter(S) {
+    $("dept-options").innerHTML = [...new Set(players().map((p) => p.dept).filter(Boolean))].sort().map((d) => `<option value="${esc(d)}">`).join("");
     const fs = $("f-sport"), v = fs.value;
     fs.innerHTML = `<option value="">All sports</option>` + S.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
     fs.value = S.some((s) => s.id === v) ? v : "";
@@ -598,7 +603,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   function filteredPlayers() {
     const q = $("f-search").value.trim().toLowerCase(), fs = $("f-sport").value;
     return players().filter((p) => (!fs || (p.sportIds || []).includes(fs)) &&
-      (!q || [p.name, numLabel(p), p.ref].some((v) => String(v || "").toLowerCase().includes(q))));
+      (!q || [p.name, numLabel(p), p.ref, p.dept].some((v) => String(v || "").toLowerCase().includes(q))));
   }
   function renderPlayers() {
     const all = players();
@@ -608,7 +613,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("player-list").innerHTML = `<table><thead><tr><th>No.</th><th>Player</th><th>Sports</th><th></th></tr></thead><tbody>${L.map((p) => {
       const evs = (p.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
       return `<tr><td><span class="bib">${esc(numLabel(p))}</span></td>
-        <td><b>${esc(p.name)}</b><div class="muted">${[p.ref, p.gender, p.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
+        <td><b>${esc(p.name)}</b><div class="muted">${[p.ref ? "EPF " + p.ref : "", p.dept, p.gender, p.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
         <td>${evs.length ? evs.map((s) => `<span class="chip">${esc(s.name)}</span>`).join("") : '<span class="muted">None</span>'}</td>
         <td class="actions"><button class="btn small" data-edit="players:${esc(p.id)}">Edit</button> <button class="btn small danger" data-del="players:${esc(p.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table>
       <div class="muted" style="margin-top:8px">${L.length} of ${all.length} players</div>`;
@@ -660,7 +665,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       $("sport-id").value = id; $("sport-name").value = r.name || ""; $("sport-type").value = r.type || "team";
       $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || ""; editMode("sport", "Edit sport");
     } else if (col === "players") {
-      $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || "";
+      $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || "";
       $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || "";
       renderPlayerSports(); $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = (r.sportIds || []).includes(i.value); i.disabled = false; });
       editMode("player", "Edit " + numLabel(r));
@@ -691,14 +696,14 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const existing = $("player-id").value ? Store.get("players", $("player-id").value) : null;
     const id = existing ? existing.id : uid(), name = $("player-name").value.trim(); if (!name) return;
     const ref = $("player-ref").value.trim();
-    if (ref && players().some((p) => p.id !== id && (p.ref || "").toLowerCase() === ref.toLowerCase())) { notice(`ID ${ref} is already registered.`, "bad"); return; }
+    if (ref && players().some((p) => p.id !== id && (p.ref || "").toLowerCase() === ref.toLowerCase())) { notice(`EPF number ${ref} is already registered.`, "bad"); return; }
     const sportIds = [...$("player-sports").querySelectorAll("input:checked")].map((i) => i.value);
     for (const sid of sportIds) {
       const s = Store.get("sports", sid), q = s && +s.squad;
       if (q && picked(sid, id) >= q) { notice(`The ${s.name} squad already has ${q} players. Remove one first or raise the squad size.`, "bad"); return; }
     }
     const number = existing ? existing.number : nextNumber();
-    const ok = await Store.put("players", id, { name, number, ref, gender: $("player-gender").value, phone: $("player-phone").value.trim(), sportIds });
+    const ok = await Store.put("players", id, { name, number, ref, dept: $("player-dept").value.trim(), gender: $("player-gender").value, phone: $("player-phone").value.trim(), sportIds });
     if (ok) { notice(`${existing ? "Updated" : "Added"} ${name}.`, "ok"); resetForm("players"); }
   });
 
@@ -723,8 +728,8 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   }
   const csvCell = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   $("export-csv").onclick = () => {
-    const rows = [["No.", "Name", "ID", "Gender", "Phone", "Sports"]];
-    for (const p of filteredPlayers()) rows.push([numLabel(p), p.name, p.ref, p.gender, p.phone, (p.sportIds || []).map((id) => (Store.get("sports", id) || {}).name).filter(Boolean).join("; ")]);
+    const rows = [["No.", "Name", "EPF number", "Department", "Gender", "Phone", "Sports"]];
+    for (const p of filteredPlayers()) rows.push([numLabel(p), p.name, p.ref, p.dept, p.gender, p.phone, (p.sportIds || []).map((id) => (Store.get("sports", id) || {}).name).filter(Boolean).join("; ")]);
     saveFile("house-players.csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"), "text/csv");
   };
   $("export-json").onclick = () => saveFile("house-sports-backup.json", JSON.stringify(Store.data, null, 2), "application/json");
