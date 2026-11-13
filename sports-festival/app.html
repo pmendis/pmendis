@@ -104,6 +104,11 @@ td.num, th.num { text-align: center; }
 .sub { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .actions { white-space: nowrap; text-align: right; }
 body.readonly .actions, body.readonly th:last-child { display: none; }
+tr.squad-row { cursor: pointer; }
+tr.squad-row:hover td { background: var(--bg); }
+tr.squad-row .caret { display: inline-block; width: 16px; color: var(--muted); }
+tr.squad-list td { padding: 4px 10px 12px 36px; background: var(--bg); }
+tr.squad-list ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 .score { font: 700 18px var(--font-display); white-space: nowrap; }
 
@@ -547,11 +552,23 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
         <td class="num">${(g.lineup || []).length} picked</td></tr>`; }).join("")}</tbody></table>`
       : `<div class="empty">No games waiting to be played. Add fixtures in <b>Games</b>.</div>`;
     $("ov-squads").innerHTML = S.length ? `<table><tbody>${S.map((s) => {
-      const n = picked(s.id), q = +s.squad || 0;
+      const n = picked(s.id), q = +s.squad || 0, open = openSquads.has(s.id);
       const cls = q && n > q ? "over" : q && n === q ? "full" : n ? "ok" : "short";
-      return `<tr><td><b>${esc(s.name)}</b><div class="sub">${esc(s.type)}</div></td><td class="num"><span class="pill ${cls}">${n}${q ? " / " + q : ""}</span></td></tr>`; }).join("")}</tbody></table>`
+      const members = P.filter((p) => (p.sportIds || []).includes(s.id));
+      return `<tr class="squad-row" data-squad="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
+          <td><span class="caret">${open ? "▾" : "▸"}</span><b>${esc(s.name)}</b><div class="sub">${esc(s.type)}</div></td>
+          <td class="num"><span class="pill ${cls}">${n}${q ? " / " + q : ""}</span></td></tr>
+        ${open ? `<tr class="squad-list"><td colspan="2">${members.length
+          ? `<ul>${members.map((p) => `<li><span class="bib">${esc(numLabel(p))}</span> ${esc(p.name)}${p.gender ? ` <span class="muted">· ${esc(p.gender)}</span>` : ""}</li>`).join("")}</ul>`
+          : `<span class="muted">No players picked for ${esc(s.name)} yet.</span>`}</td></tr>` : ""}`; }).join("")}</tbody></table>`
       : `<div class="empty">Add the sports your house has entered in <b>Sports</b>.</div>`;
   }
+  const openSquads = new Set();
+  $("ov-squads").addEventListener("click", (ev) => {
+    const row = ev.target.closest("tr.squad-row"); if (!row) return;
+    const id = row.dataset.squad; openSquads.has(id) ? openSquads.delete(id) : openSquads.add(id);
+    renderOverview(sports(), players(), games());
+  });
 
   function renderSports(S) {
     if (!S.length) { $("sport-list").innerHTML = `<div class="empty">No sports yet. Add each sport your house has entered.</div>`; return; }
