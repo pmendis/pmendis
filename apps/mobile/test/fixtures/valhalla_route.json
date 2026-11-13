@@ -1,0 +1,403 @@
+{
+ "trip": {
+  "locations": [
+   {
+    "type": "break",
+    "lat": 6.919,
+    "lon": 79.849,
+    "original_index": 0
+   },
+   {
+    "type": "break",
+    "lat": 6.937,
+    "lon": 79.865,
+    "original_index": 1
+   }
+  ],
+  "legs": [
+   {
+    "maneuvers": [
+     {
+      "type": 1,
+      "instruction": "Drive east on Galle Road.",
+      "verbal_succinct_transition_instruction": "Drive east.",
+      "verbal_pre_transition_instruction": "Drive east on Galle Road.",
+      "verbal_post_transition_instruction": "Continue for 900 meters.",
+      "street_names": [
+       "Galle Road"
+      ],
+      "bearing_after": 90,
+      "time": 42.449,
+      "length": 0.884,
+      "cost": 37.658,
+      "begin_shape_index": 0,
+      "end_shape_index": 2,
+      "travel_mode": "drive",
+      "travel_type": "car"
+     },
+     {
+      "type": 15,
+      "instruction": "Turn left onto Ananda Coomaraswamy Mawatha.",
+      "verbal_transition_alert_instruction": "Turn left onto Ananda Coomaraswamy Mawatha.",
+      "verbal_succinct_transition_instruction": "Turn left.",
+      "verbal_pre_transition_instruction": "Turn left onto Ananda Coomaraswamy Mawatha.",
+      "verbal_post_transition_instruction": "Continue for 1.5 kilometers.",
+      "street_names": [
+       "Ananda Coomaraswamy Mawatha"
+      ],
+      "bearing_before": 90,
+      "bearing_after": 0,
+      "time": 82.24,
+      "length": 1.335,
+      "cost": 84.089,
+      "begin_shape_index": 2,
+      "end_shape_index": 5,
+      "travel_mode": "drive",
+      "travel_type": "car"
+     },
+     {
+      "type": 10,
+      "instruction": "Turn right onto Havelock Road.",
+      "verbal_transition_alert_instruction": "Turn right onto Havelock Road.",
+      "verbal_succinct_transition_instruction": "Turn right.",
+      "verbal_pre_transition_instruction": "Turn right onto Havelock Road.",
+      "verbal_post_transition_instruction": "Continue for 900 meters.",
+      "street_names": [
+       "Havelock Road"
+      ],
+      "bearing_before": 0,
+      "bearing_after": 90,
+      "time": 47.844,
+      "length": 0.884,
+      "cost": 53.188,
+      "begin_shape_index": 5,
+      "end_shape_index": 7,
+      "travel_mode": "drive",
+      "travel_type": "car"
+     },
+     {
+      "type": 15,
+      "instruction": "Turn left onto Ward Place.",
+      "verbal_transition_alert_instruction": "Turn left onto Ward Place.",
+      "verbal_succinct_transition_instruction": "Turn left.",
+      "verbal_pre_transition_instruction": "Turn left onto Ward Place.",
+      "verbal_post_transition_instruction": "Continue for 700 meters.",
+      "street_names": [
+       "Ward Place"
+      ],
+      "bearing_before": 90,
+      "bearing_after": 0,
+      "time": 70.794,
+      "length": 0.667,
+      "cost": 74.087,
+      "begin_shape_index": 7,
+      "end_shape_index": 9,
+      "travel_mode": "drive",
+      "travel_type": "car"
+     },
+     {
+      "type": 4,
+      "instruction": "You have arrived at your destination.",
+      "verbal_transition_alert_instruction": "You will arrive at your destination.",
+      "verbal_pre_transition_instruction": "You have arrived at your destination.",
+      "bearing_before": 0,
+      "time": 0.0,
+      "length": 0.0,
+      "cost": 0.0,
+      "begin_shape_index": 9,
+      "end_shape_index": 9,
+      "travel_mode": "drive",
+      "travel_type": "car"
+     }
+    ],
+    "summary": {
+     "has_time_restrictions": false,
+     "has_toll": false,
+     "has_highway": false,
+     "has_ferry": false,
+     "min_lat": 6.919,
+     "min_lon": 79.849,
+     "max_lat": 6.937,
+     "max_lon": 79.865,
+     "time": 243.329,
+     "length": 3.77,
+     "cost": 249.024
+    },
+    "shape": "otheLoarhwC?_yF?_yF_yF?_yF?_yF??_yF?_yF_yF?_|B?"
+   }
+  ],
+  "summary": {
+   "has_time_restrictions": false,
+   "has_toll": false,
+   "has_highway": false,
+   "has_ferry": false,
+   "min_lat": 6.919,
+   "min_lon": 79.849,
+   "max_lat": 6.937,
+   "max_lon": 79.865,
+   "time": 243.329,
+   "length": 3.77,
+   "cost": 249.024
+  },
+  "status_message": "Found route between points",
+  "status": 0,
+  "units": "kilometers",
+  "language": "en-US"
+ },
+ "alternates": [
+  {
+   "trip": {
+    "locations": [
+     {
+      "type": "break",
+      "lat": 6.919,
+      "lon": 79.849,
+      "original_index": 0
+     },
+     {
+      "type": "break",
+      "lat": 6.937,
+      "lon": 79.865,
+      "original_index": 1
+     }
+    ],
+    "legs": [
+     {
+      "maneuvers": [
+       {
+        "type": 1,
+        "instruction": "Drive east on Galle Road.",
+        "verbal_succinct_transition_instruction": "Drive east.",
+        "verbal_pre_transition_instruction": "Drive east on Galle Road.",
+        "verbal_post_transition_instruction": "Continue for 2 kilometers.",
+        "street_names": [
+         "Galle Road"
+        ],
+        "bearing_after": 90,
+        "time": 84.917,
+        "length": 1.768,
+        "cost": 79.316,
+        "begin_shape_index": 0,
+        "end_shape_index": 4,
+        "travel_mode": "drive",
+        "travel_type": "car"
+       },
+       {
+        "type": 15,
+        "instruction": "Turn left onto Ward Place.",
+        "verbal_transition_alert_instruction": "Turn left onto Ward Place.",
+        "verbal_succinct_transition_instruction": "Turn left.",
+        "verbal_pre_transition_instruction": "Turn left onto Ward Place.",
+        "verbal_post_transition_instruction": "Continue for 2 kilometers.",
+        "street_names": [
+         "Ward Place"
+        ],
+        "bearing_before": 90,
+        "bearing_after": 0,
+        "time": 208.161,
+        "length": 2.002,
+        "cost": 220.526,
+        "begin_shape_index": 4,
+        "end_shape_index": 9,
+        "travel_mode": "drive",
+        "travel_type": "car"
+       },
+       {
+        "type": 4,
+        "instruction": "You have arrived at your destination.",
+        "verbal_transition_alert_instruction": "You will arrive at your destination.",
+        "verbal_pre_transition_instruction": "You have arrived at your destination.",
+        "bearing_before": 0,
+        "time": 0.0,
+        "length": 0.0,
+        "cost": 0.0,
+        "begin_shape_index": 9,
+        "end_shape_index": 9,
+        "travel_mode": "drive",
+        "travel_type": "car"
+       }
+      ],
+      "summary": {
+       "has_time_restrictions": false,
+       "has_toll": false,
+       "has_highway": false,
+       "has_ferry": false,
+       "min_lat": 6.919,
+       "min_lon": 79.849,
+       "max_lat": 6.937,
+       "max_lon": 79.865,
+       "time": 293.078,
+       "length": 3.77,
+       "cost": 299.842
+      },
+      "shape": "otheLoarhwC?_yF?_yF?_yF?_yF_yF?_yF?_yF?_yF?_|B?"
+     }
+    ],
+    "summary": {
+     "has_time_restrictions": false,
+     "has_toll": false,
+     "has_highway": false,
+     "has_ferry": false,
+     "min_lat": 6.919,
+     "min_lon": 79.849,
+     "max_lat": 6.937,
+     "max_lon": 79.865,
+     "time": 293.078,
+     "length": 3.77,
+     "cost": 299.842
+    },
+    "status_message": "Found route between points",
+    "status": 0,
+    "units": "kilometers",
+    "language": "en-US"
+   }
+  },
+  {
+   "trip": {
+    "locations": [
+     {
+      "type": "break",
+      "lat": 6.919,
+      "lon": 79.849,
+      "original_index": 0
+     },
+     {
+      "type": "break",
+      "lat": 6.937,
+      "lon": 79.865,
+      "original_index": 1
+     }
+    ],
+    "legs": [
+     {
+      "maneuvers": [
+       {
+        "type": 1,
+        "instruction": "Drive east on Galle Road.",
+        "verbal_succinct_transition_instruction": "Drive east.",
+        "verbal_pre_transition_instruction": "Drive east on Galle Road.",
+        "verbal_post_transition_instruction": "Continue for 900 meters.",
+        "street_names": [
+         "Galle Road"
+        ],
+        "bearing_after": 90,
+        "time": 42.449,
+        "length": 0.884,
+        "cost": 37.658,
+        "begin_shape_index": 0,
+        "end_shape_index": 2,
+        "travel_mode": "drive",
+        "travel_type": "car"
+       },
+       {
+        "type": 15,
+        "instruction": "Turn left onto Ananda Coomaraswamy Mawatha.",
+        "verbal_transition_alert_instruction": "Turn left onto Ananda Coomaraswamy Mawatha.",
+        "verbal_succinct_transition_instruction": "Turn left.",
+        "verbal_pre_transition_instruction": "Turn left onto Ananda Coomaraswamy Mawatha.",
+        "verbal_post_transition_instruction": "Continue for 2 kilometers.",
+        "street_names": [
+         "Ananda Coomaraswamy Mawatha"
+        ],
+        "bearing_before": 90,
+        "bearing_after": 0,
+        "time": 135.676,
+        "length": 2.225,
+        "cost": 141.482,
+        "begin_shape_index": 2,
+        "end_shape_index": 7,
+        "travel_mode": "drive",
+        "travel_type": "car"
+       },
+       {
+        "type": 10,
+        "instruction": "Turn right onto Kotte Road.",
+        "verbal_transition_alert_instruction": "Turn right onto Kotte Road.",
+        "verbal_succinct_transition_instruction": "Turn right.",
+        "verbal_pre_transition_instruction": "Turn right onto Kotte Road.",
+        "verbal_post_transition_instruction": "Continue for 900 meters.",
+        "street_names": [
+         "Kotte Road"
+        ],
+        "bearing_before": 0,
+        "bearing_after": 90,
+        "time": 96.338,
+        "length": 0.884,
+        "cost": 91.059,
+        "begin_shape_index": 7,
+        "end_shape_index": 9,
+        "travel_mode": "drive",
+        "travel_type": "car"
+       },
+       {
+        "type": 10,
+        "instruction": "Turn right onto Ward Place.",
+        "verbal_transition_alert_instruction": "Turn right onto Ward Place.",
+        "verbal_succinct_transition_instruction": "Turn right.",
+        "verbal_pre_transition_instruction": "Turn right onto Ward Place.",
+        "verbal_post_transition_instruction": "Continue for 200 meters.",
+        "street_names": [
+         "Ward Place"
+        ],
+        "bearing_before": 90,
+        "bearing_after": 180,
+        "time": 28.266,
+        "length": 0.222,
+        "cost": 32.512,
+        "begin_shape_index": 9,
+        "end_shape_index": 10,
+        "travel_mode": "drive",
+        "travel_type": "car"
+       },
+       {
+        "type": 4,
+        "instruction": "You have arrived at your destination.",
+        "verbal_transition_alert_instruction": "You will arrive at your destination.",
+        "verbal_pre_transition_instruction": "You have arrived at your destination.",
+        "bearing_before": 180,
+        "time": 0.0,
+        "length": 0.0,
+        "cost": 0.0,
+        "begin_shape_index": 10,
+        "end_shape_index": 10,
+        "travel_mode": "drive",
+        "travel_type": "car"
+       }
+      ],
+      "summary": {
+       "has_time_restrictions": false,
+       "has_toll": false,
+       "has_highway": false,
+       "has_ferry": false,
+       "min_lat": 6.919,
+       "min_lon": 79.849,
+       "max_lat": 6.939,
+       "max_lon": 79.865,
+       "time": 302.73,
+       "length": 4.215,
+       "cost": 302.713
+      },
+      "shape": "otheLoarhwC?_yF?_yF_yF?_yF?_yF?_yF?_yF??_yF?_yF~{B?"
+     }
+    ],
+    "summary": {
+     "has_time_restrictions": false,
+     "has_toll": false,
+     "has_highway": false,
+     "has_ferry": false,
+     "min_lat": 6.919,
+     "min_lon": 79.849,
+     "max_lat": 6.939,
+     "max_lon": 79.865,
+     "time": 302.73,
+     "length": 4.215,
+     "cost": 302.713
+    },
+    "status_message": "Found route between points",
+    "status": 0,
+    "units": "kilometers",
+    "language": "en-US"
+   }
+  }
+ ]
+}

@@ -1,0 +1,145 @@
+# Checks the Flutter app and builds an installable Android APK.
+# The APK is attached to each run as the "lanka-maps-apk" artifact.
+name: Android APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.7"
+          channel: stable
+          cache: true
+
+      - name: Install packages
+        run: flutter pub get
+
+      - name: Check the public services the app uses by default
+        # The app's parsers are tested against fixtures; this makes sure the
+        # live services still answer in that shape (and that they are up).
+        run: |
+          ua="LankaMaps-CI (+https://github.com/${{ github.repository }})"
+          for style in liberty dark; do
+            curl -fsS -A "$ua" "https://tiles.openfreemap.org/styles/$style" \
+              | jq -e '.version == 8 and (.layers | length) > 0' >/dev/null
+          done
+          curl -fsS -A "$ua" -G https://valhalla1.openstreetmap.de/route \
+            --data-urlencode 'json={"locations":[{"lat":6.9344,"lon":79.8428},{"lat":7.2906,"lon":80.6337}],"costing":"auto"}' \
+            | jq -e '.trip.legs[0].maneuvers | length > 0' >/dev/null
+          curl -fsS -A "$ua" -G https://photon.komoot.io/api \
+            --data-urlencode q=Kandy -d lang=en -d limit=3 -d bbox=79.3,5.7,82.1,10.1 \
+            | jq -e '.features[0].properties.name and .features[0].geometry.coordinates[1]' >/dev/null
+          curl -fsS -A "$ua" -G https://photon.komoot.io/reverse -d lat=6.9271 -d lon=79.8612 -d lang=en \
+            | jq -e '.features | length > 0' >/dev/null
+          echo "Public services answer as expected."
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build release APK
+        # Without API_BASE_URL the app starts on the public services. Set the
+        # repository variable to bake in an own server instead; either can be
+        # changed in the app under Settings → Map data source.
+        run: >
+          flutter build apk --release
+          --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || '' }}
+
+      - name: Name the APK
+        run: |
+          version=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          cp build/app/outputs/flutter-apk/app-release.apk "lanka-maps-$version.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lanka-maps-apk
+          path: apps/mobile/lanka-maps-*.apk
+          if-no-files-found: error
+
+  # Launches the APK on an Android emulator and checks it gets past the
+  # splash screen. The screen text and app log are printed in the job log.
+  emulator-smoke-test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: lanka-maps-apk
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the app on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: OUT_DIR=smoke-test apps/mobile/tool/android_smoke_test.sh "$(ls apk/*.apk)"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-smoke-test
+          path: smoke-test/
+
+  # Publishes the APK as a GitHub pre-release once it has started on the
+  # emulator, so it can be downloaded directly (no zip, no sign-in).
+  publish-apk:
+    needs: [build, emulator-smoke-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: lanka-maps-apk
+          path: apk
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Lanka Maps build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          files: apk/*.apk
+          body: |
+            Test build from commit ${{ github.sha }} (`${{ github.ref_name }}`).
+            Debug-signed: fine for installing directly on a phone, not for the Play Store.
+
+            Works out of the box using public OpenStreetMap services. To use your
+            own server instead, open **Settings → Map data source**.

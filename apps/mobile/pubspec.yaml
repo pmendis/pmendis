@@ -1,0 +1,31 @@
+name: lanka_maps
+description: "Lanka Maps: free OpenStreetMap-based maps and navigation for Sri Lanka."
+publish_to: 'none'
+version: 0.3.1+4
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_tts: ^4.2.5
+  geolocator: ^14.1.2
+  http: ^1.6.0
+  maplibre_gl: ^0.27.1
+  pointer_interceptor: ^0.10.1+3
+  shared_preferences: ^2.5.6
+  # 2.5.x of the Android implementation calls Kotlin over JNI, which R8 breaks
+  # in release builds (app stuck on the splash screen). 2.4.28 uses ordinary
+  # method channels. See android/app/proguard-rules.pro.
+  shared_preferences_android: 2.4.28
+  url_launcher: ^6.3.3
+  wakelock_plus: ^1.8.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
