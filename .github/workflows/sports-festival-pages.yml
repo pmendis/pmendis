@@ -26,12 +26,21 @@ jobs:
       - name: Build static site
         run: |
           mkdir -p _site
+          # Firebase config: the FIREBASE_CONFIG repository variable (a JSON object) wins over the committed file.
+          if [ -n "$FIREBASE_CONFIG" ]; then
+            printf 'window.FIREBASE_CONFIG = %s;\n' "$FIREBASE_CONFIG" > _site/firebase-config.js
+          else
+            cp sports-festival/firebase-config.js _site/firebase-config.js
+          fi
           {
             echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-            echo '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>'
+            echo '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+            echo '<script src="firebase-config.js"></script></head><body>'
             cat sports-festival/app.html
             echo '</body></html>'
           } > _site/index.html
+        env:
+          FIREBASE_CONFIG: ${{ vars.FIREBASE_CONFIG }}
       - uses: actions/configure-pages@v5
         with:
           enablement: true

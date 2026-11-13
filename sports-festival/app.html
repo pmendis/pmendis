@@ -103,6 +103,8 @@ td.num, th.num { text-align: center; }
 .empty { padding: 28px 12px; text-align: center; color: var(--muted); }
 .sub { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .actions { white-space: nowrap; text-align: right; }
+body.readonly .actions, body.readonly th:last-child { display: none; }
+body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 .score { font: 700 18px var(--font-display); white-space: nowrap; }
 
 @media (max-width: 820px) {
@@ -120,6 +122,7 @@ td.num, th.num { text-align: center; }
     </div>
     <div class="hdr-right">
       <button class="linkbtn" type="button" id="house-edit">Rename house</button>
+      <button class="linkbtn" type="button" id="auth-btn" hidden>Sign in to edit</button>
       <div id="mode" class="mode wait">Connecting…</div>
     </div>
   </div>
@@ -136,6 +139,17 @@ td.num, th.num { text-align: center; }
 
 <main class="wrap">
   <div id="notice" class="notice" hidden></div>
+
+  <div class="panel" id="auth-panel" hidden style="margin-bottom:20px">
+    <h2>Sign in to edit <small>only the house organiser's account can change data; everyone else can view</small></h2>
+    <form id="auth-form" autocomplete="on">
+      <div class="row2">
+        <label>Email<input id="auth-email" type="email" required autocomplete="username"></label>
+        <label>Password<input id="auth-pass" type="password" required autocomplete="current-password"></label>
+      </div>
+      <div class="btns"><button class="btn primary" type="submit">Sign in</button><button class="btn" type="button" id="auth-cancel">Cancel</button></div>
+    </form>
+  </div>
 
   <div class="panel" id="house-panel" hidden style="margin-bottom:20px">
     <h2>House details</h2>
@@ -279,6 +293,7 @@ td.num, th.num { text-align: center; }
         try { this.downloads = await window.claude.use("downloads"); } catch (e) { this.downloads = null; }
       }
       if (this.db) return this.initCloud();
+      if (await this.tryFirebase()) return;
       this.mode = "local";
       try { const raw = localStorage.getItem(LS_KEY); if (raw) Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
       for (const c of COLS) this.data[c] = this.data[c] || {};
@@ -298,21 +313,54 @@ td.num, th.num { text-align: center; }
       }
       render();
     },
+    /* Firebase (GitHub Pages / any static host): everyone reads, signed-in owner writes. Config comes from firebase-config.js. */
+    fb: null, user: null,
+    async tryFirebase() {
+      const cfg = window.FIREBASE_CONFIG;
+      if (!cfg || !cfg.apiKey || !cfg.projectId || /^YOUR_/.test(cfg.apiKey)) return false;
+      const load = (src) => new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.appendChild(s); });
+      try {
+        const base = "https://www.gstatic.com/firebasejs/10.14.1/";
+        await load(base + "firebase-app-compat.js");
+        await Promise.all([load(base + "firebase-firestore-compat.js"), load(base + "firebase-auth-compat.js")]);
+        firebase.initializeApp(cfg);
+        this.fb = firebase.firestore();
+      } catch (e) { notice("Couldn't load the shared database. Showing data saved in this browser instead.", "warn"); return false; }
+      this.mode = "firebase";
+      firebase.auth().onAuthStateChanged((u) => { this.user = u; render(); });
+      const timer = setTimeout(() => notice("The shared database hasn't answered yet. What you see may be out of date.", "warn"), 10000);
+      let confirmed = 0;
+      for (const c of COLS) {
+        this.fb.collection(c).onSnapshot((snap) => {
+          const next = {}; snap.forEach((d) => { next[d.id] = d.data(); });
+          this.data[c] = next;
+          if (!snap.metadata.fromCache && ++confirmed >= COLS.length) clearTimeout(timer);
+          render();
+        }, (err) => { clearTimeout(timer); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page to reconnect.", "bad"); });
+      }
+      render();
+      return true;
+    },
+    canEdit() { return this.mode !== "firebase" || !!this.user; },
     persistLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) { notice("This browser blocked saving. Use Download backup to keep your data.", "bad"); } },
     async put(col, id, obj) {
+      if (this.mode === "firebase" && !this.user) { notice("Sign in (top right) to make changes.", "bad"); return false; }
       if (this.mode === "cloud") { try { await this.db.collection(col).doc(id).set(obj); } catch (e) { notice(writeError(e), "bad"); return false; } }
+      else if (this.mode === "firebase") { try { await this.fb.collection(col).doc(id).set(obj); } catch (e) { notice(writeError(e), "bad"); return false; } }
       else { this.data[col] = { ...this.data[col], [id]: obj }; this.persistLocal(); render(); }
       return true;
     },
     async remove(col, id) {
+      if (this.mode === "firebase" && !this.user) { notice("Sign in (top right) to make changes.", "bad"); return false; }
       if (this.mode === "cloud") { try { await this.db.collection(col).doc(id).delete(); } catch (e) { notice(writeError(e), "bad"); return false; } }
+      else if (this.mode === "firebase") { try { await this.fb.collection(col).doc(id).delete(); } catch (e) { notice(writeError(e), "bad"); return false; } }
       else { const next = { ...this.data[col] }; delete next[id]; this.data[col] = next; this.persistLocal(); render(); }
       return true;
     },
     list(col) { return Object.entries(this.data[col] || {}).map(([id, v]) => ({ id, ...v })); },
     get(col, id) { const v = (this.data[col] || {})[id]; return v ? { id, ...v } : null; },
   };
-  const writeError = (e) => (e && (e.code === "permission_denied" || e.code === "not_granted"))
+  const writeError = (e) => (e && (e.code === "permission_denied" || e.code === "permission-denied" || e.code === "not_granted"))
     ? "You have view-only access. Ask the house organiser for edit access."
     : "Couldn't save the change (" + (e && e.code || "error") + "). Try again.";
 
@@ -365,6 +413,20 @@ td.num, th.num { text-align: center; }
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => { location.hash = b.dataset.tab; showTab(b.dataset.tab); }));
   window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
 
+  /* ---------- Sign in (Firebase mode) ---------- */
+  $("auth-btn").onclick = async () => {
+    if (Store.user) { try { await firebase.auth().signOut(); notice("Signed out.", "ok"); } catch (e) {} return; }
+    $("auth-panel").hidden = false; $("auth-email").focus();
+  };
+  $("auth-cancel").onclick = () => { $("auth-panel").hidden = true; };
+  $("auth-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    try {
+      await firebase.auth().signInWithEmailAndPassword($("auth-email").value.trim(), $("auth-pass").value);
+      $("auth-panel").hidden = true; $("auth-pass").value = ""; notice("Signed in. You can edit now.", "ok");
+    } catch (e) { notice("Sign-in failed: wrong email or password.", "bad"); }
+  });
+
   /* ---------- House ---------- */
   function openHouse() {
     const h = house(); $("house-name").value = h.name || ""; $("house-code").value = h.code || ""; $("house-captain").value = h.captain || "";
@@ -383,8 +445,14 @@ td.num, th.num { text-align: center; }
   function render() {
     const m = $("mode");
     m.className = "mode " + Store.mode;
-    m.textContent = Store.mode === "cloud" ? "Shared · live" : Store.mode === "local" ? "Saved in this browser" : "Connecting…";
+    m.textContent = Store.mode === "cloud" || Store.mode === "firebase" ? (Store.canEdit() ? "Shared · live" : "Shared · view only") : Store.mode === "local" ? "Saved in this browser" : "Connecting…";
+    if (Store.mode === "firebase") m.classList.toggle("local", !Store.canEdit());
     $("backup-tools").hidden = Store.mode !== "local";
+    const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase";
+    ab.textContent = Store.user ? "Sign out" : "Sign in to edit";
+    $("house-edit").hidden = !Store.canEdit();
+    document.querySelectorAll("#player-form, #sport-form, #game-form").forEach((f) => { f.closest(".panel").hidden = !Store.canEdit(); });
+    document.body.classList.toggle("readonly", !Store.canEdit());
     const h = house();
     $("house-title").innerHTML = h.name ? esc(h.name) + " <span>House</span>" : "My <span>House</span>";
     $("house-edit").textContent = h.name ? "Edit house" : "Name your house";
