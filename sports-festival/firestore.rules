@@ -1,18 +1,37 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Anyone can read the house data (no account needed).
-    // Only the organiser accounts listed below can write.
-    // Replace the example address with your own Google / email login,
-    // and add more inside the brackets separated by commas.
+    // OWNER: replace with your own Google login (add more inside the brackets if you like).
+    // The owner can always edit and approve others, even if the organisers list is empty.
+    function isOwner() {
+      return request.auth != null
+          && request.auth.token.email.lower() in ['owner@example.com'];
+    }
+    function myKey() { return request.auth.token.email.lower(); }
+    // Editors: the owner, plus anyone with a document in /organisers (approved in the app).
     function isOrganiser() {
       return request.auth != null
-          && request.auth.token.email in ['organiser@example.com'];
+          && (isOwner() || exists(/databases/$(database)/documents/organisers/$(myKey())));
     }
+
+    // House data: anyone can read, editors can write.
     match /{collection}/{doc} {
       allow read: if collection in ['settings', 'sports', 'players', 'games'];
       allow write: if isOrganiser()
                    && collection in ['settings', 'sports', 'players', 'games'];
+    }
+
+    // Editor list: signed-in people may read their own entry; editors read all and approve/remove.
+    match /organisers/{key} {
+      allow get: if request.auth != null && key == myKey();
+      allow read, write: if isOrganiser();
+    }
+
+    // Access requests: a signed-in person may create or update their own; editors read and delete.
+    match /requests/{key} {
+      allow create, update: if request.auth != null && key == myKey()
+                            && request.resource.data.email.lower() == myKey();
+      allow read, delete: if isOrganiser();
     }
   }
 }

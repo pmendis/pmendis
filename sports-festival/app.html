@@ -177,6 +177,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       <div class="panel"><h2>Next games</h2><div class="table-wrap" id="ov-games"></div></div>
       <div class="panel"><h2>Squads <small>players picked against squad size</small></h2><div class="table-wrap" id="ov-squads"></div></div>
     </div>
+    <div class="panel" id="access-panel" hidden style="margin-top:20px">
+      <h2>Editor access <small>people who signed in and asked to edit; approve the ones you trust</small></h2>
+      <div id="access-requests"></div>
+      <h3 style="font-size:16px;text-transform:uppercase;margin:14px 0 6px">Current editors</h3>
+      <div class="table-wrap" id="access-editors"></div>
+    </div>
   </section>
 
   <!-- PLAYERS -->
@@ -329,7 +335,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
         this.fb = firebase.firestore();
       } catch (e) { notice("Couldn't load the shared database. Showing data saved in this browser instead.", "warn"); return false; }
       this.mode = "firebase";
-      firebase.auth().onAuthStateChanged((u) => { this.user = u; render(); });
+      firebase.auth().onAuthStateChanged((u) => { this.user = u; this.onUser(u); render(); });
       const timer = setTimeout(() => notice("The shared database hasn't answered yet. What you see may be out of date.", "warn"), 10000);
       let confirmed = 0;
       for (const c of COLS) {
@@ -343,17 +349,54 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       render();
       return true;
     },
-    canEdit() { return this.mode !== "firebase" || !!this.user; },
+    /* Editor access: organisers/{email} docs. The owner (named in the rules) self-registers on first sign-in;
+       anyone else leaves a request in requests/{email} that an organiser approves in the app. */
+    editor: false, pending: false, organisers: {}, requests: {}, _unsubs: [],
+    emailKey(u) { return (u && u.email || "").toLowerCase(); },
+    async onUser(u) {
+      this._unsubs.forEach((f) => f()); this._unsubs = [];
+      this.editor = false; this.pending = false; this.organisers = {}; this.requests = {};
+      const key = this.emailKey(u); if (!key) return;
+      const mine = this.fb.collection("organisers").doc(key);
+      let snap; try { snap = await mine.get(); } catch (e) { snap = null; }
+      if (snap && snap.exists) this.editor = true;
+      else {
+        try { await mine.set({ email: u.email, name: u.displayName || "", addedBy: "owner", addedAt: new Date().toISOString() }); this.editor = true; }
+        catch (e) {
+          try { await this.fb.collection("requests").doc(key).set({ email: u.email, name: u.displayName || "", requestedAt: new Date().toISOString() }); this.pending = true; }
+          catch (e2) {}
+        }
+      }
+      render();
+      if (!this.editor) {
+        this._unsubs.push(mine.onSnapshot((s) => { if (s.exists && !this.editor) { this.editor = true; this.pending = false; notice("Your access was approved. You can edit now.", "ok"); this.onUser(u); } }, () => {}));
+        return;
+      }
+      this._unsubs.push(this.fb.collection("organisers").onSnapshot((s) => { const n = {}; s.forEach((d) => { n[d.id] = d.data(); }); this.organisers = n; render(); }, () => {}));
+      this._unsubs.push(this.fb.collection("requests").onSnapshot((s) => { const n = {}; s.forEach((d) => { n[d.id] = d.data(); }); this.requests = n; render(); }, () => {}));
+    },
+    async approve(key) {
+      const r = this.requests[key]; if (!r) return;
+      try { await this.fb.collection("organisers").doc(key).set({ email: r.email, name: r.name || "", addedBy: this.user.email, addedAt: new Date().toISOString() });
+        await this.fb.collection("requests").doc(key).delete(); notice(`${r.email} can edit now.`, "ok"); }
+      catch (e) { notice(writeError(e), "bad"); }
+    },
+    async decline(key) { try { await this.fb.collection("requests").doc(key).delete(); } catch (e) { notice(writeError(e), "bad"); } },
+    async revoke(key) {
+      if (key === this.emailKey(this.user)) { notice("You can't remove yourself.", "bad"); return; }
+      try { await this.fb.collection("organisers").doc(key).delete(); notice("Removed.", "ok"); } catch (e) { notice(writeError(e), "bad"); }
+    },
+    canEdit() { return this.mode !== "firebase" || this.editor; },
     persistLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) { notice("This browser blocked saving. Use Download backup to keep your data.", "bad"); } },
     async put(col, id, obj) {
-      if (this.mode === "firebase" && !this.user) { notice("Sign in (top right) to make changes.", "bad"); return false; }
+      if (this.mode === "firebase" && !this.editor) { notice(this.user ? "Your access request is waiting for an organiser to approve it." : "Sign in (top right) to make changes.", "bad"); return false; }
       if (this.mode === "cloud") { try { await this.db.collection(col).doc(id).set(obj); } catch (e) { notice(writeError(e), "bad"); return false; } }
       else if (this.mode === "firebase") { try { await this.fb.collection(col).doc(id).set(obj); } catch (e) { notice(writeError(e), "bad"); return false; } }
       else { this.data[col] = { ...this.data[col], [id]: obj }; this.persistLocal(); render(); }
       return true;
     },
     async remove(col, id) {
-      if (this.mode === "firebase" && !this.user) { notice("Sign in (top right) to make changes.", "bad"); return false; }
+      if (this.mode === "firebase" && !this.editor) { notice(this.user ? "Your access request is waiting for an organiser to approve it." : "Sign in (top right) to make changes.", "bad"); return false; }
       if (this.mode === "cloud") { try { await this.db.collection(col).doc(id).delete(); } catch (e) { notice(writeError(e), "bad"); return false; } }
       else if (this.mode === "firebase") { try { await this.fb.collection(col).doc(id).delete(); } catch (e) { notice(writeError(e), "bad"); return false; } }
       else { const next = { ...this.data[col] }; delete next[id]; this.data[col] = next; this.persistLocal(); render(); }
@@ -415,6 +458,22 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => { location.hash = b.dataset.tab; showTab(b.dataset.tab); }));
   window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
 
+  /* ---------- Editor access panel (Firebase mode) ---------- */
+  function renderAccess() {
+    const p = $("access-panel"); p.hidden = !(Store.mode === "firebase" && Store.editor);
+    if (p.hidden) return;
+    const req = Object.entries(Store.requests), eds = Object.entries(Store.organisers);
+    $("access-requests").innerHTML = req.length ? `<table><tbody>${req.map(([k, r]) => `<tr><td><b>${esc(r.name || r.email)}</b><div class="muted">${esc(r.email)}</div></td>
+      <td class="actions"><button class="btn small primary" data-approve="${esc(k)}">Approve</button> <button class="btn small danger" data-decline="${esc(k)}">Decline</button></td></tr>`).join("")}</tbody></table>`
+      : `<div class="muted">No requests waiting. When someone signs in with Google on this page, they appear here.</div>`;
+    $("access-editors").innerHTML = eds.length ? `<table><tbody>${eds.map(([k, r]) => `<tr><td><b>${esc(r.name || r.email)}</b><div class="muted">${esc(r.email)}</div></td>
+      <td class="actions">${k === Store.emailKey(Store.user) ? '<span class="muted">you</span>' : `<button class="btn small danger" data-revoke="${esc(k)}">Remove</button>`}</td></tr>`).join("")}</tbody></table>` : "";
+  }
+  document.addEventListener("click", (ev) => {
+    const a = ev.target.closest("button[data-approve]"), d = ev.target.closest("button[data-decline]"), r = ev.target.closest("button[data-revoke]");
+    if (a) Store.approve(a.dataset.approve); else if (d) Store.decline(d.dataset.decline); else if (r) Store.revoke(r.dataset.revoke);
+  });
+
   /* ---------- Sign in (Firebase mode) ---------- */
   $("auth-btn").onclick = async () => {
     if (Store.user) { try { await firebase.auth().signOut(); notice("Signed out.", "ok"); } catch (e) {} return; }
@@ -430,13 +489,13 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       notice("Google sign-in failed (" + (e && e.code || "error") + "). Check that Google is enabled under Authentication → Sign-in method and this site is an authorised domain.", "bad");
       return;
     }
-    $("auth-panel").hidden = true; notice("Signed in. You can edit now.", "ok");
+    $("auth-panel").hidden = true; notice("Signed in.", "ok");
   };
   $("auth-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     try {
       await firebase.auth().signInWithEmailAndPassword($("auth-email").value.trim(), $("auth-pass").value);
-      $("auth-panel").hidden = true; $("auth-pass").value = ""; notice("Signed in. You can edit now.", "ok");
+      $("auth-panel").hidden = true; $("auth-pass").value = ""; notice("Signed in.", "ok");
     } catch (e) { notice("Sign-in failed: wrong email or password.", "bad"); }
   });
 
@@ -458,11 +517,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   function render() {
     const m = $("mode");
     m.className = "mode " + Store.mode;
-    m.textContent = Store.mode === "cloud" || Store.mode === "firebase" ? (Store.canEdit() ? "Shared · live" : "Shared · view only") : Store.mode === "local" ? "Saved in this browser" : "Connecting…";
+    m.textContent = Store.mode === "cloud" || Store.mode === "firebase" ? (Store.canEdit() ? "Shared · live" : Store.pending ? "Shared · access requested" : "Shared · view only") : Store.mode === "local" ? "Saved in this browser" : "Connecting…";
     if (Store.mode === "firebase") m.classList.toggle("local", !Store.canEdit());
     $("backup-tools").hidden = Store.mode !== "local";
     const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase";
     ab.textContent = Store.user ? "Sign out" : "Sign in to edit";
+    renderAccess();
     $("house-edit").hidden = !Store.canEdit();
     document.querySelectorAll("#player-form, #sport-form, #game-form").forEach((f) => { f.closest(".panel").hidden = !Store.canEdit(); });
     document.body.classList.toggle("readonly", !Store.canEdit());

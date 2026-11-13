@@ -28,11 +28,10 @@ The app picks a mode automatically:
 2. Firestore: `https://console.firebase.google.com/project/PROJECT_ID/firestore` →
    **Create database** → *production mode* → pick a location → Enable.
 3. Open the **Rules** tab there, replace everything with the contents of `firestore.rules`,
-   change `organiser@example.com` to the Google account (or accounts) that may edit, and **Publish**.
+   change `owner@example.com` to the Google account you will sign in with, and **Publish**.
 4. Authentication: `https://console.firebase.google.com/project/PROJECT_ID/authentication/providers` →
    **Get started** → enable **Google** (set a support email) → Save.
-   Email/Password is optional; if you enable it, add the user under **Users** and list that
-   address in the rules too.
+   Email/Password is optional; if you enable it, add the user under **Users**.
 5. Still in Authentication → **Settings → Authorized domains** → add `<user>.github.io`.
 6. Config: `https://console.firebase.google.com/project/PROJECT_ID/settings/general` → scroll to
    **Your apps** → **`</>`** (Web) → register → copy `apiKey`, `authDomain`, `projectId`, `appId`.
@@ -44,8 +43,13 @@ The app picks a mode automatically:
 8. Re-run the Pages workflow (Actions tab → Deploy Sports Festival app → Run workflow).
 9. Open the site, tap **Sign in to edit → Sign in with Google**, and start adding your house.
 
-The config values are not secret: the Firestore rules decide who can write, and they only
-allow the email addresses you listed. Anyone else who signs in stays view-only.
+The config values are not secret: the Firestore rules decide who can write.
+
+## Approving other editors
+Anyone can view without signing in. When someone signs in with Google and isn't an editor yet,
+the app records an access request and shows them "access requested". You (or any approved editor)
+see the request under **Overview → Editor access** and tap **Approve** or **Decline**. Approved
+people can edit until you **Remove** them. The owner named in the rules can always edit.
 
 ## Hosting on GitHub Pages (free)
 `.github/workflows/sports-festival-pages.yml` publishes to `https://<user>.github.io/<repo>/`
