@@ -141,7 +141,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   <div id="notice" class="notice" hidden></div>
 
   <div class="panel" id="auth-panel" hidden style="margin-bottom:20px">
-    <h2>Sign in to edit <small>only the house organiser's account can change data; everyone else can view</small></h2>
+    <h2>Sign in to edit <small>only the organiser accounts listed in the database rules can change data; everyone else can view</small></h2>
+    <div class="btns" style="margin-bottom:12px"><button class="btn primary" type="button" id="auth-google">Sign in with Google</button></div>
+    <div class="muted" style="margin-bottom:8px">Or with email and password:</div>
     <form id="auth-form" autocomplete="on">
       <div class="row2">
         <label>Email<input id="auth-email" type="email" required autocomplete="username"></label>
@@ -361,7 +363,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     get(col, id) { const v = (this.data[col] || {})[id]; return v ? { id, ...v } : null; },
   };
   const writeError = (e) => (e && (e.code === "permission_denied" || e.code === "permission-denied" || e.code === "not_granted"))
-    ? "You have view-only access. Ask the house organiser for edit access."
+    ? (Store.mode === "firebase" && Store.user ? "This account (" + (Store.user.email || "signed in") + ") isn't on the organiser list in the database rules." : "You have view-only access. Ask the house organiser for edit access.")
     : "Couldn't save the change (" + (e && e.code || "error") + "). Try again.";
 
   function notice(msg, kind) {
@@ -419,6 +421,17 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("auth-panel").hidden = false; $("auth-email").focus();
   };
   $("auth-cancel").onclick = () => { $("auth-panel").hidden = true; };
+  $("auth-google").onclick = async () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try { await firebase.auth().signInWithPopup(provider); }
+    catch (e) {
+      if (e && (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment")) { firebase.auth().signInWithRedirect(provider); return; }
+      if (e && e.code === "auth/popup-closed-by-user") return;
+      notice("Google sign-in failed (" + (e && e.code || "error") + "). Check that Google is enabled under Authentication → Sign-in method and this site is an authorised domain.", "bad");
+      return;
+    }
+    $("auth-panel").hidden = true; notice("Signed in. You can edit now.", "ok");
+  };
   $("auth-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     try {

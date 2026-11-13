@@ -2,11 +2,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Anyone can read the house data (no account needed).
-    // Only a signed-in user (the organiser's account created in
-    // Firebase console → Authentication → Users) can write.
+    // Only the organiser accounts listed below can write.
+    // Replace the example address with your own Google / email login,
+    // and add more inside the brackets separated by commas.
+    function isOrganiser() {
+      return request.auth != null
+          && request.auth.token.email in ['organiser@example.com'];
+    }
     match /{collection}/{doc} {
       allow read: if collection in ['settings', 'sports', 'players', 'games'];
-      allow write: if request.auth != null
+      allow write: if isOrganiser()
                    && collection in ['settings', 'sports', 'players', 'games'];
     }
   }
