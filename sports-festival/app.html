@@ -146,9 +146,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   <div id="notice" class="notice" hidden></div>
 
   <div class="panel" id="auth-panel" hidden style="margin-bottom:20px">
-    <h2>Sign in to edit <small>only the organiser accounts listed in the database rules can change data; everyone else can view</small></h2>
-    <div class="btns" style="margin-bottom:12px"><button class="btn primary" type="button" id="auth-google">Sign in with Google</button></div>
-    <div class="muted" style="margin-bottom:8px">Or with email and password:</div>
+    <h2>Sign in to edit <small>use the email and password the organiser gave you; everyone else can view</small></h2>
     <form id="auth-form" autocomplete="on">
       <div class="row2">
         <label>Email<input id="auth-email" type="email" required autocomplete="username"></label>
@@ -474,7 +472,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const req = Object.entries(Store.requests), eds = Object.entries(Store.organisers);
     $("access-requests").innerHTML = req.length ? `<table><tbody>${req.map(([k, r]) => `<tr><td><b>${esc(r.name || r.email)}</b><div class="muted">${esc(r.email)}</div></td>
       <td class="actions"><button class="btn small primary" data-approve="${esc(k)}">Approve</button> <button class="btn small danger" data-decline="${esc(k)}">Decline</button></td></tr>`).join("")}</tbody></table>`
-      : `<div class="muted">No requests waiting. When someone signs in with Google on this page, they appear here.</div>`;
+      : `<div class="muted">No requests waiting. When someone signs in on this page without edit access, they appear here.</div>`;
     $("access-editors").innerHTML = eds.length ? `<table><tbody>${eds.map(([k, r]) => `<tr><td><b>${esc(r.name || r.email)}</b><div class="muted">${esc(r.email)}</div></td>
       <td class="actions">${k === Store.emailKey(Store.user) ? '<span class="muted">you</span>' : `<button class="btn small danger" data-revoke="${esc(k)}">Remove</button>`}</td></tr>`).join("")}</tbody></table>` : "";
   }
@@ -489,17 +487,6 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("auth-panel").hidden = false; $("auth-email").focus();
   };
   $("auth-cancel").onclick = () => { $("auth-panel").hidden = true; };
-  $("auth-google").onclick = async () => {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    try { await firebase.auth().signInWithPopup(provider); }
-    catch (e) {
-      if (e && (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment")) { firebase.auth().signInWithRedirect(provider); return; }
-      if (e && e.code === "auth/popup-closed-by-user") return;
-      notice("Google sign-in failed (" + (e && e.code || "error") + "). Check that Google is enabled under Authentication → Sign-in method and this site is an authorised domain.", "bad");
-      return;
-    }
-    $("auth-panel").hidden = true; notice("Signed in.", "ok");
-  };
   $("auth-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     try {

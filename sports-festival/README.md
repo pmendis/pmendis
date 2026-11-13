@@ -30,8 +30,8 @@ The app picks a mode automatically:
 3. Open the **Rules** tab there, replace everything with the contents of `firestore.rules`,
    change `owner@example.com` to the Google account you will sign in with, and **Publish**.
 4. Authentication: `https://console.firebase.google.com/project/PROJECT_ID/authentication/providers` →
-   **Get started** → enable **Google** (set a support email) → Save.
-   Email/Password is optional; if you enable it, add the user under **Users**.
+   **Get started** → enable **Email/Password** → Save. Then **Users → Add user** for yourself
+   (the owner email from the rules) and for each helper who should be able to edit.
 5. Still in Authentication → **Settings → Authorized domains** → add `<user>.github.io`.
 6. Config: `https://console.firebase.google.com/project/PROJECT_ID/settings/general` → scroll to
    **Your apps** → **`</>`** (Web) → register → copy `apiKey`, `authDomain`, `projectId`, `appId`.
@@ -41,12 +41,13 @@ The app picks a mode automatically:
      name `FIREBASE_CONFIG`, value the JSON object, e.g.
      `{"apiKey":"AIza...","authDomain":"myhouse.firebaseapp.com","projectId":"myhouse","appId":"1:123:web:abc"}`
 8. Re-run the Pages workflow (Actions tab → Deploy Sports Festival app → Run workflow).
-9. Open the site, tap **Sign in to edit → Sign in with Google**, and start adding your house.
+9. Open the site, tap **Sign in to edit**, enter your email and password, and start adding your house.
 
 The config values are not secret: the Firestore rules decide who can write.
 
 ## Approving other editors
-Anyone can view without signing in. When someone signs in with Google and isn't an editor yet,
+Anyone can view without signing in. Only accounts you create under Authentication → Users can
+sign in at all. When one of them signs in and isn't an editor yet,
 the app records an access request and shows them "access requested". You (or any approved editor)
 see the request under **Overview → Editor access** and tap **Approve** or **Decline**. Approved
 people can edit until you **Remove** them. The owner named in the rules can always edit.
