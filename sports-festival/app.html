@@ -1,0 +1,588 @@
+<title>House Sports Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: a house-colours header band, tab bar, then one working panel per tab (form left, list right; stacks on phones). */
+:root {
+  --bg: #f3f5f8; --surface: #ffffff; --ink: #141b2b; --muted: #5b6577; --line: #dce1ea;
+  --accent: #e2531b; --accent-ink: #ffffff; --lane: #1f3a68; --lane-ink: #f3f6fb;
+  --ok: #1d7a4a; --ok-bg: #e3f4ea; --warn: #9a5b00; --warn-bg: #fdf0d9; --bad: #b3261e; --bad-bg: #fbe4e2;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141d; --surface: #171e2b; --ink: #e8ecf3; --muted: #9aa5b8; --line: #2a3445;
+  --accent: #ff7a45; --accent-ink: #1a0d06; --lane: #142542; --lane-ink: #e8ecf3;
+  --ok: #6fd39c; --ok-bg: #12301f; --warn: #f2bf62; --warn-bg: #33270f; --bad: #ff8a80; --bad-bg: #3a1714;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f141d; --surface: #171e2b; --ink: #e8ecf3; --muted: #9aa5b8; --line: #2a3445;
+  --accent: #ff7a45; --accent-ink: #1a0d06; --lane: #142542; --lane-ink: #e8ecf3;
+  --ok: #6fd39c; --ok-bg: #12301f; --warn: #f2bf62; --warn-bg: #33270f; --bad: #ff8a80; --bad-bg: #3a1714;
+  color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5; margin: 0; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: .01em; }
+
+header.band { background: var(--lane); color: var(--lane-ink);
+  background-image: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), rgba(255,255,255,.08) calc(25% - 1px) 25%); }
+header.band .wrap { padding-block: 22px 18px; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+header.band .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 11px; opacity: .8; }
+header.band h1 { font-size: clamp(28px, 5vw, 42px); font-weight: 800; line-height: 1; text-transform: uppercase; }
+header.band h1 span { color: var(--accent); }
+.hdr-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mode { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid rgba(255,255,255,.25); }
+.mode::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.mode.cloud { color: #8fe0b0; } .mode.local { color: #f7c977; } .mode.wait { color: #c9d3e6; }
+.linkbtn { background: none; border: 1px solid rgba(255,255,255,.25); color: inherit; border-radius: 99px; padding: 4px 10px; font: 500 12px var(--font-body); cursor: pointer; }
+
+nav.tabs { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+nav.tabs .wrap { display: flex; gap: 4px; overflow-x: auto; }
+nav.tabs button { font: 600 15px var(--font-display); text-transform: uppercase; letter-spacing: .06em; background: none; border: 0; color: var(--muted);
+  padding: 12px 14px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+nav.tabs .count { font-family: var(--font-body); font-size: 11px; color: var(--muted); margin-left: 4px; }
+
+main { padding-block: 20px 48px; }
+.notice { padding: 10px 12px; border-radius: var(--r); background: var(--warn-bg); color: var(--warn); margin-bottom: 16px; }
+.notice[data-kind="ok"] { background: var(--ok-bg); color: var(--ok); }
+.notice[data-kind="bad"] { background: var(--bad-bg); color: var(--bad); }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+.stat b { display: block; font: 700 34px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+
+.split { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; min-width: 0; }
+.panel h2 { font-size: 22px; text-transform: uppercase; margin-bottom: 12px; }
+.panel h2 small { font: 400 13px var(--font-body); color: var(--muted); text-transform: none; margin-left: 6px; }
+
+form { display: grid; gap: 10px; }
+label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+input, select, textarea { font: 400 14px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; width: 100%; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+fieldset { border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; margin: 0; }
+legend { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 0 4px; }
+.checks { display: grid; gap: 4px; max-height: 240px; overflow-y: auto; }
+.checks label { display: flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 14px; color: var(--ink); }
+.checks input { width: auto; }
+.checks .q { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.checks label.full { color: var(--muted); }
+
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+button.btn { font: 600 14px var(--font-body); border-radius: var(--r); padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+button.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.btn.small { padding: 4px 10px; font-size: 12px; }
+button.btn.danger { color: var(--bad); }
+button.btn.danger.armed { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.toolbar > * { flex: 1 1 160px; width: auto; }
+.toolbar .btn { flex: 0 0 auto; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12px var(--font-body); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+td.num, th.num { text-align: center; }
+.bib { font: 700 15px var(--font-display); letter-spacing: .04em; background: var(--ink); color: var(--bg); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.chip { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--bg); border: 1px solid var(--line); margin: 1px 2px 1px 0; white-space: nowrap; }
+.pill { display: inline-block; white-space: nowrap; min-width: 44px; text-align: center; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--bg); color: var(--muted); }
+.pill.ok, .pill.won { background: var(--ok-bg); color: var(--ok); }
+.pill.full, .pill.draw, .pill.short { background: var(--warn-bg); color: var(--warn); }
+.pill.over, .pill.lost { background: var(--bad-bg); color: var(--bad); }
+.muted { color: var(--muted); }
+.empty { padding: 28px 12px; text-align: center; color: var(--muted); }
+.sub { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.actions { white-space: nowrap; text-align: right; }
+.score { font: 700 18px var(--font-display); white-space: nowrap; }
+
+@media (max-width: 820px) {
+  .split, .two { grid-template-columns: minmax(0, 1fr); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: no-preference) { button.btn { transition: background .15s, color .15s; } }
+</style>
+
+<header class="band">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Inter-department sports festival</div>
+      <h1 id="house-title">My <span>House</span></h1>
+    </div>
+    <div class="hdr-right">
+      <button class="linkbtn" type="button" id="house-edit">Rename house</button>
+      <div id="mode" class="mode wait">Connecting…</div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap" role="tablist">
+    <button role="tab" data-tab="overview">Overview</button>
+    <button role="tab" data-tab="players">Players<span class="count" id="c-players"></span></button>
+    <button role="tab" data-tab="sports">Sports<span class="count" id="c-sports"></span></button>
+    <button role="tab" data-tab="games">Games<span class="count" id="c-games"></span></button>
+  </div>
+</nav>
+
+<main class="wrap">
+  <div id="notice" class="notice" hidden></div>
+
+  <div class="panel" id="house-panel" hidden style="margin-bottom:20px">
+    <h2>House details</h2>
+    <form id="house-form" autocomplete="off">
+      <div class="row2">
+        <label>House / department name<input id="house-name" required maxlength="60" placeholder="e.g. Civil Engineering"></label>
+        <label>Short code<input id="house-code" maxlength="5" placeholder="CIV" title="Shown on player numbers"></label>
+      </div>
+      <label>Captain<input id="house-captain" maxlength="60"></label>
+      <div class="btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="house-cancel">Cancel</button></div>
+    </form>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section data-view="overview">
+    <div class="stats">
+      <div class="stat"><b id="s-player">0</b><span>Players</span></div>
+      <div class="stat"><b id="s-sport">0</b><span>Sports entered</span></div>
+      <div class="stat"><b id="s-upcoming">0</b><span>Games to play</span></div>
+      <div class="stat"><b id="s-record">0–0–0</b><span>Won – Drawn – Lost</span></div>
+    </div>
+    <div class="two">
+      <div class="panel"><h2>Next games</h2><div class="table-wrap" id="ov-games"></div></div>
+      <div class="panel"><h2>Squads <small>players picked against squad size</small></h2><div class="table-wrap" id="ov-squads"></div></div>
+    </div>
+  </section>
+
+  <!-- PLAYERS -->
+  <section data-view="players" hidden>
+    <div class="split">
+      <div class="panel">
+        <h2 id="player-form-title">Add player</h2>
+        <form id="player-form" autocomplete="off">
+          <input type="hidden" id="player-id">
+          <label>Full name<input id="player-name" required maxlength="80"></label>
+          <div class="row2">
+            <label>Staff / student ID<input id="player-ref" maxlength="30"></label>
+            <label>Gender
+              <select id="player-gender"><option value="">—</option><option>Female</option><option>Male</option><option>Other</option></select>
+            </label>
+          </div>
+          <label>Phone<input id="player-phone" type="tel" maxlength="20"></label>
+          <fieldset><legend>Sports</legend><div class="checks" id="player-sports"></div></fieldset>
+          <div class="btns">
+            <button class="btn primary" type="submit" id="player-save">Add player</button>
+            <button class="btn" type="button" id="player-cancel" hidden>Cancel edit</button>
+          </div>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>Squad list</h2>
+        <div class="toolbar">
+          <input id="f-search" type="search" placeholder="Search name, number or ID">
+          <select id="f-sport"></select>
+          <button class="btn" type="button" id="export-csv">Export CSV</button>
+        </div>
+        <div class="table-wrap" id="player-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPORTS -->
+  <section data-view="sports" hidden>
+    <div class="split">
+      <div class="panel">
+        <h2 id="sport-form-title">Add sport</h2>
+        <form id="sport-form" autocomplete="off">
+          <input type="hidden" id="sport-id">
+          <label>Sport<input id="sport-name" required maxlength="60" placeholder="e.g. Cricket, Chess, 100 m"></label>
+          <div class="row2">
+            <label>Format<select id="sport-type"><option value="team">Team</option><option value="individual">Individual</option></select></label>
+            <label>Squad size<input id="sport-squad" type="number" min="0" max="200" value="11" title="Maximum players the festival allows; 0 means no limit"></label>
+          </div>
+          <label>Notes<input id="sport-notes" maxlength="120" placeholder="e.g. 6-a-side, mixed team"></label>
+          <div class="btns">
+            <button class="btn primary" type="submit" id="sport-save">Add sport</button>
+            <button class="btn" type="button" id="sport-cancel" hidden>Cancel edit</button>
+          </div>
+        </form>
+      </div>
+      <div class="panel"><h2>Sports we play</h2><div class="table-wrap" id="sport-list"></div></div>
+    </div>
+  </section>
+
+  <!-- GAMES -->
+  <section data-view="games" hidden>
+    <div class="split">
+      <div class="panel">
+        <h2 id="game-form-title">Add game</h2>
+        <form id="game-form" autocomplete="off">
+          <input type="hidden" id="game-id">
+          <div class="row2">
+            <label>Sport<select id="game-sport" required></select></label>
+            <label>Round<input id="game-round" maxlength="30" placeholder="e.g. Quarter-final"></label>
+          </div>
+          <label>Opponent<input id="game-opp" maxlength="60" placeholder="e.g. Mechanical"></label>
+          <div class="row2">
+            <label>Date &amp; time<input id="game-when" type="datetime-local"></label>
+            <label>Venue<input id="game-venue" maxlength="60"></label>
+          </div>
+          <div class="row2">
+            <label>Result
+              <select id="game-status"><option value="scheduled">Not played</option><option value="won">Won</option><option value="draw">Draw</option><option value="lost">Lost</option></select>
+            </label>
+            <label>Score (us – them)<input id="game-score" maxlength="40" placeholder="e.g. 145/6 – 132"></label>
+          </div>
+          <fieldset><legend>Line-up</legend><div class="checks" id="game-lineup"></div></fieldset>
+          <div class="btns">
+            <button class="btn primary" type="submit" id="game-save">Add game</button>
+            <button class="btn" type="button" id="game-cancel" hidden>Cancel edit</button>
+          </div>
+        </form>
+      </div>
+      <div class="panel"><h2>Fixtures &amp; results</h2><div class="table-wrap" id="game-list"></div>
+        <div class="btns" id="backup-tools" style="margin-top:14px">
+          <button class="btn" type="button" id="export-json">Download backup (JSON)</button>
+          <label class="btn" style="display:inline-flex;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink);cursor:pointer">
+            Restore backup<input type="file" id="import-json" accept="application/json" hidden>
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const COLS = ["settings", "sports", "players", "games"];
+  const LS_KEY = "housesports.v1";
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+  /* ---------- Storage: shared cloud db when hosted as a claude.ai Artifact, else this browser ---------- */
+  const Store = {
+    mode: "wait", data: { settings: {}, sports: {}, players: {}, games: {} }, db: null, downloads: null,
+    async init() {
+      if (window.claude && typeof window.claude.use === "function") {
+        try { this.db = await window.claude.use("db"); } catch (e) { this.db = null; }
+        try { this.downloads = await window.claude.use("downloads"); } catch (e) { this.downloads = null; }
+      }
+      if (this.db) return this.initCloud();
+      this.mode = "local";
+      try { const raw = localStorage.getItem(LS_KEY); if (raw) Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
+      for (const c of COLS) this.data[c] = this.data[c] || {};
+      render();
+    },
+    initCloud() {
+      this.mode = "cloud";
+      let confirmed = 0;
+      const timer = setTimeout(() => notice("The shared database hasn't answered yet. What you see may be out of date.", "warn"), 10000);
+      for (const c of COLS) {
+        this.db.collection(c).onSnapshot((snap) => {
+          const next = {}; for (const d of snap.docs) next[d.id] = d.data();
+          this.data[c] = next;
+          if (!snap.metadata.fromCache && ++confirmed >= COLS.length) clearTimeout(timer);
+          render();
+        }, (err) => { clearTimeout(timer); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page to reconnect.", "bad"); });
+      }
+      render();
+    },
+    persistLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) { notice("This browser blocked saving. Use Download backup to keep your data.", "bad"); } },
+    async put(col, id, obj) {
+      if (this.mode === "cloud") { try { await this.db.collection(col).doc(id).set(obj); } catch (e) { notice(writeError(e), "bad"); return false; } }
+      else { this.data[col] = { ...this.data[col], [id]: obj }; this.persistLocal(); render(); }
+      return true;
+    },
+    async remove(col, id) {
+      if (this.mode === "cloud") { try { await this.db.collection(col).doc(id).delete(); } catch (e) { notice(writeError(e), "bad"); return false; } }
+      else { const next = { ...this.data[col] }; delete next[id]; this.data[col] = next; this.persistLocal(); render(); }
+      return true;
+    },
+    list(col) { return Object.entries(this.data[col] || {}).map(([id, v]) => ({ id, ...v })); },
+    get(col, id) { const v = (this.data[col] || {})[id]; return v ? { id, ...v } : null; },
+  };
+  const writeError = (e) => (e && (e.code === "permission_denied" || e.code === "not_granted"))
+    ? "You have view-only access. Ask the house organiser for edit access."
+    : "Couldn't save the change (" + (e && e.code || "error") + "). Try again.";
+
+  function notice(msg, kind) {
+    const n = $("notice"); n.textContent = msg; n.dataset.kind = kind || "warn"; n.hidden = !msg;
+    clearTimeout(notice.t); if (msg && kind === "ok") notice.t = setTimeout(() => { n.hidden = true; }, 3000);
+  }
+
+  /* ---------- Derived ---------- */
+  const house = () => Store.get("settings", "house") || { name: "", code: "", captain: "" };
+  const sports = () => Store.list("sports").sort((a, b) => a.name.localeCompare(b.name));
+  const players = () => Store.list("players").sort((a, b) => (+a.number || 0) - (+b.number || 0) || a.name.localeCompare(b.name));
+  const games = () => Store.list("games").sort((a, b) => (a.when || "~").localeCompare(b.when || "~"));
+  const picked = (sportId, exceptPlayer) => players().filter((p) => (p.sportIds || []).includes(sportId) && p.id !== exceptPlayer).length;
+  const numLabel = (p) => (house().code ? house().code.toUpperCase() + "-" : "#") + String(p.number || 0).padStart(2, "0");
+  const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
+  const nextNumber = () => players().reduce((m, p) => Math.max(m, +p.number || 0), 0) + 1;
+  const RESULT = { scheduled: "To play", won: "Won", draw: "Draw", lost: "Lost" };
+
+  /* ---------- Two-click delete (the viewer blocks confirm dialogs) ---------- */
+  document.addEventListener("click", (ev) => {
+    const b = ev.target.closest("button[data-del]");
+    document.querySelectorAll("button.armed").forEach((x) => { if (x !== b) { x.classList.remove("armed"); x.textContent = "Delete"; } });
+    if (!b) return;
+    if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Confirm"; return; }
+    const [col, id] = b.dataset.del.split(":"); onDelete(col, id);
+  });
+  async function onDelete(col, id) {
+    if (col === "sports") {
+      if (games().some((g) => g.sportId === id)) { notice("Delete this sport's games first.", "bad"); return; }
+      for (const p of players().filter((p) => (p.sportIds || []).includes(id))) {
+        const { id: pid, ...rest } = p; await Store.put("players", pid, { ...rest, sportIds: rest.sportIds.filter((s) => s !== id) });
+      }
+    }
+    if (col === "players") {
+      for (const g of games().filter((g) => (g.lineup || []).includes(id))) {
+        const { id: gid, ...rest } = g; await Store.put("games", gid, { ...rest, lineup: rest.lineup.filter((x) => x !== id) });
+      }
+    }
+    if (await Store.remove(col, id)) notice("Deleted.", "ok");
+  }
+
+  /* ---------- Tabs ---------- */
+  const TABS = ["overview", "players", "sports", "games"];
+  function showTab(name) {
+    if (!TABS.includes(name)) name = "overview";
+    document.querySelectorAll("[data-view]").forEach((s) => { s.hidden = s.dataset.view !== name; });
+    document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+  }
+  document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => { location.hash = b.dataset.tab; showTab(b.dataset.tab); }));
+  window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
+
+  /* ---------- House ---------- */
+  function openHouse() {
+    const h = house(); $("house-name").value = h.name || ""; $("house-code").value = h.code || ""; $("house-captain").value = h.captain || "";
+    $("house-panel").hidden = false; $("house-name").focus();
+  }
+  $("house-edit").onclick = openHouse;
+  $("house-cancel").onclick = () => { $("house-panel").hidden = true; };
+  $("house-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const name = $("house-name").value.trim(); if (!name) return;
+    const ok = await Store.put("settings", "house", { name, code: $("house-code").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""), captain: $("house-captain").value.trim() });
+    if (ok) { $("house-panel").hidden = true; notice("House details saved.", "ok"); }
+  });
+
+  /* ---------- Render ---------- */
+  function render() {
+    const m = $("mode");
+    m.className = "mode " + Store.mode;
+    m.textContent = Store.mode === "cloud" ? "Shared · live" : Store.mode === "local" ? "Saved in this browser" : "Connecting…";
+    $("backup-tools").hidden = Store.mode !== "local";
+    const h = house();
+    $("house-title").innerHTML = h.name ? esc(h.name) + " <span>House</span>" : "My <span>House</span>";
+    $("house-edit").textContent = h.name ? "Edit house" : "Name your house";
+    const S = sports(), P = players(), G = games();
+    $("c-sports").textContent = S.length || ""; $("c-players").textContent = P.length || ""; $("c-games").textContent = G.length || "";
+    $("s-player").textContent = P.length; $("s-sport").textContent = S.length;
+    $("s-upcoming").textContent = G.filter((g) => (g.status || "scheduled") === "scheduled").length;
+    const c = (s) => G.filter((g) => g.status === s).length;
+    $("s-record").textContent = `${c("won")}–${c("draw")}–${c("lost")}`;
+    renderOverview(S, P, G); renderSports(S); renderPlayerSports(S); renderFilter(S); renderPlayers(); renderGameForm(S); renderGames(G);
+  }
+
+  function renderOverview(S, P, G) {
+    const up = G.filter((g) => (g.status || "scheduled") === "scheduled").slice(0, 6);
+    $("ov-games").innerHTML = up.length ? `<table><tbody>${up.map((g) => {
+      const s = Store.get("sports", g.sportId);
+      return `<tr><td><b>${esc(s ? s.name : "?")}</b> vs ${esc(g.opponent) || "TBC"}<div class="sub">${esc(g.round)}</div></td>
+        <td>${esc(fmtWhen(g.when)) || '<span class="muted">Time TBC</span>'}<div class="muted">${esc(g.venue)}</div></td>
+        <td class="num">${(g.lineup || []).length} picked</td></tr>`; }).join("")}</tbody></table>`
+      : `<div class="empty">No games waiting to be played. Add fixtures in <b>Games</b>.</div>`;
+    $("ov-squads").innerHTML = S.length ? `<table><tbody>${S.map((s) => {
+      const n = picked(s.id), q = +s.squad || 0;
+      const cls = q && n > q ? "over" : q && n === q ? "full" : n ? "ok" : "short";
+      return `<tr><td><b>${esc(s.name)}</b><div class="sub">${esc(s.type)}</div></td><td class="num"><span class="pill ${cls}">${n}${q ? " / " + q : ""}</span></td></tr>`; }).join("")}</tbody></table>`
+      : `<div class="empty">Add the sports your house has entered in <b>Sports</b>.</div>`;
+  }
+
+  function renderSports(S) {
+    if (!S.length) { $("sport-list").innerHTML = `<div class="empty">No sports yet. Add each sport your house has entered.</div>`; return; }
+    $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${S.map((s) => {
+      const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length;
+      return `<tr><td><b>${esc(s.name)}</b><div class="sub">${esc(s.type)}${s.notes ? " · " + esc(s.notes) : ""}</div></td>
+        <td class="num">${n}${q ? " / " + q : ""}</td><td class="num">${gs}</td>
+        <td class="actions"><button class="btn small" data-edit="sports:${esc(s.id)}">Edit</button> <button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table>`;
+  }
+
+  function renderPlayerSports(S) {
+    S = S || sports();
+    const box = $("player-sports"), pid = $("player-id").value;
+    const checked = new Set([...box.querySelectorAll("input:checked")].map((i) => i.value));
+    if (!S.length) { box.innerHTML = `<span class="muted">Add sports first.</span>`; return; }
+    box.innerHTML = S.map((s) => {
+      const q = +s.squad || 0, n = picked(s.id, pid), full = q && n >= q && !checked.has(s.id);
+      return `<label class="${full ? "full" : ""}"><input type="checkbox" value="${esc(s.id)}" ${checked.has(s.id) ? "checked" : ""} ${full ? "disabled" : ""}>
+        ${esc(s.name)}<span class="q">${q ? `${n}/${q}` : n}${full ? " full" : ""}</span></label>`; }).join("");
+  }
+
+  function renderFilter(S) {
+    const fs = $("f-sport"), v = fs.value;
+    fs.innerHTML = `<option value="">All sports</option>` + S.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+    fs.value = S.some((s) => s.id === v) ? v : "";
+  }
+  function filteredPlayers() {
+    const q = $("f-search").value.trim().toLowerCase(), fs = $("f-sport").value;
+    return players().filter((p) => (!fs || (p.sportIds || []).includes(fs)) &&
+      (!q || [p.name, numLabel(p), p.ref].some((v) => String(v || "").toLowerCase().includes(q))));
+  }
+  function renderPlayers() {
+    const all = players();
+    if (!all.length) { $("player-list").innerHTML = `<div class="empty">No players yet. Each player gets a squad number when you add them.</div>`; return; }
+    const L = filteredPlayers();
+    if (!L.length) { $("player-list").innerHTML = `<div class="empty">No players match these filters.</div>`; return; }
+    $("player-list").innerHTML = `<table><thead><tr><th>No.</th><th>Player</th><th>Sports</th><th></th></tr></thead><tbody>${L.map((p) => {
+      const evs = (p.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
+      return `<tr><td><span class="bib">${esc(numLabel(p))}</span></td>
+        <td><b>${esc(p.name)}</b><div class="muted">${[p.ref, p.gender, p.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
+        <td>${evs.length ? evs.map((s) => `<span class="chip">${esc(s.name)}</span>`).join("") : '<span class="muted">None</span>'}</td>
+        <td class="actions"><button class="btn small" data-edit="players:${esc(p.id)}">Edit</button> <button class="btn small danger" data-del="players:${esc(p.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table>
+      <div class="muted" style="margin-top:8px">${L.length} of ${all.length} players</div>`;
+  }
+  ["f-search", "f-sport"].forEach((id) => $(id).addEventListener("input", renderPlayers));
+
+  function renderGameForm(S) {
+    const sel = $("game-sport"), cur = sel.value;
+    sel.innerHTML = `<option value="">Choose…</option>` + S.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+    sel.value = S.some((s) => s.id === cur) ? cur : "";
+    renderLineup();
+  }
+  function renderLineup() {
+    const box = $("game-lineup"), sid = $("game-sport").value;
+    const checked = new Set([...box.querySelectorAll("input:checked")].map((i) => i.value));
+    if (!sid) { box.innerHTML = `<span class="muted">Choose a sport to pick from its squad.</span>`; return; }
+    const squad = players().filter((p) => (p.sportIds || []).includes(sid) || checked.has(p.id));
+    box.innerHTML = squad.length ? squad.map((p) => `<label><input type="checkbox" value="${esc(p.id)}" ${checked.has(p.id) ? "checked" : ""}>
+      ${esc(p.name)}<span class="q">${esc(numLabel(p))}</span></label>`).join("") : `<span class="muted">No players in this sport's squad yet.</span>`;
+  }
+  $("game-sport").addEventListener("change", renderLineup);
+
+  function renderGames(G) {
+    if (!G.length) { $("game-list").innerHTML = `<div class="empty">No games yet. Add your first fixture once the draw is out.</div>`; return; }
+    $("game-list").innerHTML = `<table><thead><tr><th>Game</th><th>When &amp; where</th><th>Result</th><th></th></tr></thead><tbody>${G.map((g) => {
+      const s = Store.get("sports", g.sportId), st = g.status || "scheduled";
+      return `<tr><td><b>${esc(s ? s.name : "?")}</b> vs ${esc(g.opponent) || "TBC"}<div class="sub">${esc(g.round)}${g.round ? " · " : ""}${(g.lineup || []).length} in line-up</div></td>
+        <td>${esc(fmtWhen(g.when)) || '<span class="muted">Time TBC</span>'}<div class="muted">${esc(g.venue)}</div></td>
+        <td><span class="pill ${st}">${RESULT[st]}</span>${g.score ? `<div class="score">${esc(g.score)}</div>` : ""}</td>
+        <td class="actions"><button class="btn small" data-edit="games:${esc(g.id)}">Edit</button> <button class="btn small danger" data-del="games:${esc(g.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table>`;
+  }
+
+  /* ---------- Forms ---------- */
+  const FORMS = { sports: ["sport", "Add sport"], players: ["player", "Add player"], games: ["game", "Add game"] };
+  function resetForm(kind) {
+    const [p, label] = FORMS[kind];
+    $(p + "-form").reset(); $(p + "-id").value = "";
+    $(p + "-form-title").textContent = label; $(p + "-save").textContent = label; $(p + "-cancel").hidden = true;
+    if (kind === "players") { $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderPlayerSports(); }
+    if (kind === "games") { $("game-lineup").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderLineup(); }
+  }
+  Object.keys(FORMS).forEach((k) => { $(FORMS[k][0] + "-cancel").onclick = () => resetForm(k); });
+  function editMode(p, title) { $(p + "-form-title").textContent = title; $(p + "-save").textContent = "Save changes"; $(p + "-cancel").hidden = false; }
+
+  document.addEventListener("click", (ev) => {
+    const b = ev.target.closest("button[data-edit]"); if (!b) return;
+    const [col, id] = b.dataset.edit.split(":"); const r = Store.get(col, id); if (!r) return;
+    if (col === "sports") {
+      $("sport-id").value = id; $("sport-name").value = r.name || ""; $("sport-type").value = r.type || "team";
+      $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || ""; editMode("sport", "Edit sport");
+    } else if (col === "players") {
+      $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || "";
+      $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || "";
+      renderPlayerSports(); $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = (r.sportIds || []).includes(i.value); i.disabled = false; });
+      editMode("player", "Edit " + numLabel(r));
+    } else if (col === "games") {
+      $("game-id").value = id; $("game-sport").value = r.sportId || ""; $("game-round").value = r.round || ""; $("game-opp").value = r.opponent || "";
+      $("game-when").value = r.when || ""; $("game-venue").value = r.venue || ""; $("game-status").value = r.status || "scheduled"; $("game-score").value = r.score || "";
+      $("game-lineup").innerHTML = ""; renderLineup();
+      const want = new Set(r.lineup || []);
+      // include line-up players who have since left the squad
+      const box = $("game-lineup");
+      for (const pid of want) if (!box.querySelector(`input[value="${CSS.escape(pid)}"]`)) { const p = Store.get("players", pid); if (p) box.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${esc(pid)}">${esc(p.name)}<span class="q">${esc(numLabel(p))}</span></label>`); }
+      box.querySelectorAll("input").forEach((i) => { i.checked = want.has(i.value); });
+      editMode("game", "Edit game");
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  $("sport-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const id = $("sport-id").value || uid(), name = $("sport-name").value.trim(); if (!name) return;
+    if (sports().some((s) => s.id !== id && s.name.toLowerCase() === name.toLowerCase())) { notice(`"${name}" is already on the list.`, "bad"); return; }
+    const ok = await Store.put("sports", id, { name, type: $("sport-type").value, squad: Math.max(0, parseInt($("sport-squad").value, 10) || 0), notes: $("sport-notes").value.trim() });
+    if (ok) { notice(`Saved ${name}.`, "ok"); resetForm("sports"); }
+  });
+
+  $("player-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const existing = $("player-id").value ? Store.get("players", $("player-id").value) : null;
+    const id = existing ? existing.id : uid(), name = $("player-name").value.trim(); if (!name) return;
+    const ref = $("player-ref").value.trim();
+    if (ref && players().some((p) => p.id !== id && (p.ref || "").toLowerCase() === ref.toLowerCase())) { notice(`ID ${ref} is already registered.`, "bad"); return; }
+    const sportIds = [...$("player-sports").querySelectorAll("input:checked")].map((i) => i.value);
+    for (const sid of sportIds) {
+      const s = Store.get("sports", sid), q = s && +s.squad;
+      if (q && picked(sid, id) >= q) { notice(`The ${s.name} squad already has ${q} players. Remove one first or raise the squad size.`, "bad"); return; }
+    }
+    const number = existing ? existing.number : nextNumber();
+    const ok = await Store.put("players", id, { name, number, ref, gender: $("player-gender").value, phone: $("player-phone").value.trim(), sportIds });
+    if (ok) { notice(`${existing ? "Updated" : "Added"} ${name}.`, "ok"); resetForm("players"); }
+  });
+
+  $("game-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const id = $("game-id").value || uid(), sportId = $("game-sport").value;
+    if (!sportId) { notice("Choose the sport for this game.", "bad"); return; }
+    const ok = await Store.put("games", id, { sportId, round: $("game-round").value.trim(), opponent: $("game-opp").value.trim(),
+      when: $("game-when").value, venue: $("game-venue").value.trim(), status: $("game-status").value, score: $("game-score").value.trim(),
+      lineup: [...$("game-lineup").querySelectorAll("input:checked")].map((i) => i.value) });
+    if (ok) { notice("Game saved.", "ok"); resetForm("games"); }
+  });
+
+  /* ---------- Export / backup ---------- */
+  async function saveFile(filename, text, type) {
+    if (Store.downloads) {
+      try { await Store.downloads.save({ filename, data: new Blob([text], { type }) }); } catch (e) { if (e && e.code !== "dismissed") notice("The file wasn't saved.", "warn"); }
+      return;
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  const csvCell = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  $("export-csv").onclick = () => {
+    const rows = [["No.", "Name", "ID", "Gender", "Phone", "Sports"]];
+    for (const p of filteredPlayers()) rows.push([numLabel(p), p.name, p.ref, p.gender, p.phone, (p.sportIds || []).map((id) => (Store.get("sports", id) || {}).name).filter(Boolean).join("; ")]);
+    saveFile("house-players.csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"), "text/csv");
+  };
+  $("export-json").onclick = () => saveFile("house-sports-backup.json", JSON.stringify(Store.data, null, 2), "application/json");
+  $("import-json").addEventListener("change", async (ev) => {
+    const f = ev.target.files[0]; if (!f) return;
+    try {
+      const obj = JSON.parse(await f.text());
+      if (!["sports", "players", "games"].every((c) => obj[c] && typeof obj[c] === "object")) throw new Error("shape");
+      for (const c of COLS) Store.data[c] = obj[c] || {};
+      Store.persistLocal(); render(); notice("Backup restored.", "ok");
+    } catch (e) { notice("That file isn't a house sports backup.", "bad"); }
+    ev.target.value = "";
+  });
+
+  showTab(location.hash.slice(1));
+  render();
+  Store.init();
+})();
+</script>
