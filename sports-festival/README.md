@@ -24,23 +24,32 @@ The app picks a mode automatically:
 
 ## Setting up Firebase (one-time, about 10 minutes)
 1. Go to https://console.firebase.google.com and **Create a project** (any name, Analytics off).
-2. **Build → Firestore Database → Create database** → *Start in production mode* → pick a location → Enable.
-3. In Firestore, open the **Rules** tab, replace everything with the contents of `firestore.rules`, and **Publish**.
-4. **Build → Authentication → Get started → Email/Password → Enable → Save.**
-   Then **Users → Add user**: your email and a password. This is the only account that can edit.
-5. **Project settings (gear icon) → Your apps → Web (`</>`)** → register the app (no hosting) →
-   copy the `firebaseConfig` values (`apiKey`, `authDomain`, `projectId`, `appId`).
-6. Put the config in the site, either way:
+   Note the project ID in the address bar (`/project/<PROJECT_ID>/`); the links below use it.
+2. Firestore: `https://console.firebase.google.com/project/PROJECT_ID/firestore` →
+   **Create database** → *production mode* → pick a location → Enable.
+3. Open the **Rules** tab there, replace everything with the contents of `firestore.rules`,
+   change `owner@example.com` to the Google account you will sign in with, and **Publish**.
+4. Authentication: `https://console.firebase.google.com/project/PROJECT_ID/authentication/providers` →
+   **Get started** → enable **Google** (set a support email) → Save.
+   Email/Password is optional; if you enable it, add the user under **Users**.
+5. Still in Authentication → **Settings → Authorized domains** → add `<user>.github.io`.
+6. Config: `https://console.firebase.google.com/project/PROJECT_ID/settings/general` → scroll to
+   **Your apps** → **`</>`** (Web) → register → copy `apiKey`, `authDomain`, `projectId`, `appId`.
+7. Put the config in the site, either way:
    - edit `sports-festival/firebase-config.js` and commit, **or**
    - repo **Settings → Secrets and variables → Actions → Variables → New repository variable**,
      name `FIREBASE_CONFIG`, value the JSON object, e.g.
      `{"apiKey":"AIza...","authDomain":"myhouse.firebaseapp.com","projectId":"myhouse","appId":"1:123:web:abc"}`
-7. Re-run the Pages workflow (Actions tab → Deploy Sports Festival app → Run workflow).
-8. Open the site, tap **Sign in to edit**, and start adding your house.
+8. Re-run the Pages workflow (Actions tab → Deploy Sports Festival app → Run workflow).
+9. Open the site, tap **Sign in to edit → Sign in with Google**, and start adding your house.
 
-The config values are not secret: access is controlled by the Firestore rules.
-If an open-in-browser warning about an unauthorised domain appears on sign-in, add
-`<user>.github.io` under **Authentication → Settings → Authorized domains**.
+The config values are not secret: the Firestore rules decide who can write.
+
+## Approving other editors
+Anyone can view without signing in. When someone signs in with Google and isn't an editor yet,
+the app records an access request and shows them "access requested". You (or any approved editor)
+see the request under **Overview → Editor access** and tap **Approve** or **Decline**. Approved
+people can edit until you **Remove** them. The owner named in the rules can always edit.
 
 ## Hosting on GitHub Pages (free)
 `.github/workflows/sports-festival-pages.yml` publishes to `https://<user>.github.io/<repo>/`
