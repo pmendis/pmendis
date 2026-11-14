@@ -241,9 +241,21 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
             <label>Format<select id="sport-type"><option value="team">Team</option><option value="individual">Individual</option><option value="track-field">Athletics - Track &amp; Field</option><option value="relay">Athletics - Relay</option></select></label>
             <label>Squad size<input id="sport-squad" type="number" min="0" max="200" value="11" title="Maximum players the festival allows; 0 means no limit"></label>
           </div>
-          <label>Age category
+          <label id="sport-age-single" hidden>Age category
             <select id="sport-age"><option value="">Open</option><option>Below 30</option><option>30+</option><option>35+</option><option>40+</option><option>45+</option><option>50+</option><option>55+</option></select>
           </label>
+          <fieldset id="sport-age-multi"><legend>Age categories <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">(one sport is created per ticked category)</span></legend>
+            <div class="checks" id="sport-ages">
+              <label><input type="checkbox" value="" checked> Open</label>
+              <label><input type="checkbox" value="Below 30"> Below 30</label>
+              <label><input type="checkbox" value="30+"> 30+</label>
+              <label><input type="checkbox" value="35+"> 35+</label>
+              <label><input type="checkbox" value="40+"> 40+</label>
+              <label><input type="checkbox" value="45+"> 45+</label>
+              <label><input type="checkbox" value="50+"> 50+</label>
+              <label><input type="checkbox" value="55+"> 55+</label>
+            </div>
+          </fieldset>
           <label>Notes<input id="sport-notes" maxlength="120" placeholder="e.g. 6-a-side, mixed team"></label>
           <div class="btns">
             <button class="btn primary" type="submit" id="sport-save">Add sport</button>
@@ -662,6 +674,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const FORMS = { sports: ["sport", "Add sport"], players: ["player", "Add player"], games: ["game", "Add game"] };
   function resetForm(kind) {
     const [p, label] = FORMS[kind];
+    if (kind === "sports") { $("sport-age-single").hidden = true; $("sport-age-multi").hidden = false; }
     $(p + "-form").reset(); $(p + "-id").value = "";
     $(p + "-form-title").textContent = label; $(p + "-save").textContent = label; $(p + "-cancel").hidden = true;
     if (kind === "players") { $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderPlayerSports(); }
@@ -675,7 +688,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const [col, id] = b.dataset.edit.split(":"); const r = Store.get(col, id); if (!r) return;
     if (col === "sports") {
       $("sport-id").value = id; $("sport-name").value = r.name || ""; $("sport-type").value = r.type || "team";
-      $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || ""; $("sport-age").value = r.age || ""; editMode("sport", "Edit sport");
+      $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || ""; $("sport-age").value = r.age || ""; $("sport-age-single").hidden = false; $("sport-age-multi").hidden = true; editMode("sport", "Edit sport");
     } else if (col === "players") {
       $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || ""; $("player-age").value = r.age || "";
       $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || "";
@@ -697,11 +710,15 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 
   $("sport-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    const id = $("sport-id").value || uid(), name = $("sport-name").value.trim(); if (!name) return;
-    const age = $("sport-age").value;
-    if (sports().some((s) => s.id !== id && s.name.toLowerCase() === name.toLowerCase() && (s.age || "") === age)) { notice(`"${name}${age ? " - " + age : ""}" is already on the list.`, "bad"); return; }
-    const ok = await Store.put("sports", id, { name, type: $("sport-type").value, squad: Math.max(0, parseInt($("sport-squad").value, 10) || 0), notes: $("sport-notes").value.trim(), age });
-    if (ok) { notice(`Saved ${name}.`, "ok"); resetForm("sports"); }
+    const editId = $("sport-id").value, name = $("sport-name").value.trim(); if (!name) return;
+    const ages = editId ? [$("sport-age").value] : [...$("sport-ages").querySelectorAll("input:checked")].map((i) => i.value);
+    if (!ages.length) { notice("Tick at least one age category.", "bad"); return; }
+    const base = { name, type: $("sport-type").value, squad: Math.max(0, parseInt($("sport-squad").value, 10) || 0), notes: $("sport-notes").value.trim() };
+    const dup = ages.find((age) => sports().some((s) => s.id !== editId && s.name.toLowerCase() === name.toLowerCase() && (s.age || "") === age));
+    if (dup !== undefined) { notice(`"${name}${dup ? " - " + dup : ""}" is already on the list.`, "bad"); return; }
+    let saved = 0;
+    for (const age of ages) { if (await Store.put("sports", editId || uid(), { ...base, age })) saved++; else break; }
+    if (saved) { notice(saved === 1 ? `Saved ${name}${ages[0] ? " - " + ages[0] : ""}.` : `Saved ${name} in ${saved} age categories.`, "ok"); resetForm("sports"); }
   });
 
   $("player-form").addEventListener("submit", async (ev) => {
