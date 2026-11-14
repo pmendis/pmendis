@@ -76,6 +76,8 @@ legend { font-size: 12px; font-weight: 600; color: var(--muted); text-transform:
 .checks input { width: auto; }
 .checks .q { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .checks label.full { color: var(--muted); }
+.checks .group-head { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 6px; }
+.checks .group-head + label, .checks .group-head ~ label { padding-left: 12px; }
 
 .btns { display: flex; flex-wrap: wrap; gap: 8px; }
 button.btn { font: 600 14px var(--font-body); border-radius: var(--r); padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
@@ -104,6 +106,9 @@ td.num, th.num { text-align: center; }
 .sub { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .actions { white-space: nowrap; text-align: right; }
 body.readonly .actions, body.readonly th:last-child { display: none; }
+tr.group-row td { background: var(--bg); padding-top: 10px; border-bottom: 1px solid var(--line); }
+tr.group-row td .sub { margin-left: 6px; }
+tr.variant td:first-child { padding-left: 24px; }
 tr.squad-row { cursor: pointer; }
 tr.squad-row:hover td { background: var(--bg); }
 tr.squad-row .caret { display: inline-block; width: 16px; color: var(--muted); }
@@ -441,7 +446,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 
   /* ---------- Derived ---------- */
   const house = () => Store.get("settings", "house") || { name: "", code: "", captain: "" };
-  const sports = () => Store.list("sports").sort((a, b) => a.name.localeCompare(b.name));
+  const AGE_ORDER = ["", "Below 30", "30+", "35+", "40+", "45+", "50+", "55+"];
+  const ageRank = (a) => { const i = AGE_ORDER.indexOf(a || ""); return i < 0 ? 99 : i; };
+  const sports = () => Store.list("sports").sort((a, b) => a.name.localeCompare(b.name) || ageRank(a.age) - ageRank(b.age));
+  const ageLabel = (s) => s.age || "Open";
+  // Group a sorted sport list by name: [{name, items}]
+  const groupSports = (S) => { const out = []; for (const s of S) { const g = out[out.length - 1]; if (g && g.name === s.name) g.items.push(s); else out.push({ name: s.name, items: [s] }); } return out; };
   const players = () => Store.list("players").sort((a, b) => (+a.number || 0) - (+b.number || 0) || a.name.localeCompare(b.name));
   const games = () => Store.list("games").sort((a, b) => (a.when || "~").localeCompare(b.when || "~"));
   const picked = (sportId, exceptPlayer) => players().filter((p) => (p.sportIds || []).includes(sportId) && p.id !== exceptPlayer).length;
@@ -570,16 +580,16 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
         <td>${esc(fmtWhen(g.when)) || '<span class="muted">Time TBC</span>'}<div class="muted">${esc(g.venue)}</div></td>
         <td class="num">${(g.lineup || []).length} picked</td></tr>`; }).join("")}</tbody></table>`
       : `<div class="empty">No games waiting to be played. Add fixtures in <b>Games</b>.</div>`;
-    $("ov-squads").innerHTML = S.length ? `<table><tbody>${S.map((s) => {
+    $("ov-squads").innerHTML = S.length ? `<table><tbody>${groupSports(S).map((grp) => `<tr class="group-row"><td colspan="2"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))}</span></td></tr>` + grp.items.map((s) => {
       const n = picked(s.id), q = +s.squad || 0, open = openSquads.has(s.id);
       const cls = q && n > q ? "over" : q && n === q ? "full" : n ? "ok" : "short";
       const members = P.filter((p) => (p.sportIds || []).includes(s.id));
-      return `<tr class="squad-row" data-squad="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
-          <td><span class="caret">${open ? "▾" : "▸"}</span><b>${esc(sportLabel(s))}</b><div class="sub">${esc(typeLabel(s.type))}</div></td>
+      return `<tr class="squad-row variant" data-squad="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
+          <td><span class="caret">${open ? "▾" : "▸"}</span>${esc(ageLabel(s))}</td>
           <td class="num"><span class="pill ${cls}">${n}${q ? " / " + q : ""}</span></td></tr>
         ${open ? `<tr class="squad-list"><td colspan="2">${members.length
           ? `<ul>${members.map((p) => `<li><span class="bib">${esc(numLabel(p))}</span> ${esc(p.name)}${[p.gender, p.age].filter(Boolean).length ? ` <span class="muted">· ${[p.gender, p.age].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>`
-          : `<span class="muted">No players picked for ${esc(sportLabel(s))} yet.</span>`}</td></tr>` : ""}`; }).join("")}</tbody></table>`
+          : `<span class="muted">No players picked for ${esc(sportLabel(s))} yet.</span>`}</td></tr>` : ""}`; }).join("")).join("")}</tbody></table>`
       : `<div class="empty">Add the sports your house has entered in <b>Sports</b>.</div>`;
   }
   const openSquads = new Set();
@@ -591,11 +601,11 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 
   function renderSports(S) {
     if (!S.length) { $("sport-list").innerHTML = `<div class="empty">No sports yet. Add each sport your house has entered.</div>`; return; }
-    $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${S.map((s) => {
+    $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${groupSports(S).map((grp) => `<tr class="group-row"><td colspan="4"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "category" : "categories"}</span></td></tr>` + grp.items.map((s) => {
       const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length;
-      return `<tr><td><b>${esc(sportLabel(s))}</b><div class="sub">${esc(typeLabel(s.type))}${s.notes ? " · " + esc(s.notes) : ""}</div></td>
+      return `<tr class="variant"><td>${esc(ageLabel(s))}${s.notes ? `<div class="sub">${esc(s.notes)}</div>` : ""}</td>
         <td class="num">${n}${q ? " / " + q : ""}</td><td class="num">${gs}</td>
-        <td class="actions"><button class="btn small" data-edit="sports:${esc(s.id)}">Edit</button> <button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table>`;
+        <td class="actions"><button class="btn small" data-edit="sports:${esc(s.id)}">Edit</button> <button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>`; }).join("")).join("")}</tbody></table>`;
   }
 
   function renderPlayerSports(S) {
@@ -605,13 +615,13 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     if (!S.length) { box.innerHTML = `<span class="muted">Add sports first.</span>`; return; }
     const playerAge = $("player-age").value;
     const used = {}; for (const s of S) { const g = checked.has(s.id) && limitFor(s.type); if (g) used[g.key] = (used[g.key] || 0) + 1; }
-    box.innerHTML = S.map((s) => {
+    box.innerHTML = groupSports(S).map((grp) => `<div class="group-head">${esc(grp.name)}</div>` + grp.items.map((s) => {
       const q = +s.squad || 0, n = picked(s.id, pid), full = q && n >= q && !checked.has(s.id);
       const g = limitFor(s.type), capped = g && !checked.has(s.id) && (used[g.key] || 0) >= g.max;
       const wrongAge = !!s.age && s.age !== playerAge && !checked.has(s.id);
       const off = full || capped || wrongAge;
       return `<label class="${off ? "full" : ""}"><input type="checkbox" value="${esc(s.id)}" ${checked.has(s.id) ? "checked" : ""} ${off ? "disabled" : ""}>
-        ${esc(sportLabel(s))}<span class="q">${q ? `${n}/${q}` : n}${full ? " full" : capped ? " limit reached" : wrongAge ? (playerAge ? " other age group" : " set age category") : ""}</span></label>`; }).join("") +
+        ${esc(ageLabel(s))}<span class="q">${q ? `${n}/${q}` : n}${full ? " full" : capped ? " limit reached" : wrongAge ? (playerAge ? " other age group" : " set age category") : ""}</span></label>`; }).join("")).join("") +
       `<div class="muted" style="font-size:12px;margin-top:4px">Limits per player: ${LIMITS.map((g) => `${g.label} ${used[g.key] || 0}/${g.max}`).join(" · ")}
         <br>Athletics ${(used.tf || 0) + (used.relay || 0)}/5 · Total ${(used.tf || 0) + (used.relay || 0) + (used.games || 0)}/8</div>`;
   }
@@ -621,7 +631,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   function renderFilter(S) {
     $("dept-options").innerHTML = [...new Set(players().map((p) => p.dept).filter(Boolean))].sort().map((d) => `<option value="${esc(d)}">`).join("");
     const fs = $("f-sport"), v = fs.value;
-    fs.innerHTML = `<option value="">All sports</option>` + S.map((s) => `<option value="${esc(s.id)}">${esc(sportLabel(s))}</option>`).join("");
+    fs.innerHTML = `<option value="">All sports</option>` + groupSports(S).map((grp) => `<optgroup label="${esc(grp.name)}">${grp.items.map((s) => `<option value="${esc(s.id)}">${esc(sportLabel(s))}</option>`).join("")}</optgroup>`).join("");
     fs.value = S.some((s) => s.id === v) ? v : "";
   }
   function filteredPlayers() {
@@ -646,7 +656,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 
   function renderGameForm(S) {
     const sel = $("game-sport"), cur = sel.value;
-    sel.innerHTML = `<option value="">Choose…</option>` + S.map((s) => `<option value="${esc(s.id)}">${esc(sportLabel(s))}</option>`).join("");
+    sel.innerHTML = `<option value="">Choose…</option>` + groupSports(S).map((grp) => `<optgroup label="${esc(grp.name)}">${grp.items.map((s) => `<option value="${esc(s.id)}">${esc(sportLabel(s))}</option>`).join("")}</optgroup>`).join("");
     sel.value = S.some((s) => s.id === cur) ? cur : "";
     renderLineup();
   }
