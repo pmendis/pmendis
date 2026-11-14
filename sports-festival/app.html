@@ -246,7 +246,15 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
             <label>Format<select id="sport-type"><option value="team">Team</option><option value="individual">Individual</option><option value="track-field">Athletics - Track &amp; Field</option><option value="relay">Athletics - Relay</option></select></label>
             <label>Squad size<input id="sport-squad" type="number" min="0" max="200" value="11" title="Maximum players the festival allows; 0 means no limit"></label>
           </div>
-          <fieldset id="sport-age-multi"><legend>Age categories <span class="muted" id="sport-age-hint" style="text-transform:none;letter-spacing:0;font-weight:400">(one sport is created per ticked category)</span></legend>
+          <fieldset><legend>Played by <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">(Open = anyone)</span></legend>
+            <div class="checks" id="sport-genders">
+              <label><input type="checkbox" value="" checked> Open</label>
+              <label><input type="checkbox" value="Men"> Men</label>
+              <label><input type="checkbox" value="Women"> Women</label>
+              <label><input type="checkbox" value="Mixed"> Mixed</label>
+            </div>
+          </fieldset>
+          <fieldset id="sport-age-multi"><legend>Age categories <span class="muted" id="sport-age-hint" style="text-transform:none;letter-spacing:0;font-weight:400">(one sport is created per ticked combination)</span></legend>
             <div class="checks" id="sport-ages">
               <label><input type="checkbox" value="" checked> Open</label>
               <label><input type="checkbox" value="Below 30"> Below 30</label>
@@ -445,8 +453,14 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const house = () => Store.get("settings", "house") || { name: "", code: "", captain: "" };
   const AGE_ORDER = ["", "Below 30", "30+", "35+", "40+", "45+", "50+", "55+"];
   const ageRank = (a) => { const i = AGE_ORDER.indexOf(a || ""); return i < 0 ? 99 : i; };
-  const sports = () => Store.list("sports").sort((a, b) => a.name.localeCompare(b.name) || ageRank(a.age) - ageRank(b.age));
+  const GENDER_ORDER = ["", "Men", "Women", "Mixed"];
+  const genderRank = (g) => { const i = GENDER_ORDER.indexOf(g || ""); return i < 0 ? 99 : i; };
+  const sports = () => Store.list("sports").sort((a, b) => a.name.localeCompare(b.name) || genderRank(a.gender) - genderRank(b.gender) || ageRank(a.age) - ageRank(b.age));
   const ageLabel = (s) => s.age || "Open";
+  const variantLabel = (s) => [s.gender, s.age].filter(Boolean).join(" - ") || "Open";
+  const comboKey = (s) => `${s.gender || ""}|${s.age || ""}`;
+  // Can a player (by gender) enter this sport? Men/Women events check; Mixed and Open accept anyone.
+  const genderOk = (s, playerGender) => !s.gender || s.gender === "Mixed" || (s.gender === "Men" && playerGender === "Male") || (s.gender === "Women" && playerGender === "Female");
   // Group a sorted sport list by name: [{name, items}]
   const groupSports = (S) => { const out = []; for (const s of S) { const g = out[out.length - 1]; if (g && g.name === s.name) g.items.push(s); else out.push({ name: s.name, items: [s] }); } return out; };
   const players = () => Store.list("players").sort((a, b) => (+a.number || 0) - (+b.number || 0) || a.name.localeCompare(b.name));
@@ -463,7 +477,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     { key: "relay", types: ["relay"], max: 2, label: "Relay" },
     { key: "games", types: ["team", "individual"], max: 3, label: "Team & Individual games" },
   ];
-  const sportLabel = (s) => s ? (s.age ? `${s.name} - ${s.age}` : s.name) : "?";
+  const sportLabel = (s) => s ? [s.name, s.gender, s.age].filter(Boolean).join(" - ") : "?";
   const limitFor = (type) => LIMITS.find((g) => g.types.includes(type));
   const RESULT = { scheduled: "To play", won: "Won", draw: "Draw", lost: "Lost" };
 
@@ -582,7 +596,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       const cls = q && n > q ? "over" : q && n === q ? "full" : n ? "ok" : "short";
       const members = P.filter((p) => (p.sportIds || []).includes(s.id));
       return `<tr class="squad-row variant" data-squad="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
-          <td><span class="caret">${open ? "▾" : "▸"}</span>${esc(ageLabel(s))}</td>
+          <td><span class="caret">${open ? "▾" : "▸"}</span>${esc(variantLabel(s))}</td>
           <td class="num"><span class="pill ${cls}">${n}${q ? " / " + q : ""}</span></td></tr>
         ${open ? `<tr class="squad-list"><td colspan="2">${members.length
           ? `<ul>${members.map((p) => `<li><span class="bib">${esc(numLabel(p))}</span> ${esc(p.name)}${[p.gender, p.age].filter(Boolean).length ? ` <span class="muted">· ${[p.gender, p.age].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>`
@@ -598,9 +612,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 
   function renderSports(S) {
     if (!S.length) { $("sport-list").innerHTML = `<div class="empty">No sports yet. Add each sport your house has entered.</div>`; return; }
-    $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${groupSports(S).map((grp) => `<tr class="group-row"><td colspan="3"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "category" : "categories"}</span></td><td class="actions"><button class="btn small" data-edit="sports:${esc(grp.items[0].id)}">Edit</button></td></tr>` + grp.items.map((s) => {
+    $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${groupSports(S).map((grp) => `<tr class="group-row"><td colspan="3"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "variant" : "variants"}</span></td><td class="actions"><button class="btn small" data-edit="sports:${esc(grp.items[0].id)}">Edit</button></td></tr>` + grp.items.map((s) => {
       const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length;
-      return `<tr class="variant"><td>${esc(ageLabel(s))}${s.notes ? `<div class="sub">${esc(s.notes)}</div>` : ""}</td>
+      return `<tr class="variant"><td>${esc(variantLabel(s))}${s.notes ? `<div class="sub">${esc(s.notes)}</div>` : ""}</td>
         <td class="num">${n}${q ? " / " + q : ""}</td><td class="num">${gs}</td>
         <td class="actions"><button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>`; }).join("")).join("")}</tbody></table>`;
   }
@@ -610,20 +624,22 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const box = $("player-sports"), pid = $("player-id").value;
     const checked = new Set([...box.querySelectorAll("input:checked")].map((i) => i.value));
     if (!S.length) { box.innerHTML = `<span class="muted">Add sports first.</span>`; return; }
-    const playerAge = $("player-age").value;
+    const playerAge = $("player-age").value, playerGender = $("player-gender").value;
     const used = {}; for (const s of S) { const g = checked.has(s.id) && limitFor(s.type); if (g) used[g.key] = (used[g.key] || 0) + 1; }
     box.innerHTML = groupSports(S).map((grp) => `<div class="group-head">${esc(grp.name)}</div>` + grp.items.map((s) => {
       const q = +s.squad || 0, n = picked(s.id, pid), full = q && n >= q && !checked.has(s.id);
       const g = limitFor(s.type), capped = g && !checked.has(s.id) && (used[g.key] || 0) >= g.max;
       const wrongAge = !!s.age && s.age !== playerAge && !checked.has(s.id);
-      const off = full || capped || wrongAge;
+      const wrongGender = !genderOk(s, playerGender) && !checked.has(s.id);
+      const off = full || capped || wrongAge || wrongGender;
       return `<label class="${off ? "full" : ""}"><input type="checkbox" value="${esc(s.id)}" ${checked.has(s.id) ? "checked" : ""} ${off ? "disabled" : ""}>
-        ${esc(ageLabel(s))}<span class="q">${q ? `${n}/${q}` : n}${full ? " full" : capped ? " limit reached" : wrongAge ? (playerAge ? " other age group" : " set age category") : ""}</span></label>`; }).join("")).join("") +
+        ${esc(variantLabel(s))}<span class="q">${q ? `${n}/${q}` : n}${full ? " full" : capped ? " limit reached" : wrongGender ? (playerGender ? ` ${s.gender} only` : " set gender") : wrongAge ? (playerAge ? " other age group" : " set age category") : ""}</span></label>`; }).join("")).join("") +
       `<div class="muted" style="font-size:12px;margin-top:4px">Limits per player: ${LIMITS.map((g) => `${g.label} ${used[g.key] || 0}/${g.max}`).join(" · ")}
         <br>Athletics ${(used.tf || 0) + (used.relay || 0)}/5 · Total ${(used.tf || 0) + (used.relay || 0) + (used.games || 0)}/8</div>`;
   }
   $("player-sports").addEventListener("change", () => renderPlayerSports());
   $("player-age").addEventListener("change", () => renderPlayerSports());
+  $("player-gender").addEventListener("change", () => renderPlayerSports());
 
   function renderFilter(S) {
     $("dept-options").innerHTML = [...new Set(players().map((p) => p.dept).filter(Boolean))].sort().map((d) => `<option value="${esc(d)}">`).join("");
@@ -681,7 +697,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const FORMS = { sports: ["sport", "Add sport"], players: ["player", "Add player"], games: ["game", "Add game"] };
   function resetForm(kind) {
     const [p, label] = FORMS[kind];
-    if (kind === "sports") { $("sport-age-hint").textContent = "(one sport is created per ticked category)"; }
+    if (kind === "sports") { $("sport-age-hint").textContent = "(one sport is created per ticked combination)"; }
     $(p + "-form").reset(); $(p + "-id").value = "";
     $(p + "-form-title").textContent = label; $(p + "-save").textContent = label; $(p + "-cancel").hidden = true;
     if (kind === "players") { $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderPlayerSports(); }
@@ -696,9 +712,11 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     if (col === "sports") {
       $("sport-id").value = id; $("sport-name").value = r.name || ""; $("sport-type").value = r.type || "team";
       $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || "";
-      const have = new Set(sports().filter((x) => x.name === r.name).map((x) => x.age || ""));
-      $("sport-ages").querySelectorAll("input").forEach((i) => { i.checked = have.has(i.value); });
-      $("sport-age-hint").textContent = "(tick to add a category, untick to remove it)"; editMode("sport", "Edit " + r.name);
+      const grp = sports().filter((x) => x.name === r.name);
+      const haveAges = new Set(grp.map((x) => x.age || "")), haveGenders = new Set(grp.map((x) => x.gender || ""));
+      $("sport-ages").querySelectorAll("input").forEach((i) => { i.checked = haveAges.has(i.value); });
+      $("sport-genders").querySelectorAll("input").forEach((i) => { i.checked = haveGenders.has(i.value); });
+      $("sport-age-hint").textContent = "(tick to add a variant, untick to remove it)"; editMode("sport", "Edit " + r.name);
     } else if (col === "players") {
       $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || ""; $("player-age").value = r.age || "";
       $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || "";
@@ -722,27 +740,31 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     ev.preventDefault();
     const editId = $("sport-id").value, name = $("sport-name").value.trim(); if (!name) return;
     const ages = [...$("sport-ages").querySelectorAll("input:checked")].map((i) => i.value);
+    const genders = [...$("sport-genders").querySelectorAll("input:checked")].map((i) => i.value);
     if (!ages.length) { notice("Tick at least one age category.", "bad"); return; }
+    if (!genders.length) { notice("Tick who plays it: Open, Men, Women or Mixed.", "bad"); return; }
+    const combos = []; for (const gender of genders) for (const age of ages) combos.push({ gender, age });
     const base = { name, type: $("sport-type").value, squad: Math.max(0, parseInt($("sport-squad").value, 10) || 0), notes: $("sport-notes").value.trim() };
     const norm = (t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
     // The group being edited: every category entry sharing the original name
     const orig = editId ? Store.get("sports", editId) : null;
     const group = orig ? sports().filter((x) => x.name === orig.name) : [];
     const groupIds = new Set(group.map((x) => x.id));
-    const dup = ages.find((age) => sports().some((s) => !groupIds.has(s.id) && norm(sportLabel(s)) === norm(sportLabel({ name, age }))));
-    if (dup !== undefined) { notice(`"${name}${dup ? " - " + dup : ""}" is already on the list.`, "bad"); return; }
-    // Unticked categories are removed, unless players or games still use them
-    const toRemove = group.filter((x) => !ages.includes(x.age || ""));
+    const dup = combos.find((c) => sports().some((s) => !groupIds.has(s.id) && norm(sportLabel(s)) === norm(sportLabel({ name, ...c }))));
+    if (dup) { notice(`"${sportLabel({ name, ...dup })}" is already on the list.`, "bad"); return; }
+    // Unticked variants are removed, unless players or games still use them
+    const wanted = new Set(combos.map(comboKey));
+    const toRemove = group.filter((x) => !wanted.has(comboKey(x)));
     for (const x of toRemove) {
       if (picked(x.id) || games().some((g) => g.sportId === x.id)) { notice(`${sportLabel(x)} still has players or games. Remove them before unticking that category.`, "bad"); return; }
     }
     let ok = true;
     for (const x of toRemove) { if (!(ok = await Store.remove("sports", x.id))) break; }
-    if (ok) for (const age of ages) {
-      const existing = group.find((x) => (x.age || "") === age);
-      if (!(ok = await Store.put("sports", existing ? existing.id : uid(), { ...base, age }))) break;
+    if (ok) for (const c of combos) {
+      const existing = group.find((x) => comboKey(x) === comboKey(c));
+      if (!(ok = await Store.put("sports", existing ? existing.id : uid(), { ...base, ...c }))) break;
     }
-    if (ok) { notice(`Saved ${name} in ${ages.length} age ${ages.length === 1 ? "category" : "categories"}.`, "ok"); resetForm("sports"); }
+    if (ok) { notice(combos.length === 1 ? `Saved ${sportLabel({ name, ...combos[0] })}.` : `Saved ${name} as ${combos.length} variants.`, "ok"); resetForm("sports"); }
   });
 
   $("player-form").addEventListener("submit", async (ev) => {
@@ -759,6 +781,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     for (const sid of sportIds) {
       const s = Store.get("sports", sid);
       if (s && s.age && s.age !== $("player-age").value) { notice(`${sportLabel(s)} is for the ${s.age} age category only.`, "bad"); return; }
+      if (s && !genderOk(s, $("player-gender").value)) { notice(`${sportLabel(s)} is a ${s.gender} event.`, "bad"); return; }
     }
     for (const g of LIMITS) {
       const n = sportIds.filter((sid) => g.types.includes((Store.get("sports", sid) || {}).type)).length;
