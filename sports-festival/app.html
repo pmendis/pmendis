@@ -435,6 +435,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const nextNumber = () => players().reduce((m, p) => Math.max(m, +p.number || 0), 0) + 1;
   const TYPES = { team: "Team", individual: "Individual", "track-field": "Athletics - Track & Field", relay: "Athletics - Relay" };
   const typeLabel = (t) => TYPES[t] || t || "";
+  const LIMITS = { "track-field": 3, relay: 2 }; // max events per player by format
   const RESULT = { scheduled: "To play", won: "Won", draw: "Draw", lost: "Lost" };
 
   /* ---------- Two-click delete (the viewer blocks confirm dialogs) ---------- */
@@ -580,11 +581,16 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const box = $("player-sports"), pid = $("player-id").value;
     const checked = new Set([...box.querySelectorAll("input:checked")].map((i) => i.value));
     if (!S.length) { box.innerHTML = `<span class="muted">Add sports first.</span>`; return; }
+    const used = {}; for (const s of S) if (checked.has(s.id) && LIMITS[s.type]) used[s.type] = (used[s.type] || 0) + 1;
     box.innerHTML = S.map((s) => {
       const q = +s.squad || 0, n = picked(s.id, pid), full = q && n >= q && !checked.has(s.id);
-      return `<label class="${full ? "full" : ""}"><input type="checkbox" value="${esc(s.id)}" ${checked.has(s.id) ? "checked" : ""} ${full ? "disabled" : ""}>
-        ${esc(s.name)}<span class="q">${q ? `${n}/${q}` : n}${full ? " full" : ""}</span></label>`; }).join("");
+      const capped = LIMITS[s.type] && !checked.has(s.id) && (used[s.type] || 0) >= LIMITS[s.type];
+      const off = full || capped;
+      return `<label class="${off ? "full" : ""}"><input type="checkbox" value="${esc(s.id)}" ${checked.has(s.id) ? "checked" : ""} ${off ? "disabled" : ""}>
+        ${esc(s.name)}<span class="q">${q ? `${n}/${q}` : n}${full ? " full" : capped ? " limit reached" : ""}</span></label>`; }).join("") +
+      `<div class="muted" style="font-size:12px;margin-top:4px">Limits per player: ${Object.keys(LIMITS).map((t) => `${typeLabel(t)} ${used[t] || 0}/${LIMITS[t]}`).join(" · ")}</div>`;
   }
+  $("player-sports").addEventListener("change", () => renderPlayerSports());
 
   function renderFilter(S) {
     $("dept-options").innerHTML = [...new Set(players().map((p) => p.dept).filter(Boolean))].sort().map((d) => `<option value="${esc(d)}">`).join("");
@@ -693,6 +699,10 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     for (const sid of sportIds) {
       const s = Store.get("sports", sid), q = s && +s.squad;
       if (q && picked(sid, id) >= q) { notice(`The ${s.name} squad already has ${q} players. Remove one first or raise the squad size.`, "bad"); return; }
+    }
+    for (const t of Object.keys(LIMITS)) {
+      const n = sportIds.filter((sid) => (Store.get("sports", sid) || {}).type === t).length;
+      if (n > LIMITS[t]) { notice(`A player can enter at most ${LIMITS[t]} ${typeLabel(t)} events (${n} ticked).`, "bad"); return; }
     }
     const number = existing ? existing.number : nextNumber();
     const ok = await Store.put("players", id, { name, number, ref, dept: $("player-dept").value.trim(), gender: $("player-gender").value, age: $("player-age").value, phone: $("player-phone").value.trim(), sportIds });
