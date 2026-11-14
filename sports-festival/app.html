@@ -246,10 +246,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
             <label>Format<select id="sport-type"><option value="team">Team</option><option value="individual">Individual</option><option value="track-field">Athletics - Track &amp; Field</option><option value="relay">Athletics - Relay</option></select></label>
             <label>Squad size<input id="sport-squad" type="number" min="0" max="200" value="11" title="Maximum players the festival allows; 0 means no limit"></label>
           </div>
-          <label id="sport-age-single" hidden>Age category
-            <select id="sport-age"><option value="">Open</option><option>Below 30</option><option>30+</option><option>35+</option><option>40+</option><option>45+</option><option>50+</option><option>55+</option></select>
-          </label>
-          <fieldset id="sport-age-multi"><legend>Age categories <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">(one sport is created per ticked category)</span></legend>
+          <fieldset id="sport-age-multi"><legend>Age categories <span class="muted" id="sport-age-hint" style="text-transform:none;letter-spacing:0;font-weight:400">(one sport is created per ticked category)</span></legend>
             <div class="checks" id="sport-ages">
               <label><input type="checkbox" value="" checked> Open</label>
               <label><input type="checkbox" value="Below 30"> Below 30</label>
@@ -684,7 +681,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const FORMS = { sports: ["sport", "Add sport"], players: ["player", "Add player"], games: ["game", "Add game"] };
   function resetForm(kind) {
     const [p, label] = FORMS[kind];
-    if (kind === "sports") { $("sport-age-single").hidden = true; $("sport-age-multi").hidden = false; }
+    if (kind === "sports") { $("sport-age-hint").textContent = "(one sport is created per ticked category)"; }
     $(p + "-form").reset(); $(p + "-id").value = "";
     $(p + "-form-title").textContent = label; $(p + "-save").textContent = label; $(p + "-cancel").hidden = true;
     if (kind === "players") { $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderPlayerSports(); }
@@ -698,7 +695,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const [col, id] = b.dataset.edit.split(":"); const r = Store.get(col, id); if (!r) return;
     if (col === "sports") {
       $("sport-id").value = id; $("sport-name").value = r.name || ""; $("sport-type").value = r.type || "team";
-      $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || ""; $("sport-age").value = r.age || ""; $("sport-age-single").hidden = false; $("sport-age-multi").hidden = true; editMode("sport", "Edit sport");
+      $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || "";
+      $("sport-ages").querySelectorAll("input").forEach((i) => { i.checked = i.value === (r.age || ""); });
+      $("sport-age-hint").textContent = "(pick one; this entry belongs to a single category)"; editMode("sport", "Edit sport");
     } else if (col === "players") {
       $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || ""; $("player-age").value = r.age || "";
       $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || "";
@@ -718,10 +717,15 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
+  $("sport-ages").addEventListener("change", (ev) => {
+    if (!$("sport-id").value || !ev.target.checked) return;
+    $("sport-ages").querySelectorAll("input").forEach((i) => { if (i !== ev.target) i.checked = false; });
+  });
   $("sport-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const editId = $("sport-id").value, name = $("sport-name").value.trim(); if (!name) return;
-    const ages = editId ? [$("sport-age").value] : [...$("sport-ages").querySelectorAll("input:checked")].map((i) => i.value);
+    const ages = [...$("sport-ages").querySelectorAll("input:checked")].map((i) => i.value);
+    if (editId && ages.length > 1) { notice("An existing sport belongs to one age category. Tick just one, or add a new sport for the others.", "bad"); return; }
     if (!ages.length) { notice("Tick at least one age category.", "bad"); return; }
     const base = { name, type: $("sport-type").value, squad: Math.max(0, parseInt($("sport-squad").value, 10) || 0), notes: $("sport-notes").value.trim() };
     const norm = (t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
