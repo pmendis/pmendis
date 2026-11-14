@@ -246,9 +246,8 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
             <label>Format<select id="sport-type"><option value="team">Team</option><option value="individual">Individual</option><option value="track-field">Athletics - Track &amp; Field</option><option value="relay">Athletics - Relay</option></select></label>
             <label>Squad size<input id="sport-squad" type="number" min="0" max="200" value="11" title="Maximum players the festival allows; 0 means no limit"></label>
           </div>
-          <fieldset><legend>Played by <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">(Open = anyone)</span></legend>
+          <fieldset><legend>Played by <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">(Mixed = anyone)</span></legend>
             <div class="checks" id="sport-genders">
-              <label><input type="checkbox" value="" checked> Open</label>
               <label><input type="checkbox" value="Men"> Men</label>
               <label><input type="checkbox" value="Women"> Women</label>
               <label><input type="checkbox" value="Mixed"> Mixed</label>
@@ -742,7 +741,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const ages = [...$("sport-ages").querySelectorAll("input:checked")].map((i) => i.value);
     const genders = [...$("sport-genders").querySelectorAll("input:checked")].map((i) => i.value);
     if (!ages.length) { notice("Tick at least one age category.", "bad"); return; }
-    if (!genders.length) { notice("Tick who plays it: Open, Men, Women or Mixed.", "bad"); return; }
+    if (!genders.length) { notice("Tick who plays it: Men, Women or Mixed.", "bad"); return; }
     const combos = []; for (const gender of genders) for (const age of ages) combos.push({ gender, age });
     const base = { name, type: $("sport-type").value, squad: Math.max(0, parseInt($("sport-squad").value, 10) || 0), notes: $("sport-notes").value.trim() };
     const norm = (t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
