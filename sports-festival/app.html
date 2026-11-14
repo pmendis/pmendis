@@ -599,7 +599,8 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       const off = full || capped || wrongAge;
       return `<label class="${off ? "full" : ""}"><input type="checkbox" value="${esc(s.id)}" ${checked.has(s.id) ? "checked" : ""} ${off ? "disabled" : ""}>
         ${esc(s.name)}${s.age ? ` <span class="chip">${esc(s.age)}</span>` : ""}<span class="q">${q ? `${n}/${q}` : n}${full ? " full" : capped ? " limit reached" : wrongAge ? (playerAge ? " other age group" : " set age category") : ""}</span></label>`; }).join("") +
-      `<div class="muted" style="font-size:12px;margin-top:4px">Limits per player: ${LIMITS.map((g) => `${g.label} ${used[g.key] || 0}/${g.max}`).join(" · ")}</div>`;
+      `<div class="muted" style="font-size:12px;margin-top:4px">Limits per player: ${LIMITS.map((g) => `${g.label} ${used[g.key] || 0}/${g.max}`).join(" · ")}
+        <br>Athletics ${(used.tf || 0) + (used.relay || 0)}/5 · Total ${(used.tf || 0) + (used.relay || 0) + (used.games || 0)}/8</div>`;
   }
   $("player-sports").addEventListener("change", () => renderPlayerSports());
   $("player-age").addEventListener("change", () => renderPlayerSports());
