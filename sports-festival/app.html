@@ -438,7 +438,13 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const nextNumber = () => players().reduce((m, p) => Math.max(m, +p.number || 0), 0) + 1;
   const TYPES = { team: "Team", individual: "Individual", "track-field": "Athletics - Track & Field", relay: "Athletics - Relay" };
   const typeLabel = (t) => TYPES[t] || t || "";
-  const LIMITS = { "track-field": 3, relay: 2 }; // max events per player by format
+  // Max events per player, by format group
+  const LIMITS = [
+    { key: "tf", types: ["track-field"], max: 3, label: "Track & Field" },
+    { key: "relay", types: ["relay"], max: 2, label: "Relay" },
+    { key: "games", types: ["team", "individual"], max: 3, label: "Team & Individual games" },
+  ];
+  const limitFor = (type) => LIMITS.find((g) => g.types.includes(type));
   const RESULT = { scheduled: "To play", won: "Won", draw: "Draw", lost: "Lost" };
 
   /* ---------- Two-click delete (the viewer blocks confirm dialogs) ---------- */
@@ -585,15 +591,15 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const checked = new Set([...box.querySelectorAll("input:checked")].map((i) => i.value));
     if (!S.length) { box.innerHTML = `<span class="muted">Add sports first.</span>`; return; }
     const playerAge = $("player-age").value;
-    const used = {}; for (const s of S) if (checked.has(s.id) && LIMITS[s.type]) used[s.type] = (used[s.type] || 0) + 1;
+    const used = {}; for (const s of S) { const g = checked.has(s.id) && limitFor(s.type); if (g) used[g.key] = (used[g.key] || 0) + 1; }
     box.innerHTML = S.map((s) => {
       const q = +s.squad || 0, n = picked(s.id, pid), full = q && n >= q && !checked.has(s.id);
-      const capped = LIMITS[s.type] && !checked.has(s.id) && (used[s.type] || 0) >= LIMITS[s.type];
+      const g = limitFor(s.type), capped = g && !checked.has(s.id) && (used[g.key] || 0) >= g.max;
       const wrongAge = !!s.age && s.age !== playerAge && !checked.has(s.id);
       const off = full || capped || wrongAge;
       return `<label class="${off ? "full" : ""}"><input type="checkbox" value="${esc(s.id)}" ${checked.has(s.id) ? "checked" : ""} ${off ? "disabled" : ""}>
         ${esc(s.name)}${s.age ? ` <span class="chip">${esc(s.age)}</span>` : ""}<span class="q">${q ? `${n}/${q}` : n}${full ? " full" : capped ? " limit reached" : wrongAge ? (playerAge ? " other age group" : " set age category") : ""}</span></label>`; }).join("") +
-      `<div class="muted" style="font-size:12px;margin-top:4px">Limits per player: ${Object.keys(LIMITS).map((t) => `${typeLabel(t)} ${used[t] || 0}/${LIMITS[t]}`).join(" · ")}</div>`;
+      `<div class="muted" style="font-size:12px;margin-top:4px">Limits per player: ${LIMITS.map((g) => `${g.label} ${used[g.key] || 0}/${g.max}`).join(" · ")}</div>`;
   }
   $("player-sports").addEventListener("change", () => renderPlayerSports());
   $("player-age").addEventListener("change", () => renderPlayerSports());
@@ -710,9 +716,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       const s = Store.get("sports", sid);
       if (s && s.age && s.age !== $("player-age").value) { notice(`${s.name} is for the ${s.age} age category only.`, "bad"); return; }
     }
-    for (const t of Object.keys(LIMITS)) {
-      const n = sportIds.filter((sid) => (Store.get("sports", sid) || {}).type === t).length;
-      if (n > LIMITS[t]) { notice(`A player can enter at most ${LIMITS[t]} ${typeLabel(t)} events (${n} ticked).`, "bad"); return; }
+    for (const g of LIMITS) {
+      const n = sportIds.filter((sid) => g.types.includes((Store.get("sports", sid) || {}).type)).length;
+      if (n > g.max) { notice(`A player can enter at most ${g.max} ${g.label} events (${n} ticked).`, "bad"); return; }
     }
     const number = existing ? existing.number : nextNumber();
     const ok = await Store.put("players", id, { name, number, ref, dept: $("player-dept").value.trim(), gender: $("player-gender").value, age: $("player-age").value, phone: $("player-phone").value.trim(), sportIds });
