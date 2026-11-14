@@ -598,11 +598,11 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 
   function renderSports(S) {
     if (!S.length) { $("sport-list").innerHTML = `<div class="empty">No sports yet. Add each sport your house has entered.</div>`; return; }
-    $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${groupSports(S).map((grp) => `<tr class="group-row"><td colspan="4"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "category" : "categories"}</span></td></tr>` + grp.items.map((s) => {
+    $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${groupSports(S).map((grp) => `<tr class="group-row"><td colspan="3"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "category" : "categories"}</span></td><td class="actions"><button class="btn small" data-edit="sports:${esc(grp.items[0].id)}">Edit</button></td></tr>` + grp.items.map((s) => {
       const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length;
       return `<tr class="variant"><td>${esc(ageLabel(s))}${s.notes ? `<div class="sub">${esc(s.notes)}</div>` : ""}</td>
         <td class="num">${n}${q ? " / " + q : ""}</td><td class="num">${gs}</td>
-        <td class="actions"><button class="btn small" data-edit="sports:${esc(s.id)}">Edit</button> <button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>`; }).join("")).join("")}</tbody></table>`;
+        <td class="actions"><button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>`; }).join("")).join("")}</tbody></table>`;
   }
 
   function renderPlayerSports(S) {
@@ -696,8 +696,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     if (col === "sports") {
       $("sport-id").value = id; $("sport-name").value = r.name || ""; $("sport-type").value = r.type || "team";
       $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || "";
-      $("sport-ages").querySelectorAll("input").forEach((i) => { i.checked = i.value === (r.age || ""); });
-      $("sport-age-hint").textContent = "(pick one; this entry belongs to a single category)"; editMode("sport", "Edit sport");
+      const have = new Set(sports().filter((x) => x.name === r.name).map((x) => x.age || ""));
+      $("sport-ages").querySelectorAll("input").forEach((i) => { i.checked = have.has(i.value); });
+      $("sport-age-hint").textContent = "(tick to add a category, untick to remove it)"; editMode("sport", "Edit " + r.name);
     } else if (col === "players") {
       $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || ""; $("player-age").value = r.age || "";
       $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || "";
@@ -717,23 +718,31 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
-  $("sport-ages").addEventListener("change", (ev) => {
-    if (!$("sport-id").value || !ev.target.checked) return;
-    $("sport-ages").querySelectorAll("input").forEach((i) => { if (i !== ev.target) i.checked = false; });
-  });
   $("sport-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const editId = $("sport-id").value, name = $("sport-name").value.trim(); if (!name) return;
     const ages = [...$("sport-ages").querySelectorAll("input:checked")].map((i) => i.value);
-    if (editId && ages.length > 1) { notice("An existing sport belongs to one age category. Tick just one, or add a new sport for the others.", "bad"); return; }
     if (!ages.length) { notice("Tick at least one age category.", "bad"); return; }
     const base = { name, type: $("sport-type").value, squad: Math.max(0, parseInt($("sport-squad").value, 10) || 0), notes: $("sport-notes").value.trim() };
     const norm = (t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
-    const dup = ages.find((age) => sports().some((s) => s.id !== editId && norm(sportLabel(s)) === norm(sportLabel({ name, age }))));
+    // The group being edited: every category entry sharing the original name
+    const orig = editId ? Store.get("sports", editId) : null;
+    const group = orig ? sports().filter((x) => x.name === orig.name) : [];
+    const groupIds = new Set(group.map((x) => x.id));
+    const dup = ages.find((age) => sports().some((s) => !groupIds.has(s.id) && norm(sportLabel(s)) === norm(sportLabel({ name, age }))));
     if (dup !== undefined) { notice(`"${name}${dup ? " - " + dup : ""}" is already on the list.`, "bad"); return; }
-    let saved = 0;
-    for (const age of ages) { if (await Store.put("sports", editId || uid(), { ...base, age })) saved++; else break; }
-    if (saved) { notice(saved === 1 ? `Saved ${name}${ages[0] ? " - " + ages[0] : ""}.` : `Saved ${name} in ${saved} age categories.`, "ok"); resetForm("sports"); }
+    // Unticked categories are removed, unless players or games still use them
+    const toRemove = group.filter((x) => !ages.includes(x.age || ""));
+    for (const x of toRemove) {
+      if (picked(x.id) || games().some((g) => g.sportId === x.id)) { notice(`${sportLabel(x)} still has players or games. Remove them before unticking that category.`, "bad"); return; }
+    }
+    let ok = true;
+    for (const x of toRemove) { if (!(ok = await Store.remove("sports", x.id))) break; }
+    if (ok) for (const age of ages) {
+      const existing = group.find((x) => (x.age || "") === age);
+      if (!(ok = await Store.put("sports", existing ? existing.id : uid(), { ...base, age }))) break;
+    }
+    if (ok) { notice(`Saved ${name} in ${ages.length} age ${ages.length === 1 ? "category" : "categories"}.`, "ok"); resetForm("sports"); }
   });
 
   $("player-form").addEventListener("submit", async (ev) => {
