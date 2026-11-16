@@ -76,6 +76,8 @@ legend { font-size: 12px; font-weight: 600; color: var(--muted); text-transform:
 .checks input { width: auto; }
 .checks .q { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .checks label.full { color: var(--muted); }
+label.tick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 14px; color: var(--ink); }
+label.tick input { width: auto; }
 .checks .group-head { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 6px; }
 .checks .group-head + label, .checks .group-head ~ label { padding-left: 12px; }
 
@@ -183,7 +185,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     </div>
     <div class="two">
       <div class="panel"><h2>Next games</h2><div class="table-wrap" id="ov-games"></div></div>
-      <div class="panel"><h2>Squads <small>players picked against squad size</small></h2><div class="table-wrap" id="ov-squads"></div></div>
+      <div class="panel"><h2>Proposed squads <small>players picked against squad size · confirmed in green</small></h2><div class="table-wrap" id="ov-squads"></div></div>
     </div>
     <div class="panel" id="access-panel" hidden style="margin-top:20px">
       <h2>Editor access <small>people who signed in and asked to edit; approve the ones you trust</small></h2>
@@ -213,6 +215,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
           <div class="row2">
             <label>Department<input id="player-dept" maxlength="60" list="dept-options" placeholder="e.g. Finance"></label>
             <label>Phone<input id="player-phone" type="tel" maxlength="20"></label>
+          </div>
+          <div>
+            <label class="tick"><input type="checkbox" id="player-confirmed"> Confirmed <span class="muted" style="font-weight:400">(player has agreed to take part)</span></label>
           </div>
           <datalist id="dept-options"></datalist>
           <fieldset><legend>Sports</legend><div class="checks" id="player-sports"></div></fieldset>
@@ -596,9 +601,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       const members = P.filter((p) => (p.sportIds || []).includes(s.id));
       return `<tr class="squad-row variant" data-squad="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
           <td><span class="caret">${open ? "▾" : "▸"}</span>${esc(variantLabel(s))}</td>
-          <td class="num"><span class="pill ${cls}">${n}${q ? " / " + q : ""}</span></td></tr>
+          <td class="num"><span class="pill ${cls}">${n}${q ? " / " + q : ""}</span>${n ? `<div class="sub" style="margin-top:2px">${members.filter((p) => p.confirmed).length} confirmed</div>` : ""}</td></tr>
         ${open ? `<tr class="squad-list"><td colspan="2">${members.length
-          ? `<ul>${members.map((p) => `<li><span class="bib">${esc(numLabel(p))}</span> ${esc(p.name)}${[p.gender, p.age].filter(Boolean).length ? ` <span class="muted">· ${[p.gender, p.age].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>`
+          ? `<ul>${members.map((p) => `<li><span class="bib">${esc(numLabel(p))}</span> ${esc(p.name)}${p.confirmed ? ' <span class="pill ok">✓</span>' : ""}${[p.gender, p.age].filter(Boolean).length ? ` <span class="muted">· ${[p.gender, p.age].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>`
           : `<span class="muted">No players picked for ${esc(sportLabel(s))} yet.</span>`}</td></tr>` : ""}`; }).join("")).join("")}</tbody></table>`
       : `<div class="empty">Add the sports your house has entered in <b>Sports</b>.</div>`;
   }
@@ -659,7 +664,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("player-list").innerHTML = `<table><thead><tr><th>No.</th><th>Player</th><th>Sports</th><th></th></tr></thead><tbody>${L.map((p) => {
       const evs = (p.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
       return `<tr><td><span class="bib">${esc(numLabel(p))}</span></td>
-        <td><b>${esc(p.name)}</b><div class="muted">${[p.ref ? "EPF " + p.ref : "", p.dept, p.gender, p.age, p.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
+        <td><b>${esc(p.name)}</b>${p.confirmed ? ' <span class="pill ok">Confirmed</span>' : ' <span class="pill">Proposed</span>'}<div class="muted">${[p.ref ? "EPF " + p.ref : "", p.dept, p.gender, p.age, p.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
         <td>${evs.length ? evs.map((s) => `<span class="chip">${esc(sportLabel(s))}</span>`).join("") : '<span class="muted">None</span>'}</td>
         <td class="actions"><button class="btn small" data-edit="players:${esc(p.id)}">Edit</button> <button class="btn small danger" data-del="players:${esc(p.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table>
       <div class="muted" style="margin-top:8px">${L.length} of ${all.length} players</div>`;
@@ -718,7 +723,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       $("sport-age-hint").textContent = "(tick to add a variant, untick to remove it)"; editMode("sport", "Edit " + r.name);
     } else if (col === "players") {
       $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || ""; $("player-age").value = r.age || "";
-      $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || "";
+      $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || ""; $("player-confirmed").checked = !!r.confirmed;
       renderPlayerSports(); $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = (r.sportIds || []).includes(i.value); i.disabled = false; });
       editMode("player", "Edit " + numLabel(r));
     } else if (col === "games") {
@@ -787,7 +792,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       if (n > g.max) { notice(`A player can enter at most ${g.max} ${g.label} events (${n} ticked).`, "bad"); return; }
     }
     const number = existing ? existing.number : nextNumber();
-    const ok = await Store.put("players", id, { name, number, ref, dept: $("player-dept").value.trim(), gender: $("player-gender").value, age: $("player-age").value, phone: $("player-phone").value.trim(), sportIds });
+    const ok = await Store.put("players", id, { name, number, ref, dept: $("player-dept").value.trim(), gender: $("player-gender").value, age: $("player-age").value, phone: $("player-phone").value.trim(), confirmed: $("player-confirmed").checked, sportIds });
     if (ok) { notice(`${existing ? "Updated" : "Added"} ${name}.`, "ok"); resetForm("players"); }
   });
 
@@ -812,8 +817,8 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   }
   const csvCell = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   $("export-csv").onclick = () => {
-    const rows = [["No.", "Name", "EPF number", "Department", "Gender", "Age category", "Phone", "Sports"]];
-    for (const p of filteredPlayers()) rows.push([numLabel(p), p.name, p.ref, p.dept, p.gender, p.age, p.phone, (p.sportIds || []).map((id) => sportLabel(Store.get("sports", id))).filter((x) => x !== "?").join("; ")]);
+    const rows = [["No.", "Name", "EPF number", "Department", "Gender", "Age category", "Phone", "Status", "Sports"]];
+    for (const p of filteredPlayers()) rows.push([numLabel(p), p.name, p.ref, p.dept, p.gender, p.age, p.phone, p.confirmed ? "Confirmed" : "Proposed", (p.sportIds || []).map((id) => sportLabel(Store.get("sports", id))).filter((x) => x !== "?").join("; ")]);
     saveFile("house-players.csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"), "text/csv");
   };
   $("export-json").onclick = () => saveFile("house-sports-backup.json", JSON.stringify(Store.data, null, 2), "application/json");
