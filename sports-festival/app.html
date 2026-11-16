@@ -457,7 +457,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const sports = () => Store.list("sports").sort((a, b) => a.name.localeCompare(b.name) || genderRank(a.gender) - genderRank(b.gender) || ageRank(a.age) - ageRank(b.age));
   const ageLabel = (s) => s.age || "Open";
   const variantLabel = (s) => [s.gender, s.age].filter(Boolean).join(" - ") || "Open";
-  const comboKey = (s) => `${s.gender || ""}|${s.age || ""}`;
+  const comboKey = (s) => `${s.gender || "Mixed"}|${s.age || ""}`;
   // Can a player (by gender) enter this sport? Men/Women events check; Mixed and Open accept anyone.
   const genderOk = (s, playerGender) => !s.gender || s.gender === "Mixed" || (s.gender === "Men" && playerGender === "Male") || (s.gender === "Women" && playerGender === "Female");
   // Group a sorted sport list by name: [{name, items}]
@@ -712,7 +712,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       $("sport-id").value = id; $("sport-name").value = r.name || ""; $("sport-type").value = r.type || "team";
       $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || "";
       const grp = sports().filter((x) => x.name === r.name);
-      const haveAges = new Set(grp.map((x) => x.age || "")), haveGenders = new Set(grp.map((x) => x.gender || ""));
+      const haveAges = new Set(grp.map((x) => x.age || "")), haveGenders = new Set(grp.map((x) => x.gender || "Mixed"));
       $("sport-ages").querySelectorAll("input").forEach((i) => { i.checked = haveAges.has(i.value); });
       $("sport-genders").querySelectorAll("input").forEach((i) => { i.checked = haveGenders.has(i.value); });
       $("sport-age-hint").textContent = "(tick to add a variant, untick to remove it)"; editMode("sport", "Edit " + r.name);
