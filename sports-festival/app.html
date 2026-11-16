@@ -185,7 +185,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     </div>
     <div class="two">
       <div class="panel"><h2>Next games</h2><div class="table-wrap" id="ov-games"></div></div>
-      <div class="panel"><h2>Proposed squads <small>players picked against squad size · confirmed in green</small></h2><div class="table-wrap" id="ov-squads"></div></div>
+      <div class="panel"><h2>Proposed squads <small>players proposed against squad size · confirmed = selected for the final squad</small></h2><div class="table-wrap" id="ov-squads"></div></div>
     </div>
     <div class="panel" id="access-panel" hidden style="margin-top:20px">
       <h2>Editor access <small>people who signed in and asked to edit; approve the ones you trust</small></h2>
@@ -217,7 +217,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
             <label>Phone<input id="player-phone" type="tel" maxlength="20"></label>
           </div>
           <div>
-            <label class="tick"><input type="checkbox" id="player-confirmed"> Confirmed <span class="muted" style="font-weight:400">(player has agreed to take part)</span></label>
+            <label class="tick"><input type="checkbox" id="player-confirmed"> Confirmed <span class="muted" style="font-weight:400">(selected for the final squad)</span></label>
           </div>
           <datalist id="dept-options"></datalist>
           <fieldset><legend>Sports</legend><div class="checks" id="player-sports"></div></fieldset>
