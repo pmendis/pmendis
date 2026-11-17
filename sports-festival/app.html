@@ -108,6 +108,9 @@ td.num, th.num { text-align: center; }
 .sub { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .actions { white-space: nowrap; text-align: right; }
 body.readonly .actions, body.readonly th:last-child { display: none; }
+table.vgrid { width: auto; min-width: 260px; }
+table.vgrid th, table.vgrid td { padding: 4px 10px; }
+table.vgrid td.num input { width: auto; transform: scale(1.2); }
 tr.group-row td { background: var(--bg); padding-top: 10px; border-bottom: 1px solid var(--line); }
 tr.group-row td .sub { margin-left: 6px; }
 tr.variant td:first-child { padding-left: 24px; }
@@ -251,24 +254,11 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
             <label>Format<select id="sport-type"><option value="team">Team</option><option value="individual">Individual</option><option value="track-field">Athletics - Track &amp; Field</option><option value="relay">Athletics - Relay</option></select></label>
             <label>Squad size<input id="sport-squad" type="number" min="0" max="200" value="11" title="Maximum players the festival allows; 0 means no limit"></label>
           </div>
-          <fieldset><legend>Played by <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">(Mixed = anyone)</span></legend>
-            <div class="checks" id="sport-genders">
-              <label><input type="checkbox" value="Men"> Men</label>
-              <label><input type="checkbox" value="Women"> Women</label>
-              <label><input type="checkbox" value="Mixed"> Mixed</label>
-            </div>
-          </fieldset>
-          <fieldset id="sport-age-multi"><legend>Age categories <span class="muted" id="sport-age-hint" style="text-transform:none;letter-spacing:0;font-weight:400">(one sport is created per ticked combination)</span></legend>
-            <div class="checks" id="sport-ages">
-              <label><input type="checkbox" value="" checked> Open</label>
-              <label><input type="checkbox" value="Below 30"> Below 30</label>
-              <label><input type="checkbox" value="30+"> 30+</label>
-              <label><input type="checkbox" value="35+"> 35+</label>
-              <label><input type="checkbox" value="40+"> 40+</label>
-              <label><input type="checkbox" value="45+"> 45+</label>
-              <label><input type="checkbox" value="50+"> 50+</label>
-              <label><input type="checkbox" value="55+"> 55+</label>
-            </div>
+          <fieldset><legend>Variants <span class="muted" id="sport-age-hint" style="text-transform:none;letter-spacing:0;font-weight:400">(tick each age and gender combination that is played; Mixed = anyone)</span></legend>
+            <div class="table-wrap"><table class="vgrid" id="sport-grid">
+              <thead><tr><th>Age</th><th class="num">Men</th><th class="num">Women</th><th class="num">Mixed</th></tr></thead>
+              <tbody></tbody>
+            </table></div>
           </fieldset>
           <label>Notes<input id="sport-notes" maxlength="120" placeholder="e.g. 6-a-side, mixed team"></label>
           <div class="btns">
@@ -699,10 +689,15 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* ---------- Forms ---------- */
+  const GRID_GENDERS = ["Men", "Women", "Mixed"];
+  $("sport-grid").querySelector("tbody").innerHTML = AGE_ORDER.map((a) => `<tr><td>${esc(a || "Open")}</td>${GRID_GENDERS.map((g) =>
+    `<td class="num"><input type="checkbox" aria-label="${esc(g)} ${esc(a || "Open")}" data-g="${esc(g)}" data-a="${esc(a)}"></td>`).join("")}</tr>`).join("");
+  const gridBoxes = () => [...$("sport-grid").querySelectorAll("input")];
+  const setGrid = (keys) => gridBoxes().forEach((i) => { i.checked = keys.has(`${i.dataset.g}|${i.dataset.a}`); });
   const FORMS = { sports: ["sport", "Add sport"], players: ["player", "Add player"], games: ["game", "Add game"] };
   function resetForm(kind) {
     const [p, label] = FORMS[kind];
-    if (kind === "sports") { $("sport-age-hint").textContent = "(one sport is created per ticked combination)"; }
+    if (kind === "sports") { $("sport-age-hint").textContent = "(tick each age and gender combination that is played; Mixed = anyone)"; }
     $(p + "-form").reset(); $(p + "-id").value = "";
     $(p + "-form-title").textContent = label; $(p + "-save").textContent = label; $(p + "-cancel").hidden = true;
     if (kind === "players") { $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderPlayerSports(); }
@@ -718,9 +713,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       $("sport-id").value = id; $("sport-name").value = r.name || ""; $("sport-type").value = r.type || "team";
       $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || "";
       const grp = sports().filter((x) => x.name === r.name);
-      const haveAges = new Set(grp.map((x) => x.age || "")), haveGenders = new Set(grp.map((x) => x.gender || "Mixed"));
-      $("sport-ages").querySelectorAll("input").forEach((i) => { i.checked = haveAges.has(i.value); });
-      $("sport-genders").querySelectorAll("input").forEach((i) => { i.checked = haveGenders.has(i.value); });
+      setGrid(new Set(grp.map(comboKey)));
       $("sport-age-hint").textContent = "(tick to add a variant, untick to remove it)"; editMode("sport", "Edit " + r.name);
     } else if (col === "players") {
       $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || ""; $("player-age").value = r.age || "";
@@ -744,11 +737,8 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   $("sport-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const editId = $("sport-id").value, name = $("sport-name").value.trim(); if (!name) return;
-    const ages = [...$("sport-ages").querySelectorAll("input:checked")].map((i) => i.value);
-    const genders = [...$("sport-genders").querySelectorAll("input:checked")].map((i) => i.value);
-    if (!ages.length) { notice("Tick at least one age category.", "bad"); return; }
-    if (!genders.length) { notice("Tick who plays it: Men, Women or Mixed.", "bad"); return; }
-    const combos = []; for (const gender of genders) for (const age of ages) combos.push({ gender, age });
+    const combos = gridBoxes().filter((i) => i.checked).map((i) => ({ gender: i.dataset.g, age: i.dataset.a }));
+    if (!combos.length) { notice("Tick at least one variant in the grid (an age and Men, Women or Mixed).", "bad"); return; }
     const base = { name, type: $("sport-type").value, squad: Math.max(0, parseInt($("sport-squad").value, 10) || 0), notes: $("sport-notes").value.trim() };
     const norm = (t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
     // The group being edited: every category entry sharing the original name
