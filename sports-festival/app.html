@@ -468,7 +468,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const genderOk = (s, playerGender) => !s.gender || s.gender === "Mixed" || (s.gender === "Men" && playerGender === "Male") || (s.gender === "Women" && playerGender === "Female");
   // Group a sorted sport list by name: [{name, items}]
   const groupSports = (S) => { const out = []; for (const s of S) { const g = out[out.length - 1]; if (g && g.name === s.name) g.items.push(s); else out.push({ name: s.name, items: [s] }); } return out; };
-  const players = () => Store.list("players").sort((a, b) => (+a.number || 0) - (+b.number || 0) || a.name.localeCompare(b.name));
+  const players = () => Store.list("players").sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) || (+a.number || 0) - (+b.number || 0));
   const games = () => Store.list("games").sort((a, b) => (a.when || "~").localeCompare(b.when || "~"));
   const picked = (sportId, exceptPlayer) => players().filter((p) => (p.sportIds || []).includes(sportId) && p.id !== exceptPlayer).length;
   const numLabel = (p) => (house().code ? house().code.toUpperCase() + "-" : "#") + String(p.number || 0).padStart(2, "0");
