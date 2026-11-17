@@ -450,7 +450,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const ageRank = (a) => { const i = AGE_ORDER.indexOf(a || ""); return i < 0 ? 99 : i; };
   const GENDER_ORDER = ["", "Men", "Women", "Mixed"];
   const genderRank = (g) => { const i = GENDER_ORDER.indexOf(g || ""); return i < 0 ? 99 : i; };
-  const sports = () => Store.list("sports").sort((a, b) => a.name.localeCompare(b.name) || genderRank(a.gender) - genderRank(b.gender) || ageRank(a.age) - ageRank(b.age));
+  const nameKey = (n) => String(n || "").trim().replace(/\s+/g, " ");
+  const byName = (a, b) => nameKey(a).localeCompare(nameKey(b), undefined, { sensitivity: "base", numeric: true });
+  const sports = () => Store.list("sports").sort((a, b) => byName(a.name, b.name) || genderRank(a.gender) - genderRank(b.gender) || ageRank(a.age) - ageRank(b.age));
   const ageLabel = (s) => s.age || "Open";
   // Age always shown ("Open" when unrestricted); gender only when set
   const variantLabel = (s) => [s.gender, s.age || "Open"].filter(Boolean).join(" - ");
@@ -458,7 +460,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   // Can a player (by gender) enter this sport? Men/Women events check; Mixed and Open accept anyone.
   const genderOk = (s, playerGender) => !s.gender || s.gender === "Mixed" || (s.gender === "Men" && playerGender === "Male") || (s.gender === "Women" && playerGender === "Female");
   // Group a sorted sport list by name: [{name, items}]
-  const groupSports = (S) => { const out = []; for (const s of S) { const g = out[out.length - 1]; if (g && g.name === s.name) g.items.push(s); else out.push({ name: s.name, items: [s] }); } return out; };
+  const groupSports = (S) => { const out = []; for (const s of S) { const g = out[out.length - 1]; if (g && byName(g.name, s.name) === 0) g.items.push(s); else out.push({ name: s.name, items: [s] }); } return out; };
   const players = () => Store.list("players").sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) || (+a.number || 0) - (+b.number || 0));
   const games = () => Store.list("games").sort((a, b) => (a.when || "~").localeCompare(b.when || "~"));
   const picked = (sportId, exceptPlayer) => players().filter((p) => (p.sportIds || []).includes(sportId) && p.id !== exceptPlayer).length;
