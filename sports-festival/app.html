@@ -461,7 +461,8 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const genderRank = (g) => { const i = GENDER_ORDER.indexOf(g || ""); return i < 0 ? 99 : i; };
   const sports = () => Store.list("sports").sort((a, b) => a.name.localeCompare(b.name) || genderRank(a.gender) - genderRank(b.gender) || ageRank(a.age) - ageRank(b.age));
   const ageLabel = (s) => s.age || "Open";
-  const variantLabel = (s) => [s.gender, s.age].filter(Boolean).join(" - ") || "Open";
+  // Age always shown ("Open" when unrestricted); gender only when set
+  const variantLabel = (s) => [s.gender, s.age || "Open"].filter(Boolean).join(" - ");
   const comboKey = (s) => `${s.gender || "Mixed"}|${s.age || ""}`;
   // Can a player (by gender) enter this sport? Men/Women events check; Mixed and Open accept anyone.
   const genderOk = (s, playerGender) => !s.gender || s.gender === "Mixed" || (s.gender === "Men" && playerGender === "Male") || (s.gender === "Women" && playerGender === "Female");
@@ -481,7 +482,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     { key: "relay", types: ["relay"], max: 2, label: "Relay" },
     { key: "games", types: ["team", "individual"], max: 3, label: "Team & Individual games" },
   ];
-  const sportLabel = (s) => s ? [s.name, s.gender, s.age].filter(Boolean).join(" - ") : "?";
+  const sportLabel = (s) => s ? [s.name, s.gender, s.age || "Open"].filter(Boolean).join(" - ") : "?";
   const limitFor = (type) => LIMITS.find((g) => g.types.includes(type));
   const RESULT = { scheduled: "To play", won: "Won", draw: "Draw", lost: "Lost" };
 
