@@ -90,6 +90,11 @@ button.btn.small { padding: 4px 10px; font-size: 12px; }
 button.btn.danger { color: var(--bad); }
 button.btn.danger.armed, button.btn.danger.confirming { background: var(--bad); border-color: var(--bad); color: var(--surface); }
 .warn-line { margin-top: 4px; font-size: 12px; color: var(--bad); }
+.mine-head { font-size: 15px; text-transform: uppercase; margin: 16px 0 6px; }
+.mine-head .muted { font: 400 12px var(--font-body); text-transform: none; }
+.mine-row { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+.mine-main { min-width: 0; }
+.mine-btns { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
 #review-list td.actions { white-space: normal; width: 1%; }
 #review-list td.actions .btn { display: block; width: 100%; margin-bottom: 4px; white-space: nowrap; }
 button.btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -152,11 +157,11 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 
 <nav class="tabs" aria-label="Sections">
   <div class="wrap" role="tablist">
+    <button role="tab" data-tab="propose">Propose<span class="count" id="c-propose"></span></button>
     <button role="tab" data-tab="overview">Overview</button>
     <button role="tab" data-tab="players">Players<span class="count" id="c-players"></span></button>
     <button role="tab" data-tab="sports">Sports<span class="count" id="c-sports"></span></button>
     <button role="tab" data-tab="games">Games<span class="count" id="c-games"></span></button>
-    <button role="tab" data-tab="propose">Propose<span class="count" id="c-propose"></span></button>
   </div>
 </nav>
 
@@ -187,7 +192,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   </div>
 
   <!-- OVERVIEW -->
-  <section data-view="overview">
+  <section data-view="overview" hidden>
     <div class="stats">
       <div class="stat"><b id="s-player">0</b><span>Players</span></div>
       <div class="stat"><b id="s-sport">0</b><span>Sports entered</span></div>
@@ -256,6 +261,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       <div class="panel">
         <h2>Propose a player <small>no sign-in needed · the house organiser reviews every proposal before it reaches the squad list</small></h2>
         <form id="prop-form" autocomplete="off">
+          <input type="hidden" id="prop-id">
           <label>Full name<input id="prop-name" required maxlength="80"></label>
           <div class="row2">
             <label>EPF number<input id="prop-ref" maxlength="30" inputmode="numeric"></label>
@@ -272,8 +278,13 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
             <label>Proposed by<input id="prop-by" maxlength="60" placeholder="Your name (optional)"></label>
           </div>
           <fieldset><legend>Sports</legend><div class="checks" id="prop-sports"></div></fieldset>
-          <div class="btns"><button class="btn primary" type="submit" id="prop-save">Send proposal</button></div>
+          <div class="btns"><button class="btn primary" type="submit" id="prop-save">Send proposal</button>
+            <button class="btn" type="button" id="prop-cancel" hidden>Cancel edit</button></div>
         </form>
+        <div id="my-props" hidden>
+          <h3 class="mine-head">Your proposals <span class="muted">(only this browser can change or delete them)</span></h3>
+          <div id="my-props-list"></div>
+        </div>
       </div>
       <div class="panel" id="review-panel" hidden>
         <h2>Proposals to review <small>Accept adds the player to the squad list as proposed (not confirmed)</small></h2>
@@ -375,10 +386,11 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       try { const raw = localStorage.getItem(LS_KEY); if (raw) Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
       for (const c of COLS) this.data[c] = this.data[c] || {};
       this.data.proposals = this.data.proposals || {};
+      this.me = this.localMe();
       render();
     },
     initCloud() {
-      this.mode = "cloud";
+      this.mode = "cloud"; this.me = this.localMe();
       let confirmed = 0;
       const timer = setTimeout(() => notice("The shared database hasn't answered yet. What you see may be out of date.", "warn"), 10000);
       for (const c of COLS) {
@@ -406,7 +418,15 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
         this.fb = firebase.firestore();
       } catch (e) { notice("Couldn't load the shared database. Showing data saved in this browser instead.", "warn"); return false; }
       this.mode = "firebase";
-      firebase.auth().onAuthStateChanged((u) => { this.user = u; this.onUser(u); render(); });
+      firebase.auth().onAuthStateChanged((u) => {
+        // Visitors get an anonymous Firebase identity (no username or password) so they can manage their own proposals
+        this.user = u && !u.isAnonymous ? u : null; this.me = u ? u.uid : "";
+        if (this._mineUnsub) { this._mineUnsub(); this._mineUnsub = null; } this.data.mine = {};
+        if (u) this._mineUnsub = this.fb.collection("proposals").where("ownerUid", "==", u.uid).onSnapshot((snap) => {
+          const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.data.mine = n; render(); }, () => {});
+        this.onUser(this.user); render();
+        if (!u) firebase.auth().signInAnonymously().catch(() => notice("Proposing isn't open yet: the organiser needs to enable Anonymous sign-in in Firebase.", "warn"));
+      });
       const timer = setTimeout(() => notice("The shared database hasn't answered yet. What you see may be out of date.", "warn"), 10000);
       let confirmed = 0;
       for (const c of COLS) {
@@ -459,6 +479,21 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       try { await this.fb.collection("organisers").doc(key).delete(); notice("Removed.", "ok"); } catch (e) { notice(writeError(e), "bad"); }
     },
     canEdit() { return this.mode !== "firebase" || this.editor; },
+    /* Who "owns" a proposal: Firebase anonymous uid on GitHub Pages, otherwise a random id kept in this browser */
+    me: "",
+    localMe() {
+      try { let v = localStorage.getItem("housesports.me"); if (!v) { v = "b_" + uid() + uid(); localStorage.setItem("housesports.me", v); } return v; }
+      catch (e) { return this._sessMe || (this._sessMe = "s_" + uid()); }
+    },
+    mine() { return this.mode === "firebase" ? this.list("mine") : this.list("proposals").filter((r) => r.ownerUid && r.ownerUid === this.me); },
+    async withdraw(id) {
+      try {
+        if (this.mode === "cloud") await this.db.collection("proposals").doc(id).delete();
+        else if (this.mode === "firebase") await this.fb.collection("proposals").doc(id).delete();
+        else { const n = { ...this.data.proposals }; delete n[id]; this.data.proposals = n; this.persistLocal(); render(); }
+        return true;
+      } catch (e) { notice("Couldn't delete the proposal (" + (e && e.code || "error") + ").", "bad"); return false; }
+    },
     /* Anyone may add a proposal; no sign-in or editor check */
     async submit(col, id, obj) {
       try {
@@ -556,7 +591,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   /* ---------- Tabs ---------- */
   const TABS = ["overview", "players", "sports", "games", "propose"];
   function showTab(name) {
-    if (!TABS.includes(name)) name = "overview";
+    if (!TABS.includes(name)) name = "propose"; // landing page
     document.querySelectorAll("[data-view]").forEach((s) => { s.hidden = s.dataset.view !== name; });
     document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
   }
@@ -859,15 +894,46 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const sportIds = [...$("prop-sports").querySelectorAll("input:checked")].map((i) => i.value);
     if (!sportIds.length) { notice("Tick at least one sport.", "bad"); return; }
     const err = checkPicks("", sportIds, age, gender); if (err) { notice(err, "bad"); return; }
-    const ok = await Store.submit("proposals", uid(), { name, ref, dept: $("prop-dept").value.trim(), gender, age,
-      phone: $("prop-phone").value.trim(), proposedBy: $("prop-by").value.trim(), sportIds, createdAt: new Date().toISOString() });
+    if (!Store.me) { notice("Still connecting. Wait a moment and try again.", "warn"); return; }
+    const editId = $("prop-id").value, prev = editId ? Store.mine().find((r) => r.id === editId) : null;
+    if (editId && !prev) { notice("That proposal has already been reviewed or deleted.", "bad"); resetProp(); return; }
+    const ok = await Store.submit("proposals", editId || uid(), { name, ref, dept: $("prop-dept").value.trim(), gender, age,
+      phone: $("prop-phone").value.trim(), proposedBy: $("prop-by").value.trim(), sportIds,
+      createdAt: prev ? prev.createdAt : new Date().toISOString(), ownerUid: Store.me });
     if (ok) {
-      const by = $("prop-by").value; $("prop-form").reset(); $("prop-by").value = by;
-      $("prop-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderSportChecks("prop");
-      notice(`Thanks. ${name} has been proposed; the house organiser will review it.`, "ok");
+      resetProp();
+      notice(editId ? `Updated your proposal for ${name}.` : `Thanks. ${name} has been proposed; the house organiser will review it.`, "ok");
     }
   });
+  function resetProp() {
+    const by = $("prop-by").value; $("prop-form").reset(); $("prop-by").value = by; $("prop-id").value = "";
+    $("prop-save").textContent = "Send proposal"; $("prop-cancel").hidden = true;
+    $("prop-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderSportChecks("prop");
+  }
+  $("prop-cancel").onclick = resetProp;
+  function renderMine() {
+    const list = Store.mine().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    $("my-props").hidden = !list.length; if (!list.length) return;
+    $("my-props-list").innerHTML = list.map((r) => {
+      const evs = (r.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
+      return `<div class="mine-row"><div class="mine-main"><b>${esc(r.name)}</b> <span class="muted">${[r.ref ? "EPF " + r.ref : "", r.gender, r.age].filter(Boolean).map(esc).join(" · ")}</span>
+          <div>${evs.map((s) => `<span class="chip">${esc(sportLabel(s))}</span>`).join("") || '<span class="muted">No sports</span>'}</div>
+          <div class="sub">Waiting for review · sent ${esc(fmtWhen(r.createdAt))}</div></div>
+        <div class="mine-btns"><button class="btn small" type="button" data-myedit="${esc(r.id)}">Edit</button>
+          <button class="btn small danger" type="button" data-mydel="${esc(r.id)}" data-label="Delete">Delete</button></div></div>`; }).join("");
+  }
+  function editMine(id) {
+    const r = Store.mine().find((x) => x.id === id); if (!r) return;
+    $("prop-id").value = id; $("prop-name").value = r.name || ""; $("prop-ref").value = r.ref || ""; $("prop-gender").value = r.gender || "";
+    $("prop-age").value = r.age || ""; $("prop-dept").value = r.dept || ""; $("prop-phone").value = r.phone || ""; $("prop-by").value = r.proposedBy || "";
+    renderSportChecks("prop");
+    $("prop-sports").querySelectorAll("input").forEach((i) => { i.checked = (r.sportIds || []).includes(i.value); });
+    renderSportChecks("prop");
+    $("prop-save").textContent = "Save changes"; $("prop-cancel").hidden = false;
+    $("prop-form").scrollIntoView({ behavior: "smooth", block: "start" }); $("prop-name").focus();
+  }
   function renderReview() {
+    renderMine();
     const list = Store.list("proposals").sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
     const panel = $("review-panel"); panel.hidden = !Store.canEdit();
     $("c-propose").textContent = Store.canEdit() && list.length ? list.length : "";
@@ -882,7 +948,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
         ${err ? `<div class="warn-line">${esc(err)}</div>` : ""}</td>
         <td class="actions"><button class="btn small primary" data-accept="${esc(r.id)}" ${err ? "disabled" : ""}>Accept</button>
           <button class="btn small" data-propedit="${esc(r.id)}">Edit first</button>
-          <button class="btn small danger" data-reject="${esc(r.id)}">Reject</button></td></tr>`; }).join("")}</tbody></table>`;
+          <button class="btn small danger" data-reject="${esc(r.id)}" data-label="Reject">Reject</button></td></tr>`; }).join("")}</tbody></table>`;
   }
   async function acceptProposal(pid) {
     const r = Store.get("proposals", pid); if (!r) return;
@@ -907,7 +973,15 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   }
   document.addEventListener("click", async (ev) => {
     const a = ev.target.closest("button[data-accept]"), e = ev.target.closest("button[data-propedit]"), r = ev.target.closest("button[data-reject]");
-    document.querySelectorAll("button.confirming").forEach((x) => { if (x !== r) { x.classList.remove("confirming"); x.textContent = "Reject"; } });
+    const me = ev.target.closest("button[data-myedit]"), md = ev.target.closest("button[data-mydel]");
+    document.querySelectorAll("button.confirming").forEach((x) => { if (x !== r && x !== md) { x.classList.remove("confirming"); x.textContent = x.dataset.label || "Reject"; } });
+    if (me) { editMine(me.dataset.myedit); return; }
+    if (md) {
+      if (!md.classList.contains("confirming")) { md.classList.add("confirming"); md.textContent = "Confirm"; return; }
+      if ($("prop-id").value === md.dataset.mydel) resetProp();
+      if (await Store.withdraw(md.dataset.mydel)) notice("Your proposal was deleted.", "ok");
+      return;
+    }
     if (a) acceptProposal(a.dataset.accept);
     else if (e) editProposal(e.dataset.propedit);
     else if (r) {
