@@ -32,6 +32,8 @@ The app picks a mode automatically:
 4. Authentication: `https://console.firebase.google.com/project/PROJECT_ID/authentication/providers` →
    **Get started** → enable **Email/Password** → Save. Then **Users → Add user** for yourself
    (the owner email from the rules) and for each helper who should be able to edit.
+   Also enable **Anonymous** (same Sign-in method list): it lets visitors propose players
+   without a username or password and manage only their own proposals.
 5. Still in Authentication → **Settings → Authorized domains** → add `<user>.github.io`.
 6. Config: `https://console.firebase.google.com/project/PROJECT_ID/settings/general` → scroll to
    **Your apps** → **`</>`** (Web) → register → copy `apiKey`, `authDomain`, `projectId`, `appId`.
@@ -51,6 +53,16 @@ sign in at all. When one of them signs in and isn't an editor yet,
 the app records an access request and shows them "access requested". You (or any approved editor)
 see the request under **Overview → Editor access** and tap **Approve** or **Decline**. Approved
 people can edit until you **Remove** them. The owner named in the rules can always edit.
+
+## Player proposals (open, no sign-in)
+The **Propose** tab is the landing page and is open to everyone. A visitor enters a player's details
+and ticks sports; the same age, gender, event-limit and squad-size rules apply. The visitor sees their
+own proposals under **Your proposals** and can edit or delete them; nobody else (apart from editors)
+can see or change them. On GitHub Pages this works through Firebase *Anonymous* sign-in, which the
+app does silently, so visitors never see a login.
+Editors (signed in) see every proposal under **Proposals to review** and choose **Accept** (adds the
+player as proposed, not confirmed), **Edit first** (opens it in the Add player form) or **Reject**.
+Requires the `proposals` section of `firestore.rules` published in Firebase and Anonymous sign-in enabled.
 
 ## Hosting on GitHub Pages (free)
 `.github/workflows/sports-festival-pages.yml` publishes to `https://<user>.github.io/<repo>/`
