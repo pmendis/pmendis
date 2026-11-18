@@ -88,7 +88,11 @@ button.btn { font: 600 14px var(--font-body); border-radius: var(--r); padding: 
 button.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 button.btn.small { padding: 4px 10px; font-size: 12px; }
 button.btn.danger { color: var(--bad); }
-button.btn.danger.armed { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+button.btn.danger.armed, button.btn.danger.confirming { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.warn-line { margin-top: 4px; font-size: 12px; color: var(--bad); }
+#review-list td.actions { white-space: normal; width: 1%; }
+#review-list td.actions .btn { display: block; width: 100%; margin-bottom: 4px; white-space: nowrap; }
+button.btn:disabled { opacity: .5; cursor: not-allowed; }
 
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .toolbar > * { flex: 1 1 160px; width: auto; }
@@ -124,6 +128,7 @@ tr.squad-list ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 
 body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 .score { font: 700 18px var(--font-display); white-space: nowrap; }
 
+@media (max-width: 480px) { nav.tabs button { padding: 7px 7px; font-size: 14px; letter-spacing: .03em; } nav.tabs .count { margin-left: 2px; } }
 @media (max-width: 820px) {
   .split, .two { grid-template-columns: minmax(0, 1fr); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -151,6 +156,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     <button role="tab" data-tab="players">Players<span class="count" id="c-players"></span></button>
     <button role="tab" data-tab="sports">Sports<span class="count" id="c-sports"></span></button>
     <button role="tab" data-tab="games">Games<span class="count" id="c-games"></span></button>
+    <button role="tab" data-tab="propose">Propose<span class="count" id="c-propose"></span></button>
   </div>
 </nav>
 
@@ -244,6 +250,38 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     </div>
   </section>
 
+  <!-- PROPOSE (open to everyone, no sign-in) -->
+  <section data-view="propose" hidden>
+    <div class="split">
+      <div class="panel">
+        <h2>Propose a player <small>no sign-in needed · the house organiser reviews every proposal before it reaches the squad list</small></h2>
+        <form id="prop-form" autocomplete="off">
+          <label>Full name<input id="prop-name" required maxlength="80"></label>
+          <div class="row2">
+            <label>EPF number<input id="prop-ref" maxlength="30" inputmode="numeric"></label>
+            <label>Gender
+              <select id="prop-gender" required><option value="">—</option><option>Female</option><option>Male</option><option>Other</option></select>
+            </label>
+          </div>
+          <div class="row2">
+            <label>Age category<select id="prop-age" required><option value="">—</option><option>Below 30</option><option>30+</option><option>35+</option><option>40+</option><option>45+</option><option>50+</option><option>55+</option></select></label>
+            <label>Department<input id="prop-dept" maxlength="60" list="dept-options" placeholder="e.g. Finance"></label>
+          </div>
+          <div class="row2">
+            <label>Phone<input id="prop-phone" type="tel" maxlength="20"></label>
+            <label>Proposed by<input id="prop-by" maxlength="60" placeholder="Your name (optional)"></label>
+          </div>
+          <fieldset><legend>Sports</legend><div class="checks" id="prop-sports"></div></fieldset>
+          <div class="btns"><button class="btn primary" type="submit" id="prop-save">Send proposal</button></div>
+        </form>
+      </div>
+      <div class="panel" id="review-panel" hidden>
+        <h2>Proposals to review <small>Accept adds the player to the squad list as proposed (not confirmed)</small></h2>
+        <div class="table-wrap" id="review-list"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- SPORTS -->
   <section data-view="sports" hidden>
     <div class="split">
@@ -325,7 +363,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 
   /* ---------- Storage: shared cloud db when hosted as a claude.ai Artifact, else this browser ---------- */
   const Store = {
-    mode: "wait", data: { settings: {}, sports: {}, players: {}, games: {} }, db: null, downloads: null,
+    mode: "wait", data: { settings: {}, sports: {}, players: {}, games: {}, proposals: {} }, db: null, downloads: null,
     async init() {
       if (window.claude && typeof window.claude.use === "function") {
         try { this.db = await window.claude.use("db"); } catch (e) { this.db = null; }
@@ -336,6 +374,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       this.mode = "local";
       try { const raw = localStorage.getItem(LS_KEY); if (raw) Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
       for (const c of COLS) this.data[c] = this.data[c] || {};
+      this.data.proposals = this.data.proposals || {};
       render();
     },
     initCloud() {
@@ -350,6 +389,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
           render();
         }, (err) => { clearTimeout(timer); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page to reconnect.", "bad"); });
       }
+      this.db.collection("proposals").onSnapshot((snap) => { const n = {}; for (const d of snap.docs) n[d.id] = d.data(); this.data.proposals = n; render(); }, () => {});
       render();
     },
     /* Firebase (GitHub Pages / any static host): everyone reads, signed-in owner writes. Config comes from firebase-config.js. */
@@ -386,7 +426,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     emailKey(u) { return (u && u.email || "").toLowerCase(); },
     async onUser(u) {
       this._unsubs.forEach((f) => f()); this._unsubs = [];
-      this.editor = false; this.pending = false; this.organisers = {}; this.requests = {};
+      this.editor = false; this.pending = false; this.organisers = {}; this.requests = {}; this.data.proposals = {};
       const key = this.emailKey(u); if (!key) return;
       const mine = this.fb.collection("organisers").doc(key);
       let snap; try { snap = await mine.get(); } catch (e) { snap = null; }
@@ -405,6 +445,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       }
       this._unsubs.push(this.fb.collection("organisers").onSnapshot((s) => { const n = {}; s.forEach((d) => { n[d.id] = d.data(); }); this.organisers = n; render(); }, () => {}));
       this._unsubs.push(this.fb.collection("requests").onSnapshot((s) => { const n = {}; s.forEach((d) => { n[d.id] = d.data(); }); this.requests = n; render(); }, () => {}));
+      this._unsubs.push(this.fb.collection("proposals").onSnapshot((s) => { const n = {}; s.forEach((d) => { n[d.id] = d.data(); }); this.data.proposals = n; render(); }, () => {}));
     },
     async approve(key) {
       const r = this.requests[key]; if (!r) return;
@@ -418,6 +459,15 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       try { await this.fb.collection("organisers").doc(key).delete(); notice("Removed.", "ok"); } catch (e) { notice(writeError(e), "bad"); }
     },
     canEdit() { return this.mode !== "firebase" || this.editor; },
+    /* Anyone may add a proposal; no sign-in or editor check */
+    async submit(col, id, obj) {
+      try {
+        if (this.mode === "cloud") await this.db.collection(col).doc(id).set(obj);
+        else if (this.mode === "firebase") await this.fb.collection(col).doc(id).set(obj);
+        else { this.data[col] = { ...this.data[col], [id]: obj }; this.persistLocal(); render(); }
+        return true;
+      } catch (e) { notice("Couldn't send the proposal (" + (e && e.code || "error") + "). Try again, or tell the house organiser.", "bad"); return false; }
+    },
     persistLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) { notice("This browser blocked saving. Use Download backup to keep your data.", "bad"); } },
     async put(col, id, obj) {
       if (this.mode === "firebase" && !this.editor) { notice(this.user ? "Your access request is waiting for an organiser to approve it." : "Sign in (top right) to make changes.", "bad"); return false; }
@@ -504,7 +554,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* ---------- Tabs ---------- */
-  const TABS = ["overview", "players", "sports", "games"];
+  const TABS = ["overview", "players", "sports", "games", "propose"];
   function showTab(name) {
     if (!TABS.includes(name)) name = "overview";
     document.querySelectorAll("[data-view]").forEach((s) => { s.hidden = s.dataset.view !== name; });
@@ -566,7 +616,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("backup-tools").hidden = Store.mode !== "local";
     const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase";
     ab.textContent = Store.user ? "Sign out" : "Sign in to edit";
-    renderAccess();
+    renderAccess(); renderReview();
     $("house-edit").hidden = !Store.canEdit();
     document.querySelectorAll("#player-form, #sport-form, #game-form").forEach((f) => { f.closest(".panel").hidden = !Store.canEdit(); });
     document.body.classList.toggle("readonly", !Store.canEdit());
@@ -618,12 +668,13 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
         <td class="actions"><button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>`; }).join("")).join("")}</tbody></table>`;
   }
 
-  function renderPlayerSports(S) {
+  function renderPlayerSports(S) { renderSportChecks("player", S); renderSportChecks("prop", S); }
+  function renderSportChecks(prefix, S) {
     S = S || sports();
-    const box = $("player-sports"), pid = $("player-id").value;
+    const box = $(prefix + "-sports"), pid = ($(prefix + "-id") || {}).value || "";
     const checked = new Set([...box.querySelectorAll("input:checked")].map((i) => i.value));
     if (!S.length) { box.innerHTML = `<span class="muted">Add sports first.</span>`; return; }
-    const playerAge = $("player-age").value, playerGender = $("player-gender").value;
+    const playerAge = $(prefix + "-age").value, playerGender = $(prefix + "-gender").value;
     const used = {}; for (const s of S) { const g = checked.has(s.id) && limitFor(s.type); if (g) used[g.key] = (used[g.key] || 0) + 1; }
     box.innerHTML = groupSports(S).map((grp) => `<div class="group-head">${esc(grp.name)}</div>` + grp.items.map((s) => {
       const q = +s.squad || 0, n = picked(s.id, pid), full = q && n >= q && !checked.has(s.id);
@@ -636,7 +687,24 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       `<div class="muted" style="font-size:12px;margin-top:4px">Limits per player: ${LIMITS.map((g) => `${g.label} ${used[g.key] || 0}/${g.max}`).join(" · ")}
         <br>Athletics ${(used.tf || 0) + (used.relay || 0)}/5 · Total ${(used.tf || 0) + (used.relay || 0) + (used.games || 0)}/8</div>`;
   }
-  $("player-sports").addEventListener("change", () => renderPlayerSports());
+  $("player-sports").addEventListener("change", () => renderSportChecks("player"));
+  ["prop-sports", "prop-age", "prop-gender"].forEach((id) => $(id).addEventListener("change", () => renderSportChecks("prop")));
+  // Shared rules for a player's sport picks; returns an error message or ""
+  function checkPicks(pid, sportIds, age, gender) {
+    for (const sid of sportIds) {
+      const s = Store.get("sports", sid), q = s && +s.squad;
+      if (!s) return "One of the ticked sports no longer exists. Untick it and try again.";
+      if (q && picked(sid, pid) >= q) return `The ${sportLabel(s)} squad already has ${q} players. Remove one first or raise the squad size.`;
+      if (s.age && s.age !== age) return `${sportLabel(s)} is for the ${s.age} age category only.`;
+      if (!genderOk(s, gender)) return `${sportLabel(s)} is a ${s.gender} event.`;
+    }
+    for (const g of LIMITS) {
+      const n = sportIds.filter((sid) => g.types.includes((Store.get("sports", sid) || {}).type)).length;
+      if (n > g.max) return `A player can enter at most ${g.max} ${g.label} events (${n} ticked).`;
+    }
+    return "";
+  }
+  const epfTaken = (ref, exceptId) => !!ref && players().some((p) => p.id !== exceptId && (p.ref || "").toLowerCase() === String(ref).toLowerCase());
   $("player-age").addEventListener("change", () => renderPlayerSports());
   $("player-gender").addEventListener("change", () => renderPlayerSports());
 
@@ -693,6 +761,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* ---------- Forms ---------- */
+  let fromProposal = null; // set while a proposal is being edited in the player form
   const GRID_GENDERS = ["Men", "Women", "Mixed"];
   $("sport-grid").querySelector("tbody").innerHTML = AGE_ORDER.map((a) => `<tr><td>${esc(a || "Open")}</td>${GRID_GENDERS.map((g) =>
     `<td class="num"><input type="checkbox" aria-label="${esc(g)} ${esc(a || "Open")}" data-g="${esc(g)}" data-a="${esc(a)}"></td>`).join("")}</tr>`).join("");
@@ -704,7 +773,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     if (kind === "sports") { $("sport-age-hint").textContent = "(tick each age and gender combination that is played; Mixed = anyone)"; }
     $(p + "-form").reset(); $(p + "-id").value = "";
     $(p + "-form-title").textContent = label; $(p + "-save").textContent = label; $(p + "-cancel").hidden = true;
-    if (kind === "players") { $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderPlayerSports(); }
+    if (kind === "players") { fromProposal = null; $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderPlayerSports(); }
     if (kind === "games") { $("game-lineup").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderLineup(); }
   }
   Object.keys(FORMS).forEach((k) => { $(FORMS[k][0] + "-cancel").onclick = () => resetForm(k); });
@@ -773,22 +842,78 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     const ref = $("player-ref").value.trim();
     if (ref && players().some((p) => p.id !== id && (p.ref || "").toLowerCase() === ref.toLowerCase())) { notice(`EPF number ${ref} is already registered.`, "bad"); return; }
     const sportIds = [...$("player-sports").querySelectorAll("input:checked")].map((i) => i.value);
-    for (const sid of sportIds) {
-      const s = Store.get("sports", sid), q = s && +s.squad;
-      if (q && picked(sid, id) >= q) { notice(`The ${sportLabel(s)} squad already has ${q} players. Remove one first or raise the squad size.`, "bad"); return; }
-    }
-    for (const sid of sportIds) {
-      const s = Store.get("sports", sid);
-      if (s && s.age && s.age !== $("player-age").value) { notice(`${sportLabel(s)} is for the ${s.age} age category only.`, "bad"); return; }
-      if (s && !genderOk(s, $("player-gender").value)) { notice(`${sportLabel(s)} is a ${s.gender} event.`, "bad"); return; }
-    }
-    for (const g of LIMITS) {
-      const n = sportIds.filter((sid) => g.types.includes((Store.get("sports", sid) || {}).type)).length;
-      if (n > g.max) { notice(`A player can enter at most ${g.max} ${g.label} events (${n} ticked).`, "bad"); return; }
-    }
+    const err = checkPicks(id, sportIds, $("player-age").value, $("player-gender").value);
+    if (err) { notice(err, "bad"); return; }
     const number = existing ? existing.number : nextNumber();
     const ok = await Store.put("players", id, { name, number, ref, dept: $("player-dept").value.trim(), gender: $("player-gender").value, age: $("player-age").value, phone: $("player-phone").value.trim(), confirmed: $("player-confirmed").checked, sportIds });
+    if (ok && fromProposal && !existing) await Store.remove("proposals", fromProposal);
     if (ok) { notice(`${existing ? "Updated" : "Added"} ${name}.`, "ok"); resetForm("players"); }
+  });
+
+  /* ---------- Proposals (open form + editor review) ---------- */
+  $("prop-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const name = $("prop-name").value.trim(), ref = $("prop-ref").value.trim(), gender = $("prop-gender").value, age = $("prop-age").value;
+    if (!name || !gender || !age) { notice("Enter the name, gender and age category.", "bad"); return; }
+    if (epfTaken(ref)) { notice(`EPF number ${ref} is already in the squad list.`, "bad"); return; }
+    const sportIds = [...$("prop-sports").querySelectorAll("input:checked")].map((i) => i.value);
+    if (!sportIds.length) { notice("Tick at least one sport.", "bad"); return; }
+    const err = checkPicks("", sportIds, age, gender); if (err) { notice(err, "bad"); return; }
+    const ok = await Store.submit("proposals", uid(), { name, ref, dept: $("prop-dept").value.trim(), gender, age,
+      phone: $("prop-phone").value.trim(), proposedBy: $("prop-by").value.trim(), sportIds, createdAt: new Date().toISOString() });
+    if (ok) {
+      const by = $("prop-by").value; $("prop-form").reset(); $("prop-by").value = by;
+      $("prop-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderSportChecks("prop");
+      notice(`Thanks. ${name} has been proposed; the house organiser will review it.`, "ok");
+    }
+  });
+  function renderReview() {
+    const list = Store.list("proposals").sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    const panel = $("review-panel"); panel.hidden = !Store.canEdit();
+    $("c-propose").textContent = Store.canEdit() && list.length ? list.length : "";
+    if (panel.hidden) return;
+    if (!list.length) { $("review-list").innerHTML = `<div class="empty">No proposals waiting. Share this page's <b>Propose a player</b> tab with your house members.</div>`; return; }
+    $("review-list").innerHTML = `<table><tbody>${list.map((r) => {
+      const evs = (r.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
+      const err = epfTaken(r.ref) ? `EPF ${r.ref} is already in the squad list.` : checkPicks("", evs.map((s) => s.id), r.age, r.gender);
+      return `<tr><td><b>${esc(r.name)}</b><div class="muted">${[r.ref ? "EPF " + r.ref : "", r.dept, r.gender, r.age, r.phone].filter(Boolean).map(esc).join(" · ")}</div>
+        <div>${evs.length ? evs.map((s) => `<span class="chip">${esc(sportLabel(s))}</span>`).join("") : '<span class="muted">No sports</span>'}</div>
+        <div class="sub">${r.proposedBy ? "Proposed by " + esc(r.proposedBy) + " · " : ""}${esc(fmtWhen(r.createdAt))}</div>
+        ${err ? `<div class="warn-line">${esc(err)}</div>` : ""}</td>
+        <td class="actions"><button class="btn small primary" data-accept="${esc(r.id)}" ${err ? "disabled" : ""}>Accept</button>
+          <button class="btn small" data-propedit="${esc(r.id)}">Edit first</button>
+          <button class="btn small danger" data-reject="${esc(r.id)}">Reject</button></td></tr>`; }).join("")}</tbody></table>`;
+  }
+  async function acceptProposal(pid) {
+    const r = Store.get("proposals", pid); if (!r) return;
+    if (epfTaken(r.ref)) { notice(`EPF ${r.ref} is already in the squad list. Reject this proposal or edit the existing player.`, "bad"); return; }
+    const sportIds = (r.sportIds || []).filter((id) => Store.get("sports", id));
+    const err = checkPicks("", sportIds, r.age, r.gender); if (err) { notice(err + " Use Edit first to adjust it.", "bad"); return; }
+    const ok = await Store.put("players", uid(), { name: r.name, number: nextNumber(), ref: r.ref || "", dept: r.dept || "", gender: r.gender || "",
+      age: r.age || "", phone: r.phone || "", confirmed: false, sportIds });
+    if (ok && await Store.remove("proposals", pid)) notice(`${r.name} added to the squad list as proposed.`, "ok");
+  }
+  function editProposal(pid) {
+    const r = Store.get("proposals", pid); if (!r) return;
+    resetForm("players"); fromProposal = pid;
+    $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || "";
+    $("player-gender").value = r.gender || ""; $("player-age").value = r.age || ""; $("player-phone").value = r.phone || "";
+    renderSportChecks("player");
+    $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = (r.sportIds || []).includes(i.value); });
+    renderSportChecks("player");
+    $("player-form-title").textContent = "Add proposed player"; $("player-cancel").hidden = false;
+    location.hash = "players"; showTab("players"); window.scrollTo({ top: 0, behavior: "smooth" });
+    notice("Check the details and sports, then press Add player. The proposal is cleared once the player is added.", "warn");
+  }
+  document.addEventListener("click", async (ev) => {
+    const a = ev.target.closest("button[data-accept]"), e = ev.target.closest("button[data-propedit]"), r = ev.target.closest("button[data-reject]");
+    document.querySelectorAll("button.confirming").forEach((x) => { if (x !== r) { x.classList.remove("confirming"); x.textContent = "Reject"; } });
+    if (a) acceptProposal(a.dataset.accept);
+    else if (e) editProposal(e.dataset.propedit);
+    else if (r) {
+      if (!r.classList.contains("confirming")) { r.classList.add("confirming"); r.textContent = "Confirm"; return; }
+      if (await Store.remove("proposals", r.dataset.reject)) notice("Proposal rejected.", "ok");
+    }
   });
 
   $("game-form").addEventListener("submit", async (ev) => {

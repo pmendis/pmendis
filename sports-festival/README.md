@@ -52,6 +52,13 @@ the app records an access request and shows them "access requested". You (or any
 see the request under **Overview → Editor access** and tap **Approve** or **Decline**. Approved
 people can edit until you **Remove** them. The owner named in the rules can always edit.
 
+## Player proposals (open, no sign-in)
+The **Propose a player** tab is open to everyone. A visitor enters a player's details and ticks
+sports; the same age, gender, event-limit and squad-size rules apply. Proposals are only visible to
+editors, who see them under **Proposals to review** on the same tab and choose **Accept** (adds the
+player as proposed, not confirmed), **Edit first** (opens it in the Add player form) or **Reject**.
+On GitHub Pages this needs the `proposals` section of `firestore.rules` published in Firebase.
+
 ## Hosting on GitHub Pages (free)
 `.github/workflows/sports-festival-pages.yml` publishes to `https://<user>.github.io/<repo>/`
 on every push to `main`. It enables Pages itself on first run; if the `github-pages`
