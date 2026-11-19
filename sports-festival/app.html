@@ -104,6 +104,8 @@ button.btn.small { padding: 4px 10px; font-size: 12px; }
 button.btn.danger { color: var(--bad); }
 button.btn.danger.armed, button.btn.danger.confirming { background: var(--bad); border-color: var(--bad); color: var(--surface); }
 .warn-line { margin-top: 4px; font-size: 12px; color: var(--bad); }
+.update-line { margin-top: 4px; font-size: 12px; color: var(--warn); background: var(--warn-bg); padding: 4px 8px; border-radius: var(--r); }
+.update-line .bib { font-size: 12px; }
 .mine-head { font-size: 15px; text-transform: uppercase; margin: 16px 0 6px; }
 .mine-head .muted { font: 400 12px var(--font-body); text-transform: none; }
 .mine-row { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
@@ -933,6 +935,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     }
     return "";
   }
+  const playerByEpf = (ref) => ref ? players().find((p) => (p.ref || "").toLowerCase() === String(ref).trim().toLowerCase()) || null : null;
   const epfTaken = (ref, exceptId) => !!ref && players().some((p) => p.id !== exceptId && (p.ref || "").toLowerCase() === String(ref).toLowerCase());
   $("player-age").addEventListener("change", () => renderPlayerSports());
   $("player-gender").addEventListener("change", () => renderPlayerSports());
@@ -1108,7 +1111,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     if (err) { notice(err, "bad"); return; }
     const number = existing ? existing.number : nextNumber();
     const ok = await Store.put("players", id, { name, number, ref, dept: $("player-dept").value.trim(), gender: $("player-gender").value, age: $("player-age").value, phone: $("player-phone").value.trim(), confirmed: $("player-confirmed").checked, sportIds });
-    if (ok && fromProposal && !existing) await Store.remove("proposals", fromProposal);
+    if (ok && fromProposal) await Store.remove("proposals", fromProposal);
     if (ok) { notice(`${existing ? "Updated" : "Added"} ${name}.`, "ok"); resetForm("players"); }
   });
 
@@ -1117,10 +1120,10 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     ev.preventDefault();
     const name = $("prop-name").value.trim(), ref = $("prop-ref").value.trim(), gender = $("prop-gender").value, age = $("prop-age").value;
     if (!name || !gender || !age) { notice("Enter the name, gender and age category.", "bad"); return; }
-    if (epfTaken(ref)) { notice(`EPF number ${ref} is already in the squad list.`, "bad"); return; }
+    const match = playerByEpf(ref); // an existing player with this EPF: the proposal will update them
     const sportIds = [...$("prop-sports").querySelectorAll("input:checked")].map((i) => i.value);
     if (!sportIds.length) { notice("Tick at least one sport.", "bad"); return; }
-    const err = checkPicks("", sportIds, age, gender); if (err) { notice(err, "bad"); return; }
+    const err = checkPicks(match ? match.id : "", sportIds, age, gender); if (err) { notice(err, "bad"); return; }
     if (!Store.me) { notice("Still connecting. Wait a moment and try again.", "warn"); return; }
     const editId = $("prop-id").value, prev = editId ? Store.mine().find((r) => r.id === editId) : null;
     if (editId && !prev) { notice("That proposal has already been reviewed or deleted.", "bad"); resetProp(); return; }
@@ -1129,7 +1132,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       createdAt: prev ? prev.createdAt : new Date().toISOString(), ownerUid: Store.me });
     if (ok) {
       resetProp();
-      notice(editId ? `Updated your proposal for ${name}.` : `Thanks. ${name} has been proposed; the house organiser will review it.`, "ok");
+      notice(editId ? `Updated your proposal for ${name}.`
+        : match ? `Thanks. EPF ${ref} is already in the squad list as ${match.name}; once the organiser accepts, their details and sports will be replaced with yours.`
+        : `Thanks. ${name} has been proposed; the house organiser will review it.`, "ok");
     }
   });
   function resetProp() {
@@ -1145,7 +1150,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       const evs = (r.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
       return `<div class="mine-row"><div class="mine-main"><b>${esc(r.name)}</b> <span class="muted">${[r.ref ? "EPF " + r.ref : "", r.gender, r.age].filter(Boolean).map(esc).join(" · ")}</span>
           <div>${evs.map((s) => `<span class="chip">${esc(sportLabel(s))}</span>`).join("") || '<span class="muted">No sports</span>'}</div>
-          <div class="sub">Waiting for review · sent ${esc(fmtWhen(r.createdAt))}</div></div>
+          <div class="sub">${playerByEpf(r.ref) ? "Update to an existing player · " : ""}Waiting for review · sent ${esc(fmtWhen(r.createdAt))}</div></div>
         <div class="mine-btns"><button class="btn small" type="button" data-myedit="${esc(r.id)}">Edit</button>
           <button class="btn small danger" type="button" data-mydel="${esc(r.id)}" data-label="Delete">Delete</button></div></div>`; }).join("");
   }
@@ -1168,35 +1173,45 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     if (!list.length) { $("review-list").innerHTML = `<div class="empty">No proposals waiting. Share this page's <b>Propose a player</b> tab with your house members.</div>`; return; }
     $("review-list").innerHTML = `<table><tbody>${list.map((r) => {
       const evs = (r.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
-      const err = epfTaken(r.ref) ? `EPF ${r.ref} is already in the squad list.` : checkPicks("", evs.map((s) => s.id), r.age, r.gender);
+      const match = playerByEpf(r.ref);
+      const err = checkPicks(match ? match.id : "", evs.map((s) => s.id), r.age, r.gender);
       return `<tr><td><b>${esc(r.name)}</b><div class="muted">${[r.ref ? "EPF " + r.ref : "", r.dept, r.gender, r.age, r.phone].filter(Boolean).map(esc).join(" · ")}</div>
         <div>${evs.length ? evs.map((s) => `<span class="chip">${esc(sportLabel(s))}</span>`).join("") : '<span class="muted">No sports</span>'}</div>
         <div class="sub">${r.proposedBy ? "Proposed by " + esc(r.proposedBy) + " · " : ""}${esc(fmtWhen(r.createdAt))}</div>
+        ${match ? `<div class="update-line">Updates existing player <span class="bib">${esc(numLabel(match))}</span> ${esc(match.name)}: Accept replaces their details and sports</div>` : ""}
         ${err ? `<div class="warn-line">${esc(err)}</div>` : ""}</td>
-        <td class="actions"><button class="btn small primary" data-accept="${esc(r.id)}" ${err ? "disabled" : ""}>Accept</button>
+        <td class="actions"><button class="btn small primary" data-accept="${esc(r.id)}" ${err ? "disabled" : ""}>${match ? "Accept &amp; replace" : "Accept"}</button>
           <button class="btn small" data-propedit="${esc(r.id)}">Edit first</button>
           <button class="btn small danger" data-reject="${esc(r.id)}" data-label="Reject">Reject</button></td></tr>`; }).join("")}</tbody></table>`;
   }
   async function acceptProposal(pid) {
     const r = Store.get("proposals", pid); if (!r) return;
-    if (epfTaken(r.ref)) { notice(`EPF ${r.ref} is already in the squad list. Reject this proposal or edit the existing player.`, "bad"); return; }
+    const match = playerByEpf(r.ref);
     const sportIds = (r.sportIds || []).filter((id) => Store.get("sports", id));
-    const err = checkPicks("", sportIds, r.age, r.gender); if (err) { notice(err + " Use Edit first to adjust it.", "bad"); return; }
-    const ok = await Store.put("players", uid(), { name: r.name, number: nextNumber(), ref: r.ref || "", dept: r.dept || "", gender: r.gender || "",
-      age: r.age || "", phone: r.phone || "", confirmed: false, sportIds });
-    if (ok && await Store.remove("proposals", pid)) notice(`${r.name} added to the squad list as proposed.`, "ok");
+    const err = checkPicks(match ? match.id : "", sportIds, r.age, r.gender); if (err) { notice(err + " Use Edit first to adjust it.", "bad"); return; }
+    const details = { name: r.name, ref: r.ref || "", dept: r.dept || "", gender: r.gender || "", age: r.age || "", phone: r.phone || "", sportIds };
+    // Same EPF already in the squad list: replace that player's details and sports, keep their number and Confirmed status
+    const ok = match
+      ? await Store.put("players", match.id, { ...Object.fromEntries(Object.entries(match).filter(([k]) => k !== "id")), ...details })
+      : await Store.put("players", uid(), { ...details, number: nextNumber(), confirmed: false });
+    if (ok && await Store.remove("proposals", pid)) notice(match ? `${numLabel(match)} ${r.name} updated from the proposal.` : `${r.name} added to the squad list as proposed.`, "ok");
   }
   function editProposal(pid) {
     const r = Store.get("proposals", pid); if (!r) return;
     resetForm("players"); fromProposal = pid;
+    const match = playerByEpf(r.ref);
+    if (match) $("player-id").value = match.id;
+    $("player-confirmed").checked = !!(match && match.confirmed);
     $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || "";
     $("player-gender").value = r.gender || ""; $("player-age").value = r.age || ""; $("player-phone").value = r.phone || "";
     renderSportChecks("player");
     $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = (r.sportIds || []).includes(i.value); });
     renderSportChecks("player");
-    $("player-form-title").textContent = "Add proposed player"; $("player-cancel").hidden = false;
+    $("player-form-title").textContent = match ? `Update ${numLabel(match)} from proposal` : "Add proposed player";
+    $("player-save").textContent = match ? "Save changes" : "Add player"; $("player-cancel").hidden = false;
     location.hash = "players"; showTab("players"); window.scrollTo({ top: 0, behavior: "smooth" });
-    notice("Check the details and sports, then press Add player. The proposal is cleared once the player is added.", "warn");
+    notice(match ? `This proposal updates ${match.name} (EPF ${match.ref}). Check the details and sports, then press Save changes; the proposal is cleared once saved.`
+      : "Check the details and sports, then press Add player. The proposal is cleared once the player is added.", "warn");
   }
   document.addEventListener("click", async (ev) => {
     const a = ev.target.closest("button[data-accept]"), e = ev.target.closest("button[data-propedit]"), r = ev.target.closest("button[data-reject]");
