@@ -133,6 +133,17 @@ tr.squad-row:hover td { background: var(--bg); }
 tr.squad-row .caret { display: inline-block; width: 16px; color: var(--muted); }
 tr.squad-list td { padding: 4px 10px 12px 36px; background: var(--bg); }
 table.drill { width: 100%; }
+tr.dragrow[draggable="true"] { cursor: grab; }
+tr.dragrow.dragging { opacity: .45; }
+body.drag-on tr[data-drop] td { transition: background .1s; }
+tr[data-drop].drop-hover td { background: var(--ok-bg) !important; box-shadow: inset 0 0 0 2px var(--ok); }
+select.move-sel { width: auto; max-width: 150px; padding: 3px 6px; font-size: 12px; margin-right: 4px; vertical-align: middle; }
+@media (max-width: 600px) {
+  table.drill td.actions { white-space: normal; width: 1%; min-width: 128px; }
+  table.drill select.move-sel { display: block; width: 100%; max-width: none; margin: 0 0 4px; }
+  table.drill td.actions .btn { margin-top: 2px; }
+  tr.squad-list td { padding-left: 10px; }
+}
 table.drill td { padding: 6px 6px; border-bottom: 1px solid var(--line); }
 table.drill tr:last-child td { border-bottom: 0; }
 tr.squad-list ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
@@ -706,20 +717,73 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${groupSports(S).map((grp) => `<tr class="group-row"><td colspan="3"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "variant" : "variants"}</span></td><td class="actions"><button class="btn small" data-edit="sports:${esc(grp.items[0].id)}">Edit</button></td></tr>` + grp.items.map((s) => {
       const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length, open = openSportRows.has(s.id);
       const members = players().filter((p) => (p.sportIds || []).includes(s.id));
-      return `<tr class="variant squad-row" data-sportrow="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
+      return `<tr class="variant squad-row" data-sportrow="${esc(s.id)}" data-drop="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
         <td><span class="caret">${open ? "▾" : "▸"}</span>${esc(variantLabel(s))}${s.notes ? `<div class="sub">${esc(s.notes)}</div>` : ""}</td>
         <td class="num">${n}${q ? " / " + q : ""}</td><td class="num">${gs}</td>
         <td class="actions"><button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>
-      ${open ? `<tr class="squad-list"><td colspan="4">${members.length ? `<table class="drill"><tbody>${members.map((p) => `<tr>
+      ${open ? `<tr class="squad-list" data-drop="${esc(s.id)}"><td colspan="4">${members.length ? `<table class="drill"><tbody>${members.map((p) => `<tr class="dragrow" ${Store.canEdit() ? `draggable="true"` : ""} data-dragpid="${esc(p.id)}" data-from="${esc(s.id)}">
           <td><span class="bib">${esc(numLabel(p))}</span></td>
           <td><b>${esc(p.name)}</b>${p.confirmed ? ' <span class="pill ok">Confirmed</span>' : ' <span class="pill">Proposed</span>'}
             <div class="muted">${[p.ref ? "EPF " + p.ref : "", p.dept, p.gender, p.age, p.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
-          <td class="actions"><button class="btn small" data-edit="players:${esc(p.id)}">Edit</button> <button class="btn small danger" data-del="players:${esc(p.id)}">Delete</button></td></tr>`).join("")}</tbody></table>`
+          <td class="actions"><select class="move-sel" data-movepid="${esc(p.id)}" data-from="${esc(s.id)}" aria-label="Move ${esc(p.name)} to another sport">${moveOptions(s.id)}</select>
+            <button class="btn small" data-edit="players:${esc(p.id)}">Edit</button> <button class="btn small danger" data-del="players:${esc(p.id)}">Delete</button></td></tr>`).join("")}</tbody></table>`
           : `<span class="muted">No players picked for ${esc(sportLabel(s))} yet.</span>`}</td></tr>` : ""}`; }).join("")).join("")}</tbody></table>`;
   }
   const openSportRows = new Set();
+  // "Move to…" options: every other sport variant, grouped by sport name
+  function moveOptions(fromId) {
+    return `<option value="">Move to…</option>` + groupSports(sports()).map((g) => `<optgroup label="${esc(g.name)}">${g.items.filter((x) => x.id !== fromId)
+      .map((x) => `<option value="${esc(x.id)}">${esc(sportLabel(x))}</option>`).join("")}</optgroup>`).join("");
+  }
+  // Move (or copy) a player from one sport variant to another, applying the usual squad, age, gender and limit rules
+  async function movePlayer(pid, from, to, copy) {
+    const p = Store.get("players", pid), target = Store.get("sports", to);
+    if (!p || !target || from === to) return;
+    const ids = new Set(p.sportIds || []);
+    if (ids.has(to) && copy) { notice(`${p.name} is already in ${sportLabel(target)}.`, "warn"); return; }
+    if (!copy) ids.delete(from);
+    ids.add(to);
+    const sportIds = [...ids];
+    const err = checkPicks(pid, sportIds, p.age, p.gender);
+    if (err) { notice(`Can't move ${p.name}: ${err}`, "bad"); renderSports(sports()); return; }
+    const { id, ...rest } = p;
+    if (await Store.put("players", pid, { ...rest, sportIds })) {
+      openSportRows.add(to);
+      notice(`${copy ? "Added" : "Moved"} ${p.name} ${copy ? "to" : "to"} ${sportLabel(target)}.`, "ok");
+      renderSports(sports());
+    }
+  }
+  $("sport-list").addEventListener("change", (ev) => {
+    const sel = ev.target.closest("select.move-sel"); if (!sel || !sel.value) return;
+    movePlayer(sel.dataset.movepid, sel.dataset.from, sel.value, false);
+  });
+  let dragInfo = null;
+  $("sport-list").addEventListener("dragstart", (ev) => {
+    const row = ev.target.closest("tr.dragrow"); if (!row || !Store.canEdit()) return;
+    dragInfo = { pid: row.dataset.dragpid, from: row.dataset.from };
+    ev.dataTransfer.effectAllowed = "copyMove"; ev.dataTransfer.setData("text/plain", dragInfo.pid);
+    row.classList.add("dragging"); document.body.classList.add("drag-on");
+  });
+  $("sport-list").addEventListener("dragend", () => {
+    dragInfo = null; document.body.classList.remove("drag-on");
+    document.querySelectorAll(".dragging, .drop-hover").forEach((e) => e.classList.remove("dragging", "drop-hover"));
+  });
+  $("sport-list").addEventListener("dragover", (ev) => {
+    const t = ev.target.closest("[data-drop]"); if (!dragInfo || !t || t.dataset.drop === dragInfo.from) return;
+    ev.preventDefault(); ev.dataTransfer.dropEffect = ev.ctrlKey || ev.metaKey ? "copy" : "move";
+    document.querySelectorAll(".drop-hover").forEach((e) => { if (e !== t) e.classList.remove("drop-hover"); });
+    t.classList.add("drop-hover");
+  });
+  $("sport-list").addEventListener("dragleave", (ev) => {
+    const t = ev.target.closest("[data-drop]"); if (t && !t.contains(ev.relatedTarget)) t.classList.remove("drop-hover");
+  });
+  $("sport-list").addEventListener("drop", (ev) => {
+    const t = ev.target.closest("[data-drop]"); if (!dragInfo || !t) return;
+    ev.preventDefault(); const info = dragInfo;
+    movePlayer(info.pid, info.from, t.dataset.drop, ev.ctrlKey || ev.metaKey);
+  });
   $("sport-list").addEventListener("click", (ev) => {
-    if (ev.target.closest("button")) return;
+    if (ev.target.closest("button, select")) return;
     const row = ev.target.closest("tr[data-sportrow]"); if (!row) return;
     const id = row.dataset.sportrow; openSportRows.has(id) ? openSportRows.delete(id) : openSportRows.add(id);
     renderSports(sports());
