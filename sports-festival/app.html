@@ -441,18 +441,31 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     },
     initCloud() {
       this.mode = "cloud"; this.me = this.localMe();
-      let confirmed = 0;
-      const timer = setTimeout(() => notice("The shared database hasn't answered yet. What you see may be out of date.", "warn"), 10000);
+      const sync = this.syncWatch();
       for (const c of COLS) {
         this.db.collection(c).onSnapshot((snap) => {
           const next = {}; for (const d of snap.docs) next[d.id] = d.data();
           this.data[c] = next;
-          if (!snap.metadata.fromCache && ++confirmed >= COLS.length) clearTimeout(timer);
+          sync.seen(c, snap.metadata.fromCache);
           render();
-        }, (err) => { clearTimeout(timer); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page to reconnect.", "bad"); });
+        }, (err) => { sync.fail(); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page to reconnect.", "bad"); });
       }
       this.db.collection("proposals").onSnapshot((snap) => { const n = {}; for (const d of snap.docs) n[d.id] = d.data(); this.data.proposals = n; render(); }, () => {});
       render();
+    },
+    /* Warn if the shared database hasn't confirmed every list after a while; clear the warning once it does */
+    syncWatch() {
+      const MSG = "Still waiting for the shared database. Check your internet connection; what you see may be out of date.";
+      const ok = new Set(); let warned = false;
+      const timer = setTimeout(() => { if (ok.size < COLS.length) { warned = true; notice(MSG, "warn"); } }, 12000);
+      return {
+        seen(c, fromCache) {
+          if (fromCache) return;
+          ok.add(c);
+          if (ok.size >= COLS.length) { clearTimeout(timer); if (warned && $("notice").textContent === MSG) $("notice").hidden = true; }
+        },
+        fail() { clearTimeout(timer); },
+      };
     },
     /* Firebase (GitHub Pages / any static host): everyone reads, signed-in owner writes. Config comes from firebase-config.js. */
     fb: null, user: null,
@@ -477,15 +490,15 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
         this.onUser(this.user); render();
         if (!u) firebase.auth().signInAnonymously().catch(() => notice("Proposing isn't open yet: the organiser needs to enable Anonymous sign-in in Firebase.", "warn"));
       });
-      const timer = setTimeout(() => notice("The shared database hasn't answered yet. What you see may be out of date.", "warn"), 10000);
-      let confirmed = 0;
+      const sync = this.syncWatch();
       for (const c of COLS) {
-        this.fb.collection(c).onSnapshot((snap) => {
+        // includeMetadataChanges: also hear when the server confirms data first shown from the browser's cache
+        this.fb.collection(c).onSnapshot({ includeMetadataChanges: true }, (snap) => {
           const next = {}; snap.forEach((d) => { next[d.id] = d.data(); });
           this.data[c] = next;
-          if (!snap.metadata.fromCache && ++confirmed >= COLS.length) clearTimeout(timer);
+          sync.seen(c, snap.metadata.fromCache);
           render();
-        }, (err) => { clearTimeout(timer); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page to reconnect.", "bad"); });
+        }, (err) => { sync.fail(); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page to reconnect.", "bad"); });
       }
       render();
       return true;
