@@ -129,6 +129,9 @@ tr.squad-row { cursor: pointer; }
 tr.squad-row:hover td { background: var(--bg); }
 tr.squad-row .caret { display: inline-block; width: 16px; color: var(--muted); }
 tr.squad-list td { padding: 4px 10px 12px 36px; background: var(--bg); }
+table.drill { width: 100%; }
+table.drill td { padding: 6px 6px; border-bottom: 1px solid var(--line); }
+table.drill tr:last-child td { border-bottom: 0; }
 tr.squad-list ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 .score { font: 700 18px var(--font-display); white-space: nowrap; }
@@ -697,11 +700,26 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   function renderSports(S) {
     if (!S.length) { $("sport-list").innerHTML = `<div class="empty">No sports yet. Add each sport your house has entered.</div>`; return; }
     $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${groupSports(S).map((grp) => `<tr class="group-row"><td colspan="3"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "variant" : "variants"}</span></td><td class="actions"><button class="btn small" data-edit="sports:${esc(grp.items[0].id)}">Edit</button></td></tr>` + grp.items.map((s) => {
-      const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length;
-      return `<tr class="variant"><td>${esc(variantLabel(s))}${s.notes ? `<div class="sub">${esc(s.notes)}</div>` : ""}</td>
+      const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length, open = openSportRows.has(s.id);
+      const members = players().filter((p) => (p.sportIds || []).includes(s.id));
+      return `<tr class="variant squad-row" data-sportrow="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
+        <td><span class="caret">${open ? "▾" : "▸"}</span>${esc(variantLabel(s))}${s.notes ? `<div class="sub">${esc(s.notes)}</div>` : ""}</td>
         <td class="num">${n}${q ? " / " + q : ""}</td><td class="num">${gs}</td>
-        <td class="actions"><button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>`; }).join("")).join("")}</tbody></table>`;
+        <td class="actions"><button class="btn small danger" data-del="sports:${esc(s.id)}">Delete</button></td></tr>
+      ${open ? `<tr class="squad-list"><td colspan="4">${members.length ? `<table class="drill"><tbody>${members.map((p) => `<tr>
+          <td><span class="bib">${esc(numLabel(p))}</span></td>
+          <td><b>${esc(p.name)}</b>${p.confirmed ? ' <span class="pill ok">Confirmed</span>' : ' <span class="pill">Proposed</span>'}
+            <div class="muted">${[p.ref ? "EPF " + p.ref : "", p.dept, p.gender, p.age, p.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
+          <td class="actions"><button class="btn small" data-edit="players:${esc(p.id)}">Edit</button> <button class="btn small danger" data-del="players:${esc(p.id)}">Delete</button></td></tr>`).join("")}</tbody></table>`
+          : `<span class="muted">No players picked for ${esc(sportLabel(s))} yet.</span>`}</td></tr>` : ""}`; }).join("")).join("")}</tbody></table>`;
   }
+  const openSportRows = new Set();
+  $("sport-list").addEventListener("click", (ev) => {
+    if (ev.target.closest("button")) return;
+    const row = ev.target.closest("tr[data-sportrow]"); if (!row) return;
+    const id = row.dataset.sportrow; openSportRows.has(id) ? openSportRows.delete(id) : openSportRows.add(id);
+    renderSports(sports());
+  });
 
   function renderPlayerSports(S) { renderSportChecks("player", S); renderSportChecks("prop", S); }
   function renderSportChecks(prefix, S) {
@@ -828,6 +846,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || ""; $("player-confirmed").checked = !!r.confirmed;
       renderPlayerSports(); $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = (r.sportIds || []).includes(i.value); i.disabled = false; });
       editMode("player", "Edit " + numLabel(r));
+      if (location.hash.slice(1) !== "players") { location.hash = "players"; showTab("players"); }
     } else if (col === "games") {
       $("game-id").value = id; $("game-sport").value = r.sportId || ""; $("game-round").value = r.round || ""; $("game-opp").value = r.opponent || "";
       $("game-when").value = r.when || ""; $("game-venue").value = r.venue || ""; $("game-status").value = r.status || "scheduled"; $("game-score").value = r.score || "";
