@@ -271,12 +271,18 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
           </div>
         </form>
       </div>
-      <div class="panel">
+      <div class="panel has-pop">
         <h2>Squad list</h2>
         <div class="toolbar">
           <input id="f-search" type="search" placeholder="Search name, number, EPF or department">
           <select id="f-sport"></select>
+          <button class="btn" type="button" id="roster-pfilter-btn" aria-expanded="false" aria-controls="roster-pfilter-pop">Filter players</button>
           <button class="btn" type="button" id="export-csv">Export CSV</button>
+        </div>
+        <div class="filter-pop" id="roster-pfilter-pop" hidden>
+          <div class="filter-pop-head"><b>Show players</b><button class="btn small" type="button" id="roster-pfilter-clear">Show all</button></div>
+          <input type="search" id="roster-pfilter-search" placeholder="Search name, number or EPF" aria-label="Search players" style="margin-bottom:6px">
+          <div class="checks" id="roster-pfilter-list"></div>
         </div>
         <div class="table-wrap" id="player-list"></div>
       </div>
@@ -768,9 +774,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("player-filter-list").querySelectorAll("label[data-find]").forEach((l) => { l.hidden = !!q && !l.dataset.find.includes(q); });
   }
   $("player-filter-search").addEventListener("input", applyPlayerSearch);
-  const POPS = [["sport-filter-btn", "sport-filter-pop"], ["player-filter-btn", "player-filter-pop"]];
+  const POPS = [["sport-filter-btn", "sport-filter-pop"], ["player-filter-btn", "player-filter-pop"], ["roster-pfilter-btn", "roster-pfilter-pop"]];
   const closePops = (except) => POPS.forEach(([b, p]) => { if (p !== except) { $(p).hidden = true; $(b).setAttribute("aria-expanded", "false"); } });
-  POPS.forEach(([b, p]) => { $(b).onclick = (ev) => { ev.stopPropagation(); const pop = $(p), open = pop.hidden; closePops(p); pop.hidden = !open; $(b).setAttribute("aria-expanded", String(open)); if (open) pop.style.top = ($(b).offsetTop + $(b).offsetHeight + 6) + "px"; if (open && p === "player-filter-pop") $("player-filter-search").focus(); }; });
+  POPS.forEach(([b, p]) => { $(b).onclick = (ev) => { ev.stopPropagation(); const pop = $(p), open = pop.hidden; closePops(p); pop.hidden = !open; $(b).setAttribute("aria-expanded", String(open)); if (open) pop.style.top = ($(b).offsetTop + $(b).offsetHeight + 6) + "px"; if (open && p === "player-filter-pop") $("player-filter-search").focus(); if (open && p === "roster-pfilter-pop") $("roster-pfilter-search").focus(); }; });
   $("sport-filter-list").addEventListener("change", (ev) => { const i = ev.target; if (!i.value) return; i.checked ? sportFilter.add(i.value) : sportFilter.delete(i.value); renderSports(sports()); });
   $("player-filter-list").addEventListener("change", (ev) => { const i = ev.target; if (!i.value) return; i.checked ? playerFilter.add(i.value) : playerFilter.delete(i.value); renderSports(sports()); });
   $("sport-filter-clear").onclick = () => { sportFilter.clear(); renderSports(sports()); };
@@ -910,23 +916,45 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     fs.innerHTML = `<option value="">All sports</option>` + groupSports(S).map((grp) => `<optgroup label="${esc(grp.name)}">${grp.items.map((s) => `<option value="${esc(s.id)}">${esc(sportLabel(s))}</option>`).join("")}</optgroup>`).join("");
     fs.value = S.some((s) => s.id === v) ? v : "";
   }
+  // Players page: multi-select player filter (ids); empty = everyone
+  const rosterFilter = new Set();
+  function renderRosterFilter(P) {
+    const ids = new Set(P.map((p) => p.id));
+    for (const k of [...rosterFilter]) if (!ids.has(k)) rosterFilter.delete(k);
+    $("roster-pfilter-list").innerHTML = P.map((p) => `<label data-find="${esc([p.name, numLabel(p), p.ref].join(" ").toLowerCase())}"><input type="checkbox" value="${esc(p.id)}" ${rosterFilter.has(p.id) ? "checked" : ""}>
+        ${esc(p.name)} <span class="muted">${esc(numLabel(p))}</span><span class="q">${(p.sportIds || []).length}</span></label>`).join("")
+      || '<span class="muted">No players yet.</span>';
+    applyRosterSearch();
+    const n = rosterFilter.size;
+    $("roster-pfilter-btn").textContent = n ? `Filter players (${n})` : "Filter players";
+    $("roster-pfilter-btn").classList.toggle("on", n > 0);
+  }
+  function applyRosterSearch() {
+    const q = $("roster-pfilter-search").value.trim().toLowerCase();
+    $("roster-pfilter-list").querySelectorAll("label[data-find]").forEach((l) => { l.hidden = !!q && !l.dataset.find.includes(q); });
+  }
+  $("roster-pfilter-search").addEventListener("input", applyRosterSearch);
+  $("roster-pfilter-list").addEventListener("change", (ev) => { const i = ev.target; if (!i.value) return; i.checked ? rosterFilter.add(i.value) : rosterFilter.delete(i.value); renderPlayers(); });
+  const clearRosterFilter = () => { rosterFilter.clear(); $("roster-pfilter-search").value = ""; renderPlayers(); };
+  $("roster-pfilter-clear").onclick = clearRosterFilter;
+  document.addEventListener("click", (ev) => { if (ev.target.id === "roster-pfilter-reset") clearRosterFilter(); });
   function filteredPlayers() {
     const q = $("f-search").value.trim().toLowerCase(), fs = $("f-sport").value;
-    return players().filter((p) => (!fs || (p.sportIds || []).includes(fs)) &&
+    return players().filter((p) => (!rosterFilter.size || rosterFilter.has(p.id)) && (!fs || (p.sportIds || []).includes(fs)) &&
       (!q || [p.name, numLabel(p), p.ref, p.dept].some((v) => String(v || "").toLowerCase().includes(q))));
   }
   function renderPlayers() {
-    const all = players();
+    const all = players(); renderRosterFilter(all);
     if (!all.length) { $("player-list").innerHTML = `<div class="empty">No players yet. Each player gets a squad number when you add them.</div>`; return; }
     const L = filteredPlayers();
-    if (!L.length) { $("player-list").innerHTML = `<div class="empty">No players match these filters.</div>`; return; }
+    if (!L.length) { $("player-list").innerHTML = `<div class="empty">No players match these filters.${rosterFilter.size ? ` <button class="linklike" type="button" id="roster-pfilter-reset">Show all players</button>` : ""}</div>`; return; }
     $("player-list").innerHTML = `<table><thead><tr><th>No.</th><th>Player</th><th>Sports</th><th></th></tr></thead><tbody>${L.map((p) => {
       const evs = (p.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
       return `<tr><td><span class="bib">${esc(numLabel(p))}</span></td>
         <td><b>${esc(p.name)}</b>${p.confirmed ? ' <span class="pill ok">Confirmed</span>' : ' <span class="pill">Proposed</span>'}<div class="muted">${[p.ref ? "EPF " + p.ref : "", p.dept, p.gender, p.age, p.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
         <td>${evs.length ? evs.map((s) => `<span class="chip">${esc(sportLabel(s))}</span>`).join("") : '<span class="muted">None</span>'}</td>
         <td class="actions"><button class="btn small" data-edit="players:${esc(p.id)}">Edit</button> <button class="btn small danger" data-del="players:${esc(p.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table>
-      <div class="muted" style="margin-top:8px">${L.length} of ${all.length} players</div>`;
+      <div class="muted" style="margin-top:8px">${L.length} of ${all.length} players${rosterFilter.size ? ` · <button class="linklike" type="button" id="roster-pfilter-reset">Show all players</button>` : ""}</div>`;
   }
   ["f-search", "f-sport"].forEach((id) => $(id).addEventListener("input", renderPlayers));
 
