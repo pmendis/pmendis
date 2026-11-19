@@ -32,10 +32,15 @@ jobs:
           else
             cp sports-festival/firebase-config.js _site/firebase-config.js
           fi
+          # Version stamp: the app compares it with version.json (fetched past the cache) and reloads if it is out of date.
+          VERSION="${GITHUB_SHA::12}-${GITHUB_RUN_NUMBER}"
+          printf '{"v":"%s"}\n' "$VERSION" > _site/version.json
           {
             echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
             echo '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-            echo '<script src="firebase-config.js"></script></head><body>'
+            echo '<meta http-equiv="Cache-Control" content="no-cache">'
+            echo "<script>window.APP_VERSION = \"$VERSION\";</script>"
+            echo "<script src=\"firebase-config.js?v=$VERSION\"></script></head><body>"
             cat sports-festival/app.html
             echo '</body></html>'
           } > _site/index.html

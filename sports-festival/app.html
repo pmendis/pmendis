@@ -456,13 +456,22 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     /* Warn if the shared database hasn't confirmed every list after a while; clear the warning once it does */
     syncWatch() {
       const MSG = "Still waiting for the shared database. Check your internet connection; what you see may be out of date.";
-      const ok = new Set(); let warned = false;
-      const timer = setTimeout(() => { if (ok.size < COLS.length) { warned = true; notice(MSG, "warn"); } }, 12000);
+      const ok = new Set(), KEY = "hs.stallReload";
+      const timer = setTimeout(() => {
+        if (ok.size >= COLS.length) return;
+        // First stall in this tab: reload once by itself (a fresh page usually reconnects). After that, ask.
+        let tried = false; try { tried = sessionStorage.getItem(KEY) === "1"; if (!tried) sessionStorage.setItem(KEY, "1"); } catch (e) { tried = true; }
+        if (!tried) { location.reload(); return; }
+        noticeReload(MSG, "sync");
+      }, 12000);
       return {
         seen(c, fromCache) {
           if (fromCache) return;
           ok.add(c);
-          if (ok.size >= COLS.length) { clearTimeout(timer); if (warned && $("notice").textContent === MSG) $("notice").hidden = true; }
+          if (ok.size >= COLS.length) {
+            clearTimeout(timer); try { sessionStorage.removeItem(KEY); } catch (e) {}
+            if ($("notice").dataset.tag === "sync") $("notice").hidden = true;
+          }
         },
         fail() { clearTimeout(timer); },
       };
@@ -588,8 +597,8 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     ? (Store.mode === "firebase" && Store.user ? "This account (" + (Store.user.email || "signed in") + ") isn't on the organiser list in the database rules." : "You have view-only access. Ask the house organiser for edit access.")
     : "Couldn't save the change (" + (e && e.code || "error") + "). Try again.";
 
-  function notice(msg, kind) {
-    const n = $("notice"); n.textContent = msg; n.dataset.kind = kind || "warn"; n.hidden = !msg;
+  function notice(msg, kind, tag) {
+    const n = $("notice"); n.textContent = msg; n.dataset.kind = kind || "warn"; n.dataset.tag = tag || ""; n.hidden = !msg;
     clearTimeout(notice.t); if (msg && kind === "ok") notice.t = setTimeout(() => { n.hidden = true; }, 3000);
   }
 
@@ -792,6 +801,11 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   POPS.forEach(([b, p]) => { $(b).onclick = (ev) => { ev.stopPropagation(); const pop = $(p), open = pop.hidden; closePops(p); pop.hidden = !open; $(b).setAttribute("aria-expanded", String(open)); if (open) pop.style.top = ($(b).offsetTop + $(b).offsetHeight + 6) + "px"; if (open && p === "player-filter-pop") $("player-filter-search").focus(); if (open && p === "roster-pfilter-pop") $("roster-pfilter-search").focus(); }; });
   $("sport-filter-list").addEventListener("change", (ev) => { const i = ev.target; if (!i.value) return; i.checked ? sportFilter.add(i.value) : sportFilter.delete(i.value); renderSports(sports()); });
   $("player-filter-list").addEventListener("change", (ev) => { const i = ev.target; if (!i.value) return; i.checked ? playerFilter.add(i.value) : playerFilter.delete(i.value); renderSports(sports()); });
+  document.addEventListener("click", (ev) => { if (ev.target.id === "notice-reload") location.reload(); });
+  function noticeReload(msg, tag) {
+    notice(msg, "warn", tag);
+    $("notice").insertAdjacentHTML("beforeend", ' <button class="linklike" type="button" id="notice-reload">Reload now</button>');
+  }
   $("sport-filter-clear").onclick = () => { sportFilter.clear(); renderSports(sports()); };
   $("player-filter-clear").onclick = () => { playerFilter.clear(); $("player-filter-search").value = ""; renderSports(sports()); };
   document.addEventListener("click", (ev) => {
@@ -1239,6 +1253,25 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     } catch (e) { notice("That file isn't a house sports backup.", "bad"); }
     ev.target.value = "";
   });
+
+  /* ---------- Stay on the newest version (GitHub Pages build stamps APP_VERSION and version.json) ---------- */
+  async function latestVersion() {
+    try { const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" }); return r.ok ? (await r.json()).v || "" : ""; } catch (e) { return ""; }
+  }
+  async function checkVersion(atStart) {
+    if (!window.APP_VERSION || !window.fetch) return;
+    const v = await latestVersion();
+    if (!v || v === window.APP_VERSION) return;
+    if (atStart) {
+      // Old copy from the browser cache: load the new one once (guarded so it can never loop)
+      let done = false; try { done = sessionStorage.getItem("hs.reloadedFor") === v; sessionStorage.setItem("hs.reloadedFor", v); } catch (e) { done = true; }
+      if (!done) { const u = new URL(location.href); u.searchParams.set("v", v); location.replace(u.toString()); return; }
+    }
+    // While the page is in use, don't throw away typing: offer the update instead
+    noticeReload("A newer version of this page is available.", "update");
+  }
+  checkVersion(true);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVersion(false); });
 
   showTab(location.hash.slice(1));
   render();
