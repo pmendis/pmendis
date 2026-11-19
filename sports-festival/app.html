@@ -25,7 +25,7 @@
 
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5; margin: 0; }
-.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: none; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: .01em; }
 
 header.band { background: var(--lane); color: var(--lane-ink);
@@ -61,6 +61,9 @@ main { padding-block: 20px 48px; }
 #ov-games { max-height: 260px; overflow-y: auto; }
 
 .split { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.split.solo { grid-template-columns: minmax(0, 1fr); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.panel-head h2 { margin-bottom: 0; }
 .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; }
 .panel h2 { font-size: 18px; line-height: 1.2; text-transform: uppercase; margin-bottom: 8px; }
@@ -317,11 +320,11 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
           <label>Notes<input id="sport-notes" maxlength="120" placeholder="e.g. 6-a-side, mixed team"></label>
           <div class="btns">
             <button class="btn primary" type="submit" id="sport-save">Add sport</button>
-            <button class="btn" type="button" id="sport-cancel" hidden>Cancel edit</button>
+            <button class="btn" type="button" id="sport-cancel" hidden>Cancel</button>
           </div>
         </form>
       </div>
-      <div class="panel"><h2>Sports we play</h2><div class="table-wrap" id="sport-list"></div></div>
+      <div class="panel"><div class="panel-head"><h2>Sports we play</h2><button class="btn primary small" type="button" id="sport-add-btn" hidden>+ Add sport</button></div><div class="table-wrap" id="sport-list"></div></div>
     </div>
   </section>
 
@@ -656,7 +659,8 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     ab.textContent = Store.user ? "Sign out" : "Sign in to edit";
     renderAccess(); renderReview();
     $("house-edit").hidden = !Store.canEdit();
-    document.querySelectorAll("#player-form, #sport-form, #game-form").forEach((f) => { f.closest(".panel").hidden = !Store.canEdit(); });
+    document.querySelectorAll("#player-form, #game-form").forEach((f) => { f.closest(".panel").hidden = !Store.canEdit(); });
+    applySportForm();
     document.body.classList.toggle("readonly", !Store.canEdit());
     const h = house();
     $("house-title").innerHTML = h.name ? esc(h.name) + " <span>House</span>" : "My <span>House</span>";
@@ -815,6 +819,16 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
 
   /* ---------- Forms ---------- */
   let fromProposal = null; // set while a proposal is being edited in the player form
+  let sportFormOpen = false; // the Add/Edit sport card shows only after "+ Add sport" or Edit
+  function applySportForm() {
+    const panel = $("sport-form").closest(".panel"), show = Store.canEdit() && sportFormOpen;
+    panel.hidden = !show; panel.closest(".split").classList.toggle("solo", !show);
+    $("sport-add-btn").hidden = !Store.canEdit() || show;
+  }
+  $("sport-add-btn").onclick = () => {
+    resetForm("sports"); sportFormOpen = true; $("sport-cancel").hidden = false; applySportForm();
+    $("sport-form").closest(".panel").scrollIntoView({ behavior: "smooth", block: "start" }); $("sport-name").focus();
+  };
   const GRID_GENDERS = ["Men", "Women", "Mixed"];
   $("sport-grid").querySelector("tbody").innerHTML = AGE_ORDER.map((a) => `<tr><td>${esc(a || "Open")}</td>${GRID_GENDERS.map((g) =>
     `<td class="num"><input type="checkbox" aria-label="${esc(g)} ${esc(a || "Open")}" data-g="${esc(g)}" data-a="${esc(a)}"></td>`).join("")}</tr>`).join("");
@@ -823,7 +837,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   const FORMS = { sports: ["sport", "Add sport"], players: ["player", "Add player"], games: ["game", "Add game"] };
   function resetForm(kind) {
     const [p, label] = FORMS[kind];
-    if (kind === "sports") { $("sport-age-hint").textContent = "(tick each age and gender combination that is played; Mixed = anyone)"; }
+    if (kind === "sports") { $("sport-age-hint").textContent = "(tick each age and gender combination that is played; Mixed = anyone)"; sportFormOpen = false; applySportForm(); }
     $(p + "-form").reset(); $(p + "-id").value = "";
     $(p + "-form-title").textContent = label; $(p + "-save").textContent = label; $(p + "-cancel").hidden = true;
     if (kind === "players") { fromProposal = null; $("player-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderPlayerSports(); }
@@ -840,7 +854,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       $("sport-squad").value = r.squad ?? 0; $("sport-notes").value = r.notes || "";
       const grp = sports().filter((x) => x.name === r.name);
       setGrid(new Set(grp.map(comboKey)));
-      $("sport-age-hint").textContent = "(tick to add a variant, untick to remove it)"; editMode("sport", "Edit " + r.name);
+      $("sport-age-hint").textContent = "(tick to add a variant, untick to remove it)"; editMode("sport", "Edit " + r.name); sportFormOpen = true; applySportForm();
     } else if (col === "players") {
       $("player-id").value = id; $("player-name").value = r.name || ""; $("player-ref").value = r.ref || ""; $("player-dept").value = r.dept || ""; $("player-age").value = r.age || "";
       $("player-gender").value = r.gender || ""; $("player-phone").value = r.phone || ""; $("player-confirmed").checked = !!r.confirmed;
