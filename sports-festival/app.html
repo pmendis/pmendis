@@ -64,6 +64,15 @@ main { padding-block: 20px 48px; }
 .split.solo { grid-template-columns: minmax(0, 1fr); }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .panel-head h2 { margin-bottom: 0; }
+.head-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.panel.has-pop { position: relative; }
+.filter-pop { position: absolute; right: 14px; top: 46px; z-index: 6; width: min(320px, calc(100% - 28px)); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 10px 12px; }
+.filter-pop .checks { max-height: 320px; }
+.filter-pop-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+#sport-filter-btn.on { border-color: var(--accent); color: var(--accent); }
+.filter-note { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+button.linklike { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
 .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; }
 .panel h2 { font-size: 18px; line-height: 1.2; text-transform: uppercase; margin-bottom: 8px; }
@@ -335,7 +344,17 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
           </div>
         </form>
       </div>
-      <div class="panel"><div class="panel-head"><h2>Sports we play</h2><button class="btn primary small" type="button" id="sport-add-btn" hidden>+ Add sport</button></div><div class="table-wrap" id="sport-list"></div></div>
+      <div class="panel has-pop"><div class="panel-head"><h2>Sports we play</h2>
+          <div class="head-tools">
+            <button class="btn small" type="button" id="sport-filter-btn" aria-expanded="false" aria-controls="sport-filter-pop">Filter</button>
+            <button class="btn primary small" type="button" id="sport-add-btn" hidden>+ Add sport</button>
+          </div></div>
+        <div class="filter-pop" id="sport-filter-pop" hidden>
+          <div class="filter-pop-head"><b>Show sports</b><button class="btn small" type="button" id="sport-filter-clear">Show all</button></div>
+          <div class="checks" id="sport-filter-list"></div>
+        </div>
+        <div class="filter-note" id="sport-filter-note" hidden></div>
+        <div class="table-wrap" id="sport-list"></div></div>
     </div>
   </section>
 
@@ -712,9 +731,34 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     renderOverview(sports(), players(), games());
   });
 
+  // Sports page filter: a set of sport names (normalised); empty = show all
+  const sportFilter = new Set();
+  function renderSportFilter(groups) {
+    const names = new Set(groups.map((g) => nameKey(g.name).toLowerCase()));
+    for (const k of [...sportFilter]) if (!names.has(k)) sportFilter.delete(k);
+    $("sport-filter-list").innerHTML = groups.map((g) => { const k = nameKey(g.name).toLowerCase();
+      return `<label><input type="checkbox" value="${esc(k)}" ${sportFilter.has(k) ? "checked" : ""}> ${esc(g.name)}<span class="q">${g.items.length}</span></label>`; }).join("")
+      || '<span class="muted">No sports yet.</span>';
+    const n = sportFilter.size;
+    $("sport-filter-btn").textContent = n ? `Filter (${n})` : "Filter";
+    $("sport-filter-btn").classList.toggle("on", n > 0);
+    $("sport-filter-note").hidden = !n;
+    if (n) $("sport-filter-note").innerHTML = `Showing ${n} of ${groups.length} sports · <button class="linklike" type="button" id="sport-filter-reset">Show all</button>`;
+  }
+  $("sport-filter-btn").onclick = (ev) => { ev.stopPropagation(); const pop = $("sport-filter-pop"); pop.hidden = !pop.hidden; $("sport-filter-btn").setAttribute("aria-expanded", String(!pop.hidden)); };
+  $("sport-filter-list").addEventListener("change", (ev) => { const i = ev.target; if (!i.value) return; i.checked ? sportFilter.add(i.value) : sportFilter.delete(i.value); renderSports(sports()); });
+  const clearSportFilter = () => { sportFilter.clear(); renderSports(sports()); };
+  $("sport-filter-clear").onclick = clearSportFilter;
+  document.addEventListener("click", (ev) => {
+    if (ev.target.id === "sport-filter-reset") { clearSportFilter(); return; }
+    const pop = $("sport-filter-pop"); if (!pop.hidden && !pop.contains(ev.target) && ev.target !== $("sport-filter-btn")) { pop.hidden = true; $("sport-filter-btn").setAttribute("aria-expanded", "false"); }
+  });
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") { $("sport-filter-pop").hidden = true; $("sport-filter-btn").setAttribute("aria-expanded", "false"); } });
   function renderSports(S) {
+    const allGroups = groupSports(S); renderSportFilter(allGroups);
     if (!S.length) { $("sport-list").innerHTML = `<div class="empty">No sports yet. Add each sport your house has entered.</div>`; return; }
-    $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${groupSports(S).map((grp) => `<tr class="group-row"><td colspan="3"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "variant" : "variants"}</span></td><td class="actions"><button class="btn small" data-edit="sports:${esc(grp.items[0].id)}">Edit</button></td></tr>` + grp.items.map((s) => {
+    const shown = sportFilter.size ? allGroups.filter((g) => sportFilter.has(nameKey(g.name).toLowerCase())) : allGroups;
+    $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${shown.map((grp) => `<tr class="group-row"><td colspan="3"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "variant" : "variants"}</span></td><td class="actions"><button class="btn small" data-edit="sports:${esc(grp.items[0].id)}">Edit</button></td></tr>` + grp.items.map((s) => {
       const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length, open = openSportRows.has(s.id);
       const members = players().filter((p) => (p.sportIds || []).includes(s.id));
       return `<tr class="variant squad-row" data-sportrow="${esc(s.id)}" data-drop="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
