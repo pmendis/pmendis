@@ -69,6 +69,8 @@ main { padding-block: 20px 48px; }
 .filter-pop { position: absolute; right: 14px; top: 46px; z-index: 6; width: min(320px, calc(100% - 28px)); background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 10px 12px; }
 .filter-pop .checks { max-height: 320px; }
+.filter-pop .checks label[hidden] { display: none; }
+@media (max-width: 600px) { .panel-head { flex-wrap: wrap; } .panel-head h2 { flex: 1 1 100%; } .head-tools { justify-content: flex-start; } }
 .filter-pop-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 #sport-filter-btn.on { border-color: var(--accent); color: var(--accent); }
 .filter-note { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
@@ -346,12 +348,18 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       </div>
       <div class="panel has-pop"><div class="panel-head"><h2>Sports we play</h2>
           <div class="head-tools">
-            <button class="btn small" type="button" id="sport-filter-btn" aria-expanded="false" aria-controls="sport-filter-pop">Filter</button>
+            <button class="btn small" type="button" id="sport-filter-btn" aria-expanded="false" aria-controls="sport-filter-pop">Filter sports</button>
+            <button class="btn small" type="button" id="player-filter-btn" aria-expanded="false" aria-controls="player-filter-pop">Filter players</button>
             <button class="btn primary small" type="button" id="sport-add-btn" hidden>+ Add sport</button>
           </div></div>
         <div class="filter-pop" id="sport-filter-pop" hidden>
           <div class="filter-pop-head"><b>Show sports</b><button class="btn small" type="button" id="sport-filter-clear">Show all</button></div>
           <div class="checks" id="sport-filter-list"></div>
+        </div>
+        <div class="filter-pop" id="player-filter-pop" hidden>
+          <div class="filter-pop-head"><b>Show players</b><button class="btn small" type="button" id="player-filter-clear">Show all</button></div>
+          <input type="search" id="player-filter-search" placeholder="Search name, number or EPF" aria-label="Search players" style="margin-bottom:6px">
+          <div class="checks" id="player-filter-list"></div>
         </div>
         <div class="filter-note" id="sport-filter-note" hidden></div>
         <div class="table-wrap" id="sport-list"></div></div>
@@ -731,36 +739,59 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     renderOverview(sports(), players(), games());
   });
 
-  // Sports page filter: a set of sport names (normalised); empty = show all
-  const sportFilter = new Set();
+  // Sports page filters: sport names (normalised) and player ids; empty = show all. Both can be combined.
+  const sportFilter = new Set(), playerFilter = new Set();
+  const groupKey = (g) => nameKey(g.name).toLowerCase();
   function renderSportFilter(groups) {
-    const names = new Set(groups.map((g) => nameKey(g.name).toLowerCase()));
+    const names = new Set(groups.map(groupKey));
     for (const k of [...sportFilter]) if (!names.has(k)) sportFilter.delete(k);
-    $("sport-filter-list").innerHTML = groups.map((g) => { const k = nameKey(g.name).toLowerCase();
+    $("sport-filter-list").innerHTML = groups.map((g) => { const k = groupKey(g);
       return `<label><input type="checkbox" value="${esc(k)}" ${sportFilter.has(k) ? "checked" : ""}> ${esc(g.name)}<span class="q">${g.items.length}</span></label>`; }).join("")
       || '<span class="muted">No sports yet.</span>';
-    const n = sportFilter.size;
-    $("sport-filter-btn").textContent = n ? `Filter (${n})` : "Filter";
-    $("sport-filter-btn").classList.toggle("on", n > 0);
-    $("sport-filter-note").hidden = !n;
-    if (n) $("sport-filter-note").innerHTML = `Showing ${n} of ${groups.length} sports · <button class="linklike" type="button" id="sport-filter-reset">Show all</button>`;
+    const P = players(), ids = new Set(P.map((p) => p.id));
+    for (const k of [...playerFilter]) if (!ids.has(k)) playerFilter.delete(k);
+    $("player-filter-list").innerHTML = P.map((p) => `<label data-find="${esc([p.name, numLabel(p), p.ref].join(" ").toLowerCase())}"><input type="checkbox" value="${esc(p.id)}" ${playerFilter.has(p.id) ? "checked" : ""}>
+        ${esc(p.name)} <span class="muted">${esc(numLabel(p))}</span><span class="q">${(p.sportIds || []).length}</span></label>`).join("")
+      || '<span class="muted">No players yet.</span>';
+    applyPlayerSearch();
+    const ns = sportFilter.size, np = playerFilter.size;
+    $("sport-filter-btn").textContent = ns ? `Filter sports (${ns})` : "Filter sports";
+    $("sport-filter-btn").classList.toggle("on", ns > 0);
+    $("player-filter-btn").textContent = np ? `Filter players (${np})` : "Filter players";
+    $("player-filter-btn").classList.toggle("on", np > 0);
+    $("sport-filter-note").hidden = !(ns || np);
+    if (ns || np) $("sport-filter-note").innerHTML = "Filtered: " + [ns ? `${ns} of ${groups.length} sports` : "", np ? `${np} player${np === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ")
+      + ` · <button class="linklike" type="button" id="sport-filter-reset">Show all</button>`;
   }
-  $("sport-filter-btn").onclick = (ev) => { ev.stopPropagation(); const pop = $("sport-filter-pop"); pop.hidden = !pop.hidden; $("sport-filter-btn").setAttribute("aria-expanded", String(!pop.hidden)); };
+  function applyPlayerSearch() {
+    const q = $("player-filter-search").value.trim().toLowerCase();
+    $("player-filter-list").querySelectorAll("label[data-find]").forEach((l) => { l.hidden = !!q && !l.dataset.find.includes(q); });
+  }
+  $("player-filter-search").addEventListener("input", applyPlayerSearch);
+  const POPS = [["sport-filter-btn", "sport-filter-pop"], ["player-filter-btn", "player-filter-pop"]];
+  const closePops = (except) => POPS.forEach(([b, p]) => { if (p !== except) { $(p).hidden = true; $(b).setAttribute("aria-expanded", "false"); } });
+  POPS.forEach(([b, p]) => { $(b).onclick = (ev) => { ev.stopPropagation(); const pop = $(p), open = pop.hidden; closePops(p); pop.hidden = !open; $(b).setAttribute("aria-expanded", String(open)); if (open) pop.style.top = ($(b).offsetTop + $(b).offsetHeight + 6) + "px"; if (open && p === "player-filter-pop") $("player-filter-search").focus(); }; });
   $("sport-filter-list").addEventListener("change", (ev) => { const i = ev.target; if (!i.value) return; i.checked ? sportFilter.add(i.value) : sportFilter.delete(i.value); renderSports(sports()); });
-  const clearSportFilter = () => { sportFilter.clear(); renderSports(sports()); };
-  $("sport-filter-clear").onclick = clearSportFilter;
+  $("player-filter-list").addEventListener("change", (ev) => { const i = ev.target; if (!i.value) return; i.checked ? playerFilter.add(i.value) : playerFilter.delete(i.value); renderSports(sports()); });
+  $("sport-filter-clear").onclick = () => { sportFilter.clear(); renderSports(sports()); };
+  $("player-filter-clear").onclick = () => { playerFilter.clear(); $("player-filter-search").value = ""; renderSports(sports()); };
   document.addEventListener("click", (ev) => {
-    if (ev.target.id === "sport-filter-reset") { clearSportFilter(); return; }
-    const pop = $("sport-filter-pop"); if (!pop.hidden && !pop.contains(ev.target) && ev.target !== $("sport-filter-btn")) { pop.hidden = true; $("sport-filter-btn").setAttribute("aria-expanded", "false"); }
+    if (ev.target.id === "sport-filter-reset") { sportFilter.clear(); playerFilter.clear(); $("player-filter-search").value = ""; closePops(); renderSports(sports()); return; }
+    if (!POPS.some(([b, p]) => $(p).contains(ev.target) || ev.target === $(b))) closePops();
   });
-  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") { $("sport-filter-pop").hidden = true; $("sport-filter-btn").setAttribute("aria-expanded", "false"); } });
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closePops(); });
   function renderSports(S) {
     const allGroups = groupSports(S); renderSportFilter(allGroups);
     if (!S.length) { $("sport-list").innerHTML = `<div class="empty">No sports yet. Add each sport your house has entered.</div>`; return; }
-    const shown = sportFilter.size ? allGroups.filter((g) => sportFilter.has(nameKey(g.name).toLowerCase())) : allGroups;
+    const P = players();
+    const shown = allGroups
+      .filter((g) => !sportFilter.size || sportFilter.has(groupKey(g)))
+      .map((g) => ({ ...g, items: playerFilter.size ? g.items.filter((s) => P.some((p) => playerFilter.has(p.id) && (p.sportIds || []).includes(s.id))) : g.items }))
+      .filter((g) => g.items.length);
+    if (!shown.length) { $("sport-list").innerHTML = `<div class="empty">No sports match this filter.</div>`; return; }
     $("sport-list").innerHTML = `<table><thead><tr><th>Sport</th><th class="num">Squad</th><th class="num">Games</th><th></th></tr></thead><tbody>${shown.map((grp) => `<tr class="group-row"><td colspan="3"><b>${esc(grp.name)}</b> <span class="sub">${esc(typeLabel(grp.items[0].type))} · ${grp.items.length} ${grp.items.length === 1 ? "variant" : "variants"}</span></td><td class="actions"><button class="btn small" data-edit="sports:${esc(grp.items[0].id)}">Edit</button></td></tr>` + grp.items.map((s) => {
-      const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length, open = openSportRows.has(s.id);
-      const members = players().filter((p) => (p.sportIds || []).includes(s.id));
+      const n = picked(s.id), q = +s.squad || 0, gs = games().filter((g) => g.sportId === s.id).length, open = openSportRows.has(s.id) || playerFilter.size > 0;
+      const members = players().filter((p) => (p.sportIds || []).includes(s.id) && (!playerFilter.size || playerFilter.has(p.id)));
       return `<tr class="variant squad-row" data-sportrow="${esc(s.id)}" data-drop="${esc(s.id)}" aria-expanded="${open}" title="${open ? "Hide" : "Show"} players">
         <td><span class="caret">${open ? "▾" : "▸"}</span>${esc(variantLabel(s))}${s.notes ? `<div class="sub">${esc(s.notes)}</div>` : ""}</td>
         <td class="num">${n}${q ? " / " + q : ""}</td><td class="num">${gs}</td>
