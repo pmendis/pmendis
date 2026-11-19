@@ -298,21 +298,22 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
         <h2>Propose a player <small>no sign-in needed · the house organiser reviews every proposal before it reaches the squad list</small></h2>
         <form id="prop-form" autocomplete="off">
           <input type="hidden" id="prop-id">
-          <label>Full name<input id="prop-name" required maxlength="80"></label>
           <div class="row2">
-            <label>EPF number<input id="prop-ref" maxlength="30" inputmode="numeric"></label>
+            <label>EPF number<input id="prop-ref" maxlength="30" inputmode="numeric" placeholder="Enter first"></label>
+            <label>Full name<input id="prop-name" required maxlength="80"></label>
+          </div>
+          <div class="update-line" id="prop-found" hidden></div>
+          <div class="row2">
             <label>Gender
               <select id="prop-gender" required><option value="">—</option><option>Female</option><option>Male</option><option>Other</option></select>
             </label>
-          </div>
-          <div class="row2">
             <label>Age category<select id="prop-age" required><option value="">—</option><option>Below 30</option><option>30+</option><option>35+</option><option>40+</option><option>45+</option><option>50+</option><option>55+</option></select></label>
-            <label>Department<input id="prop-dept" maxlength="60" list="dept-options" placeholder="e.g. Finance"></label>
           </div>
           <div class="row2">
+            <label>Department<input id="prop-dept" maxlength="60" list="dept-options" placeholder="e.g. Finance"></label>
             <label>Phone<input id="prop-phone" type="tel" maxlength="20"></label>
-            <label>Proposed by<input id="prop-by" maxlength="60" placeholder="Your name (optional)"></label>
           </div>
+          <label>Proposed by<input id="prop-by" maxlength="60" placeholder="Your name (optional)"></label>
           <fieldset><legend>Sports</legend><div class="checks" id="prop-sports"></div></fieldset>
           <div class="btns"><button class="btn primary" type="submit" id="prop-save">Send proposal</button>
             <button class="btn" type="button" id="prop-cancel" hidden>Cancel edit</button></div>
@@ -1139,10 +1140,37 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   });
   function resetProp() {
     const by = $("prop-by").value; $("prop-form").reset(); $("prop-by").value = by; $("prop-id").value = "";
+    $("prop-found").hidden = true; propLoadedRef = "";
     $("prop-save").textContent = "Send proposal"; $("prop-cancel").hidden = true;
     $("prop-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderSportChecks("prop");
   }
   $("prop-cancel").onclick = resetProp;
+  // Typing an EPF that is already known loads its details: the visitor's own pending proposal first, else the squad-list player
+  let propLoadedRef = "";
+  function lookupEpf() {
+    const ref = $("prop-ref").value.trim(), key = ref.toLowerCase(), box = $("prop-found");
+    if (!ref) { box.hidden = true; propLoadedRef = ""; return; }
+    if (key === propLoadedRef) return;
+    const own = !$("prop-id").value && Store.mine().find((r) => (r.ref || "").toLowerCase() === key);
+    if (own) {
+      propLoadedRef = key; editMine(own.id);
+      box.hidden = false; box.textContent = `You already proposed EPF ${ref}. It is loaded below; change what you need and press Save changes.`;
+      return;
+    }
+    const m = playerByEpf(ref);
+    if (!m) { if (propLoadedRef) box.hidden = true; propLoadedRef = ""; return; }
+    propLoadedRef = key;
+    $("prop-name").value = m.name || ""; $("prop-gender").value = m.gender || ""; $("prop-age").value = m.age || "";
+    $("prop-dept").value = m.dept || ""; $("prop-phone").value = m.phone || "";
+    renderSportChecks("prop");
+    $("prop-sports").querySelectorAll("input").forEach((i) => { i.checked = (m.sportIds || []).includes(i.value); });
+    renderSportChecks("prop");
+    box.hidden = false;
+    box.innerHTML = `Found <span class="bib">${esc(numLabel(m))}</span> <b>${esc(m.name)}</b> in the squad list. Their details are loaded below; change what you need and send. The organiser updates them when accepting.`;
+  }
+  let lookupTimer;
+  $("prop-ref").addEventListener("input", () => { clearTimeout(lookupTimer); lookupTimer = setTimeout(lookupEpf, 400); });
+  $("prop-ref").addEventListener("change", () => { clearTimeout(lookupTimer); lookupEpf(); });
   function renderMine() {
     const list = Store.mine().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
     $("my-props").hidden = !list.length; if (!list.length) return;
