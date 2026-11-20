@@ -90,6 +90,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .btn.danger.armed { background: var(--bad); color: #fff; border-color: var(--bad); }
 .fs { font: 700 14px var(--font-display); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 6px; padding-top: 10px; border-top: 1px solid var(--line); }
 .fs small { font: 400 12px var(--font-body); text-transform: none; letter-spacing: 0; color: var(--muted); margin-left: 6px; }
+main.is-paused > section { display: none !important; }
 .btn.solid-bad { background: var(--bad); color: #fff; border-color: var(--bad); }
 .confirm-dlg { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); padding: 18px; max-width: min(380px, calc(100vw - 32px)); }
 .confirm-dlg::backdrop { background: rgba(0,0,0,.45); }
@@ -172,11 +173,17 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
     <button role="tab" data-tab="stats">Stats</button>
     <button role="tab" data-tab="teams">Teams</button>
     <button role="tab" data-tab="settings" id="tab-settings" hidden>Settings</button>
+    <button role="tab" data-tab="access" id="tab-access" hidden>Access</button>
   </div>
 </nav>
 
 <main class="wrap">
   <div id="notice" class="notice" hidden></div>
+  <div class="panel" id="paused" hidden style="text-align:center;padding:28px 16px">
+    <h2 style="margin:0 0 6px">Live scores are paused</h2>
+    <p class="muted" style="margin:0">Public viewing is switched off for now because of heavy traffic. Please check back a little later.</p>
+    <p class="muted" id="paused-signin" style="margin:8px 0 0">Scorers can still sign in (top right) to keep scoring.</p>
+  </div>
 
   <div class="panel" id="auth-panel" hidden style="margin-bottom:14px">
     <h2>Scorer sign in <small>use the username and password the organiser created for you</small></h2>
@@ -253,6 +260,8 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
     <div class="panel" id="league-panel">
       <h2>League settings <small>only scorers can see and change these</small></h2>
       <form id="league-form">
+        <p class="muted" id="lg-ro" hidden style="margin:0 0 8px">View only: ask the owner for "Edit settings" to change these.</p>
+        <fieldset id="lg-fs" style="border:0;padding:0;margin:0;min-width:0">
         <label>League name<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
         <h3 class="fs">Match defaults <small>filled in for each new match; can be changed per match</small></h3>
         <div class="row2">
@@ -266,6 +275,9 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
         </div>
         <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbw" style="width:auto"> Wides count as a ball (not re-bowled)</label>
         <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbn" style="width:auto"> No-balls count as a ball (not re-bowled)</label>
+        <h3 class="fs">Public viewing <small>for heavy traffic</small></h3>
+        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-public" style="width:auto"> Allow viewing without signing in (public live page and this app)</label>
+        <p class="muted" style="margin:4px 0 0;font-size:12.5px">When off, visitors see "Live scores are paused" and stop reading the database. Scorers and the owner can still sign in and work. Public live page: <a id="lg-public-link" href="live/" target="_blank" rel="noopener">cricket/live/</a></p>
         <h3 class="fs">Points table <small>applies to all league matches, including finished ones</small></h3>
         <div class="row2">
           <label>Points for a win<input id="lg-ptW" type="number" min="0" max="10" step="0.5" value="2"></label>
@@ -284,10 +296,24 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <option value="icc">Standard (ICC): runs per over, all-out side counts its full overs</option>
           <option value="balls">Simple: total runs ÷ total balls faced (actual balls)</option>
         </select></label>
-        <div class="btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="league-cancel">Discard changes</button></div>
+        </fieldset>
+        <div class="btns" id="lg-btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="league-cancel">Discard changes</button></div>
       </form>
     </div>
     <div class="panel" id="settings-locked" hidden><div class="empty">Sign in as a scorer to change the league settings.</div></div>
+  </section>
+
+  <!-- ACCESS (owner only) -->
+  <section data-view="access" hidden>
+    <div class="panel">
+      <h2>Access <small>owner only · what each scorer account may do; changes apply straight away</small></h2>
+      <p class="muted" style="margin:0 0 10px">Create the username and password in Firebase Authentication first (e.g. scorer3@cricket.local), then add the username here. Accounts not listed get the starting set: Score matches and Manage teams.</p>
+      <form id="acc-form" class="btns" style="align-items:flex-end;margin-bottom:12px">
+        <label style="max-width:220px">Username<input id="acc-user" placeholder="e.g. scorer3" autocomplete="off" required></label>
+        <button class="btn primary" type="submit">Add user</button>
+      </form>
+      <div class="table-wrap" id="acc-list"></div>
+    </div>
   </section>
 
   <!-- TEAMS -->
@@ -450,6 +476,17 @@ function playerStats() {
 }
 
 /* =========================== app shell =========================== */
+// the public live page (/cricket/live/) is this same app in read-only mode, without sign-in
+const PUBLIC_PAGE = !!window.CRICKET_PUBLIC;
+const PERMS = [
+  { k: "score", label: "Score matches", hint: "create matches and score their own" },
+  { k: "teams", label: "Manage teams", hint: "add and edit teams and squads" },
+  { k: "viewSettings", label: "View settings", hint: "see the Settings tab" },
+  { k: "editSettings", label: "Edit settings", hint: "change league settings" },
+  { k: "allMatches", label: "Manage all matches", hint: "edit, score or delete any match" },
+];
+const NO_PERMS = { score: false, teams: false, viewSettings: false, editSettings: false, allMatches: false };
+const DEFAULT_PERMS = { ...NO_PERMS, score: true, teams: true }; // scorers without an access record
 const COLS = ["cr_settings", "cr_teams", "cr_players", "cr_matches"];
 const LS_KEY = "festcricket.v1";
 const $ = (id) => document.getElementById(id);
@@ -488,15 +525,43 @@ const Store = {
       this.user = u && !u.isAnonymous ? u : null; this.owner = false;
       // owner = the email listed in the Firestore rules; only it may read cr_owner
       if (this.user && !this.isScorer()) { try { await this.fb.collection("cr_owner").doc("check").get(); this.owner = true; } catch (e) { this.owner = false; } }
+      // a scorer's permissions live in cr_access/<email>; no document = the starting set (score + teams)
+      if (this.unsubPerm) { this.unsubPerm(); this.unsubPerm = null; } this.perms = null;
+      if (this.user && this.isScorer()) this.unsubPerm = this.fb.collection("cr_access").doc(this.me()).onSnapshot((d) => { this.perms = d.exists ? { ...NO_PERMS, ...d.data() } : { ...DEFAULT_PERMS }; render(); }, () => { this.perms = { ...DEFAULT_PERMS }; render(); });
+      // the owner manages everyone's permissions on the Access tab
+      if (this.unsubAccess) { this.unsubAccess(); this.unsubAccess = null; } this.access = {};
+      if (this.owner) this.unsubAccess = this.fb.collection("cr_access").onSnapshot((snap) => { const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.access = n; render(); }, () => {});
+      this.authKnown = true; this.syncData();
       render();
     });
-    const ok = new Set(), timer = setTimeout(() => { if (ok.size < COLS.length) notice("Still waiting for the shared database. Check your internet connection.", "warn", "sync"); }, 12000);
-    for (const c of COLS) this.fb.collection(c).onSnapshot({ includeMetadataChanges: true }, (snap) => {
-      const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.data[c] = n;
-      if (!snap.metadata.fromCache) { ok.add(c); if (ok.size >= COLS.length) { clearTimeout(timer); if ($("notice").dataset.tag === "sync") $("notice").hidden = true; } }
-      render();
-    }, (err) => { clearTimeout(timer); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page.", "bad"); });
+    this.authKnown = false; this.subs = {};
+    this.listen("cr_settings"); // always readable: holds the public-viewing switch
     render(); return true;
+  },
+  listen(c) {
+    if (this.subs[c]) return;
+    this.subs[c] = this.fb.collection(c).onSnapshot({ includeMetadataChanges: true }, (snap) => {
+      const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.data[c] = n;
+      if (!snap.metadata.fromCache && $("notice").dataset.tag === "sync") $("notice").hidden = true;
+      if (c === "cr_settings") { this.settingsKnown = true; this.syncData(); }
+      render();
+    }, (err) => {
+      this.subs[c] = null;
+      if (err && err.code === "permission-denied" && c !== "cr_settings") { this.syncData(); render(); return; } // public viewing switched off; the settings listener will catch up
+      notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page.", "bad");
+    });
+  },
+  // public viewing can be switched off by the organisers when traffic is too high; signed-in scorers and the owner always see data
+  publicOpen() { return settings().public !== false; },
+  viewAllowed() { return this.mode !== "firebase" || this.publicOpen() || (!!this.user && !PUBLIC_PAGE); },
+  syncData() {
+    if (this.mode !== "firebase" || !this.authKnown || !this.settingsKnown) return;
+    const want = this.viewAllowed();
+    for (const c of COLS) {
+      if (c === "cr_settings") continue;
+      if (want) this.listen(c);
+      else { if (this.subs[c]) { this.subs[c](); this.subs[c] = null; } this.data[c] = {}; }
+    }
   },
   isOwner() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && !!this.owner); },
   async bulkDelete(col, ids) {
@@ -507,8 +572,19 @@ const Store = {
       return true;
     } catch (e) { notice("Couldn't finish deleting (" + (e && e.code || "error") + ").", "bad"); return false; }
   },
+  me() { return this.user ? String(this.user.email || "").toLowerCase() : ""; },
+  // a match can be edited, scored or deleted only by the scorer who created it (older matches without a creator stay open to all scorers)
+  can(p) { // p: score | teams | viewSettings | editSettings | allMatches
+    if (PUBLIC_PAGE) return false;
+    if (this.mode === "local" || this.mode === "cloud") return true;
+    if (this.mode !== "firebase") return false;
+    if (this.owner) return p === "viewSettings" || p === "editSettings";
+    if (!this.isScorer()) return false;
+    return !!(this.perms || DEFAULT_PERMS)[p];
+  },
+  canEditMatch(m) { if (this.can("allMatches")) return true; if (!this.can("score")) return false; if (this.mode !== "firebase") return true; return !m.createdBy || m.createdBy === this.me(); },
   isScorer() { return !!this.user && /@cricket\.local$/i.test(this.user.email || ""); },
-  canEdit() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && this.isScorer()); },
+  canEdit() { if (PUBLIC_PAGE) return false; return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && (this.isScorer() || !!this.owner)); },
   persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) { notice("This browser blocked saving.", "bad"); } },
   async put(col, id, obj) {
     if (!this.canEdit()) { notice("Sign in as a scorer (top right) to make changes.", "bad"); return false; }
@@ -546,6 +622,7 @@ const squad = (tid) => Store.list("cr_players").filter((p) => p.team === tid).so
 const matches = () => Store.list("cr_matches").sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.createdAt || "").localeCompare(b.createdAt || ""));
 const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
 const ptsOf = (lg) => { const g = (k, d) => (lg[k] === undefined || lg[k] === "" || isNaN(+lg[k]) ? d : +lg[k]); return { w: g("ptW", 2), t: g("ptT", 1), nr: g("ptNR", 1), l: g("ptL", 0), bc: g("bpC", 0), bb: g("bpB", 0), bo: g("bpO", 1) }; };
+const scorerName = (email) => String(email || "").replace(/@cricket\.local$/i, "") || "another scorer";
 const nrrFmt = (n) => (n >= 0 ? "+" : "") + n.toFixed(3);
 const scoreStr = (st) => `${st.runs}/${st.wk}`;
 const sr = (r, b) => b ? (r * 100 / b).toFixed(1) : "–";
@@ -578,7 +655,7 @@ async function onDelete(col, id) {
 }
 
 /* routing: #standings #matches #stats #teams #m-<id> */
-const TABS = ["standings", "matches", "stats", "teams", "settings"];
+const TABS = ["standings", "matches", "stats", "teams", "settings", "access"];
 let currentMatch = null;
 function go(h) { location.hash = h; route(); }
 function route() {
@@ -596,6 +673,35 @@ setTabsH(); addEventListener("resize", setTabsH);
 document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
 window.addEventListener("hashchange", route);
 $("back-matches").onclick = () => go("matches");
+
+/* ----- owner: access (permissions per scorer account) ----- */
+const accKey = (name) => { let v = String(name || "").trim().toLowerCase(); if (v && !v.includes("@")) v += "@cricket.local"; return v; };
+function renderAccess() {
+  if ($("tab-access").hidden) return;
+  const acc = Store.access || {};
+  const users = [...new Set([...Object.keys(acc), ...matches().map((m) => m.createdBy).filter(Boolean)])].sort();
+  $("acc-list").innerHTML = users.length ? `<table><thead><tr><th>User</th>${PERMS.map((p) => `<th class="num" title="${esc(p.hint)}">${esc(p.label)}</th>`).join("")}<th></th></tr></thead><tbody>${users.map((u) => {
+    const rec = acc[u], P = rec ? { ...NO_PERMS, ...rec } : DEFAULT_PERMS;
+    return `<tr><td><b>${esc(scorerName(u))}</b>${rec ? "" : ' <span class="sub">(starting set)</span>'}</td>${PERMS.map((p) => `<td class="num"><input type="checkbox" style="width:auto" data-acc="${esc(u)}" data-perm="${p.k}" ${P[p.k] ? "checked" : ""} aria-label="${esc(p.label)} for ${esc(scorerName(u))}"></td>`).join("")}<td><button class="btn small" type="button" data-accnone="${esc(u)}">No access</button></td></tr>`; }).join("")}</tbody></table>`
+    : `<div class="empty">No scorer accounts yet. Add a username above.</div>`;
+}
+async function saveAccess(u, P) {
+  if (!/@cricket\.local$/.test(u)) { notice("Usernames are scorer accounts ending in @cricket.local.", "bad"); return false; }
+  try { await Store.fb.collection("cr_access").doc(u).set({ ...NO_PERMS, ...P, updatedAt: new Date().toISOString() }); notice(`Access for ${scorerName(u)} saved.`, "ok"); return true; }
+  catch (e) { notice("Couldn't save access (" + (e && e.code || "error") + "). Check the Firestore rules are published.", "bad"); return false; }
+}
+$("acc-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault(); const u = accKey($("acc-user").value); if (!u) return;
+  if ((Store.access || {})[u]) { notice(`${scorerName(u)} is already listed.`, "warn"); return; }
+  if (await saveAccess(u, DEFAULT_PERMS)) $("acc-user").value = "";
+});
+$("acc-list").addEventListener("change", (ev) => {
+  const c = ev.target.closest("[data-acc]"); if (!c) return;
+  const u = c.dataset.acc, rec = (Store.access || {})[u], P = rec ? { ...NO_PERMS, ...rec } : { ...DEFAULT_PERMS };
+  P[c.dataset.perm] = c.checked; if (c.dataset.perm === "editSettings" && c.checked) P.viewSettings = true;
+  saveAccess(u, P);
+});
+$("acc-list").addEventListener("click", (ev) => { const b = ev.target.closest("[data-accnone]"); if (b) saveAccess(b.dataset.accnone, NO_PERMS); });
 
 /* ----- owner: delete test data by type ----- */
 const wipeSel = new Set();
@@ -648,17 +754,25 @@ $("auth-form").addEventListener("submit", async (ev) => {
 function render() {
   const ed = Store.canEdit();
   const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
-  m.textContent = Store.mode === "wait" ? "Connecting…" : Store.mode === "local" ? "Saved in this browser" : Store.owner && !ed ? "Owner" : ed ? "Scorer" + (Store.user ? " · " + (Store.user.email || "").replace("@cricket.local", "") : "") : "View only";
-  const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase"; ab.textContent = Store.user ? "Sign out" : "Scorer sign in";
-  ["match-add", "team-add", "tab-settings"].forEach((id) => { $(id).hidden = !ed; });
-  $("league-panel").hidden = !ed; $("settings-locked").hidden = ed;
-  if (!ed) ["match-form-panel", "team-form-panel"].forEach((id) => { $(id).hidden = true; });
+  m.textContent = Store.mode === "wait" ? "Connecting…" : Store.mode === "local" ? "Saved in this browser" : Store.owner ? "Owner" : ed ? "Scorer" + (Store.user ? " · " + (Store.user.email || "").replace("@cricket.local", "") : "") : "View only";
+  const paused = Store.mode === "firebase" && Store.authKnown && Store.settingsKnown && !Store.viewAllowed();
+  $("paused").hidden = !paused; document.querySelector("main").classList.toggle("is-paused", paused);
+  $("paused-signin").hidden = PUBLIC_PAGE;
+  if (PUBLIC_PAGE) { m.className = "mode " + (paused ? "view" : "ed"); m.textContent = paused ? "Paused" : "Live scores"; }
+  const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase" || PUBLIC_PAGE; ab.textContent = Store.user ? "Sign out" : "Scorer sign in";
+  const canSet = Store.can("viewSettings") || Store.can("editSettings"), editSet = Store.can("editSettings");
+  $("match-add").hidden = !Store.can("score"); $("team-add").hidden = !Store.can("teams");
+  $("tab-settings").hidden = !canSet; $("tab-access").hidden = PUBLIC_PAGE || !(Store.mode === "firebase" && Store.owner);
+  $("league-panel").hidden = !canSet; $("settings-locked").hidden = canSet;
+  $("lg-fs").disabled = !editSet; $("lg-btns").hidden = !editSet; $("lg-ro").hidden = editSet;
+  if (!Store.can("score")) $("match-form-panel").hidden = true;
+  if (!Store.can("teams")) $("team-form-panel").hidden = true;
   const lg = settings();
   $("lg-title").innerHTML = lg.name ? esc(lg.name) : "Festival <span>Cricket</span>";
   { const P = ptsOf(lg); $("pts-note").textContent = `Win ${P.w} · Tie ${P.t} · No result ${P.nr} · Loss ${P.l}` + (P.bc || P.bb ? ` · Bonus (${P.bo}+ overs to spare): chase ${P.bc}, bowl out ${P.bb}` : ""); }
   $("nrr-note").textContent = lg.nrr === "balls" ? " (runs per ball)" : "";
   if (!$("league-panel").closest("section").hidden && !lgDirty) fillLeagueForm(); // show saved values until someone edits
-  renderStandings(); renderMatchList(); renderStats(); renderTeams(); renderWipe();
+  renderStandings(); renderMatchList(); renderStats(); renderTeams(); renderWipe(); renderAccess();
   if (currentMatch) renderMatch();
 }
 
@@ -667,7 +781,7 @@ function renderStandings() {
   const rows = standings();
   $("standings").innerHTML = rows.length ? `<table><thead><tr><th>#</th><th>Team</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">NR</th>${bpOn ? '<th class="num">BP</th>' : ""}<th class="num">Pts</th><th class="num">NRR</th></tr></thead><tbody>${rows.map((r, i) =>
     `<tr><td class="num">${i + 1}</td><td><b>${esc(teamName(r.id))}</b><div class="sub">For ${r.rf}/${settings().nrr === "balls" ? r.bf + " b" : ovStr(r.bf, bpoOf(settings()))} · Against ${r.ra}/${settings().nrr === "balls" ? r.bb + " b" : ovStr(r.bb, bpoOf(settings()))}</div></td><td class="num">${r.p}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.t}</td><td class="num">${r.nr}</td>${bpOn ? `<td class="num">${r.bp}</td>` : ""}<td class="num"><b>${r.pts}</b></td><td class="num">${r.bf || r.bb ? nrrFmt(r.nrr) : "–"}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="empty">No teams yet.${Store.canEdit() ? " Add them in <b>Teams</b>." : ""}</div>`;
+    : `<div class="empty">No teams yet.${Store.can("teams") ? " Add them in <b>Teams</b>." : ""}</div>`;
   const live = matches().filter((x) => x.status === "live");
   $("live-panel").hidden = !live.length;
   $("live-list").innerHTML = live.map(matchRow).join("");
@@ -692,7 +806,7 @@ function renderMatchList() {
   const all = matches(); const live = all.filter((m) => m.status === "live"), up = all.filter((m) => !m.status || m.status === "scheduled"), done = all.filter((m) => m.status === "done" || m.status === "abandoned").reverse();
   $("match-list").innerHTML = all.length ? [["Live", live], ["Upcoming", up], ["Results", done]].filter(([, l]) => l.length)
     .map(([t, l]) => `<div class="group-title">${t}</div>` + l.map(matchRow).join("")).join("")
-    : `<div class="empty">No matches yet.${Store.canEdit() ? " Use <b>+ New match</b> once teams are added." : ""}</div>`;
+    : `<div class="empty">No matches yet.${Store.can("score") ? " Use <b>+ New match</b> once teams are added." : ""}</div>`;
 }
 
 /* ----- match form ----- */
@@ -719,35 +833,39 @@ $("match-form").addEventListener("submit", async (ev) => {
   const { id: _, ...rest } = old || {};
   const m = { ...rest, a, b, when: $("mf-when").value, venue: $("mf-venue").value.trim(), stage: $("mf-stage").value,
     overs: Math.max(1, Math.min(50, +$("mf-overs").value || 10)), xi: Math.max(2, Math.min(11, +$("mf-xi").value || 11)), bpo: Math.max(4, Math.min(10, +$("mf-bpo").value || 6)), wdp: penOf({ v: $("mf-wdp").value }, "v"), nbp: penOf({ v: $("mf-nbp").value }, "v"), xbw: $("mf-xbw").checked, xbn: $("mf-xbn").checked,
-    status: old ? old.status : "scheduled", inns: old ? old.inns || [] : [], createdAt: old ? old.createdAt : new Date().toISOString() };
+    status: old ? old.status : "scheduled", inns: old ? old.inns || [] : [], createdBy: old ? old.createdBy || "" : Store.me(), createdAt: old ? old.createdAt : new Date().toISOString() };
   if (await Store.put("cr_matches", id, m)) { $("match-form-panel").hidden = true; notice(old ? "Match updated." : "Match created.", "ok"); }
 });
 
 /* ----- league settings ----- */
 let lgDirty = false;
 $("league-form").addEventListener("input", () => { lgDirty = true; });
-function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
+function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
 $("league-cancel").onclick = () => { fillLeagueForm(); notice("Changes discarded.", "ok"); };
 $("league-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
+  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
 });
 
 /* ============================ match view ============================ */
 function renderMatch() {
   const m = Store.get("cr_matches", currentMatch);
   if (!m) { $("match-head").innerHTML = `<div class="panel empty">This match no longer exists.</div>`; $("scorecard").innerHTML = ""; $("scorer").hidden = true; $("match-tools").innerHTML = ""; return; }
-  const ed = Store.canEdit();
-  $("match-tools").innerHTML = ed ? `<button class="btn small" type="button" id="mt-edit">Edit match</button>
+  const ed = Store.canEditMatch(m);
+  const lockNote = Store.can("score") && !ed ? `<span class="muted" style="font-size:13px">Only ${esc(scorerName(m.createdBy))}, who created this match, can edit or score it.</span>` : "";
+  const ownerTools = Store.mode === "firebase" && Store.owner ? `<span class="btns" style="gap:6px;align-items:center"><input id="mt-to" list="mt-scorers" placeholder="scorer username" style="max-width:150px;padding:5px 8px" autocomplete="off"><datalist id="mt-scorers">${[...new Set(matches().map((x) => x.createdBy).filter(Boolean))].map((e) => `<option value="${esc(scorerName(e))}">`).join("")}</datalist><button class="btn small" type="button" id="mt-reassign">Reassign scorer</button></span>` : "";
+  $("match-tools").innerHTML = ownerTools || (!ed ? lockNote : 
+     `<button class="btn small" type="button" id="mt-edit">Edit match</button>
     ${m.status !== "done" ? `<button class="btn small" type="button" id="mt-abandon">${m.status === "abandoned" ? "Restore match" : "Mark abandoned"}</button>` : ""}
-    <button class="btn small danger" type="button" data-del="cr_matches:${esc(m.id)}">Delete</button>` : "";
+    <button class="btn small danger" type="button" data-del="cr_matches:${esc(m.id)}">Delete</button>`);
+  if (ownerTools) $("mt-reassign").onclick = () => reassignMatch(m, $("mt-to").value);
   if (ed) {
     $("mt-edit").onclick = () => editMatchSetup(m);
     const ab = $("mt-abandon"); if (ab) ab.onclick = async () => { const { id, ...r } = m; await Store.put("cr_matches", id, { ...r, status: m.status === "abandoned" ? (m.inns && m.inns.length ? "live" : "scheduled") : "abandoned" }); };
   }
   // head: board with current/last innings
   const ci = (m.inns || []).length - 1, res = (m.status === "done" || m.status === "abandoned") ? resultOf(m) : null;
-  const meta = [m.stage, `${m.overs} ov`, bpoOf(m) !== 6 ? `${bpoOf(m)}-ball overs` : "", penOf(m, "wdp") !== 1 || penOf(m, "nbp") !== 1 ? `Wd ${penOf(m, "wdp")} · Nb ${penOf(m, "nbp")}` : "", xbOf(m, "w") && xbOf(m, "n") ? "Wd/Nb count as a ball" : xbOf(m, "w") ? "Wides count as a ball" : xbOf(m, "n") ? "No-balls count as a ball" : "", `${m.xi}-a-side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ");
+  const meta = [m.stage, m.createdBy ? `Scorer: ${scorerName(m.createdBy)}` : "", `${m.overs} ov`, bpoOf(m) !== 6 ? `${bpoOf(m)}-ball overs` : "", penOf(m, "wdp") !== 1 || penOf(m, "nbp") !== 1 ? `Wd ${penOf(m, "wdp")} · Nb ${penOf(m, "nbp")}` : "", xbOf(m, "w") && xbOf(m, "n") ? "Wd/Nb count as a ball" : xbOf(m, "w") ? "Wides count as a ball" : xbOf(m, "n") ? "No-balls count as a ball" : "", `${m.xi}-a-side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ");
   const toss = m.toss && m.toss.winner ? ` · Toss: ${esc(teamShort(m.toss.winner))}, ${esc(m.toss.chose)}` : "";
   let head = `<div class="board"><div class="top"><b>${esc(teamName(m.a))} <span style="opacity:.6">v</span> ${esc(teamName(m.b))}</b><span class="meta">${meta}${toss}</span></div>`;
   if (ci >= 0) {
@@ -811,6 +929,15 @@ function scorecardHtml(m, i) {
 /* ============================ scoring pad ============================ */
 let sheet = null; // which extra/wicket sheet is open, with its picks
 function playerOptions(list, sel, placeholder) { return `<option value="">${esc(placeholder || "Choose…")}</option>` + list.map((p) => `<option value="${esc(p.id)}" ${p.id === sel ? "selected" : ""}>${esc(p.name)}</option>`).join(""); }
+/* owner only: hand a match to another scorer (the rules let the owner change nothing but createdBy) */
+async function reassignMatch(m, name) {
+  let to = String(name || "").trim().toLowerCase(); if (!to) { notice("Type the scorer's username, e.g. scorer2.", "bad"); return; }
+  if (!to.includes("@")) to += "@cricket.local";
+  if (!/@cricket\.local$/.test(to)) { notice("Scorer usernames end in @cricket.local.", "bad"); return; }
+  if (to === m.createdBy) { notice(`${scorerName(to)} already has this match.`, "warn"); return; }
+  try { await Store.fb.collection("cr_matches").doc(m.id).update({ createdBy: to }); notice(`Match handed to ${scorerName(to)}.`, "ok"); }
+  catch (e) { notice("Couldn't reassign (" + (e && e.code || "error") + "). Check the Firestore rules are published.", "bad"); }
+}
 async function saveMatch(m, patch) { const { id, ...rest } = m; return Store.put("cr_matches", id, { ...rest, ...patch }); }
 function renderScorer(m) {
   const box = $("scorer"), inns = m.inns || [], ci = inns.length - 1;
@@ -976,7 +1103,7 @@ function renderStats() {
 
 /* ============================== teams ============================== */
 function renderTeams() {
-  const ed = Store.canEdit(), T = teams();
+  const ed = Store.can("teams"), T = teams();
   $("team-list").innerHTML = T.length ? T.map((t) => { const sq = squad(t.id);
     return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="panel-head" style="margin:0"><div><b style="font-size:15px">${esc(t.name)}</b> <span class="chip">${esc(teamShort(t.id))}</span> <span class="sub">${sq.length} player${sq.length === 1 ? "" : "s"}</span></div>
       ${ed ? `<div class="btns"><button class="btn small" type="button" data-tedit="${esc(t.id)}">Edit</button><button class="btn small danger" type="button" data-del="cr_teams:${esc(t.id)}">Delete</button></div>` : ""}</div>
