@@ -243,14 +243,6 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       <h3 style="font-size:16px;text-transform:uppercase;margin:14px 0 6px">Current editors</h3>
       <div class="table-wrap" id="access-editors"></div>
     </div>
-    <div class="panel" id="wipe-panel" hidden style="margin-top:20px">
-      <h2>Delete test data <small>owner only · permanently removes the ticked data for everyone; anything not ticked is kept</small></h2>
-      <div class="checks" id="wipe-list" style="max-height:none"></div>
-      <div class="btns" style="margin-top:10px;align-items:flex-end">
-        <label style="max-width:240px">Type DELETE to confirm<input id="wipe-confirm" autocomplete="off" spellcheck="false"></label>
-        <button class="btn danger" type="button" id="wipe-go" disabled>Delete selected</button>
-      </div>
-    </div>
   </section>
 
   <!-- PLAYERS -->
@@ -709,27 +701,6 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       else { const next = { ...this.data[col] }; delete next[id]; this.data[col] = next; this.persistLocal(); render(); }
       return true;
     },
-    // Owner = the account named in the rules (it registered itself as organiser with addedBy "owner").
-    // Without Firebase (browser-only or claude.ai) everyone can use it, for testing.
-    isOwner() { return this.mode !== "firebase" || (this.editor && ((this.organisers[this.emailKey(this.user)] || {}).addedBy === "owner")); },
-    async bulk(col, ops) { // ops: [{ id, del: true } | { id, obj }]
-      if (!ops.length) return true;
-      try {
-        if (this.mode === "firebase") {
-          for (let i = 0; i < ops.length; i += 400) {
-            const b = this.fb.batch();
-            for (const o of ops.slice(i, i + 400)) { const ref = this.fb.collection(col).doc(o.id); if (o.del) b.delete(ref); else b.set(ref, o.obj); }
-            await b.commit();
-          }
-        } else if (this.mode === "cloud") {
-          for (const o of ops) { const ref = this.db.collection(col).doc(o.id); if (o.del) await ref.delete(); else await ref.set(o.obj); }
-        } else {
-          const next = { ...(this.data[col] || {}) }; for (const o of ops) { if (o.del) delete next[o.id]; else next[o.id] = o.obj; }
-          this.data[col] = next; this.persistLocal(); render();
-        }
-        return true;
-      } catch (e) { notice("Couldn't finish deleting " + col + " (" + (e && e.code || "error") + ").", "bad"); return false; }
-    },
     list(col) { return Object.entries(this.data[col] || {}).map(([id, v]) => ({ id, ...v })); },
     get(col, id) { const v = (this.data[col] || {})[id]; return v ? { id, ...v } : null; },
   };
@@ -826,47 +797,6 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     if (a) Store.approve(a.dataset.approve); else if (d) Store.decline(d.dataset.decline); else if (r) Store.revoke(r.dataset.revoke);
   });
 
-  /* ---------- Owner: delete test data by type ---------- */
-  const wipeSel = new Set();
-  const WIPE = [
-    { key: "games", col: "games", label: "Games (fixtures, line-ups, results)", ids: () => Store.list("games").map((x) => x.id) },
-    { key: "players", col: "players", label: "Players (squad list)", ids: () => Store.list("players").map((x) => x.id) },
-    { key: "proposals", col: "proposals", label: "Proposals waiting for review", ids: () => Store.list("proposals").map((x) => x.id) },
-    { key: "sports", col: "sports", label: "Sports (also deletes their games)", ids: () => Store.list("sports").map((x) => x.id) },
-    { key: "settings", col: "settings", label: "House details (name, code, captain)", ids: () => Store.list("settings").map((x) => x.id) },
-    { key: "requests", col: "requests", label: "Editor access requests", ids: () => Object.keys(Store.requests || {}), firebaseOnly: true },
-  ];
-  function renderWipe() {
-    const p = $("wipe-panel"); p.hidden = !Store.isOwner(); if (p.hidden) return;
-    if (wipeSel.has("sports")) wipeSel.add("games");
-    $("wipe-list").innerHTML = WIPE.filter((w) => !w.firebaseOnly || Store.mode === "firebase").map((w) => {
-      const n = w.ids().length, forced = w.key === "games" && wipeSel.has("sports");
-      return `<label><input type="checkbox" value="${w.key}" ${wipeSel.has(w.key) ? "checked" : ""} ${forced || !n ? "disabled" : ""}> ${esc(w.label)}<span class="q">${n}</span></label>`;
-    }).join("");
-    $("wipe-go").disabled = !wipeSel.size || $("wipe-confirm").value.trim() !== "DELETE";
-  }
-  $("wipe-list").addEventListener("change", (ev) => { const i = ev.target; i.checked ? wipeSel.add(i.value) : wipeSel.delete(i.value); if (i.value === "sports" && !i.checked) wipeSel.delete("games"); renderWipe(); });
-  $("wipe-confirm").addEventListener("input", renderWipe);
-  $("wipe-go").onclick = async () => {
-    if ($("wipe-confirm").value.trim() !== "DELETE" || !wipeSel.size || !Store.isOwner()) return;
-    const sel = new Set(wipeSel); if (sel.has("sports")) sel.add("games");
-    $("wipe-go").disabled = true; let n = 0, ok = true;
-    // keep what stays consistent: kept players lose deleted sports; kept games lose deleted players
-    const keptPlayers = sel.has("sports") && !sel.has("players") ? Store.list("players").filter((x) => (x.sportIds || []).length) : [];
-    const keptGames = sel.has("players") && !sel.has("games") ? Store.list("games").filter((x) => (x.lineup || []).length) : [];
-    for (const w of WIPE) {
-      if (!sel.has(w.key)) continue;
-      const ids = w.ids(); if (!ids.length) continue;
-      if (!(ok = await Store.bulk(w.col, ids.map((id) => ({ id, del: true }))))) break;
-      n += ids.length;
-    }
-    if (ok && keptPlayers.length) ok = await Store.bulk("players", keptPlayers.map(({ id, ...r }) => ({ id, obj: { ...r, sportIds: [] } })));
-    if (ok && keptGames.length) ok = await Store.bulk("games", keptGames.map(({ id, ...r }) => ({ id, obj: { ...r, lineup: [] } })));
-    wipeSel.clear(); $("wipe-confirm").value = "";
-    if (ok) notice(`Deleted ${n} record${n === 1 ? "" : "s"}.` + (keptPlayers.length ? ` Cleared sports from ${keptPlayers.length} player${keptPlayers.length === 1 ? "" : "s"}.` : "") + (keptGames.length ? ` Cleared line-ups in ${keptGames.length} game${keptGames.length === 1 ? "" : "s"}.` : ""), "ok");
-    render();
-  };
-
   /* ---------- Sign in (Firebase mode) ---------- */
   $("auth-btn").onclick = async () => {
     if (Store.user) { try { await firebase.auth().signOut(); notice("Signed out.", "ok"); } catch (e) {} return; }
@@ -904,7 +834,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("backup-tools").hidden = Store.mode !== "local";
     const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase";
     ab.textContent = Store.user ? "Sign out" : "Sign in to edit";
-    renderAccess(); renderReview(); renderWipe();
+    renderAccess(); renderReview();
     $("house-edit").hidden = !Store.canEdit();
     document.querySelectorAll("#player-form, #game-form").forEach((f) => { f.closest(".panel").hidden = !Store.canEdit(); });
     applySportForm();
