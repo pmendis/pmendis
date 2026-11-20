@@ -507,6 +507,9 @@ const Store = {
       return true;
     } catch (e) { notice("Couldn't finish deleting (" + (e && e.code || "error") + ").", "bad"); return false; }
   },
+  me() { return this.user ? String(this.user.email || "").toLowerCase() : ""; },
+  // a match can be edited, scored or deleted only by the scorer who created it (older matches without a creator stay open to all scorers)
+  canEditMatch(m) { if (!this.canEdit()) return false; if (this.mode !== "firebase") return true; return !m.createdBy || m.createdBy === this.me(); },
   isScorer() { return !!this.user && /@cricket\.local$/i.test(this.user.email || ""); },
   canEdit() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && this.isScorer()); },
   persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) { notice("This browser blocked saving.", "bad"); } },
@@ -546,6 +549,7 @@ const squad = (tid) => Store.list("cr_players").filter((p) => p.team === tid).so
 const matches = () => Store.list("cr_matches").sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.createdAt || "").localeCompare(b.createdAt || ""));
 const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
 const ptsOf = (lg) => { const g = (k, d) => (lg[k] === undefined || lg[k] === "" || isNaN(+lg[k]) ? d : +lg[k]); return { w: g("ptW", 2), t: g("ptT", 1), nr: g("ptNR", 1), l: g("ptL", 0), bc: g("bpC", 0), bb: g("bpB", 0), bo: g("bpO", 1) }; };
+const scorerName = (email) => String(email || "").replace(/@cricket\.local$/i, "") || "another scorer";
 const nrrFmt = (n) => (n >= 0 ? "+" : "") + n.toFixed(3);
 const scoreStr = (st) => `${st.runs}/${st.wk}`;
 const sr = (r, b) => b ? (r * 100 / b).toFixed(1) : "–";
@@ -719,7 +723,7 @@ $("match-form").addEventListener("submit", async (ev) => {
   const { id: _, ...rest } = old || {};
   const m = { ...rest, a, b, when: $("mf-when").value, venue: $("mf-venue").value.trim(), stage: $("mf-stage").value,
     overs: Math.max(1, Math.min(50, +$("mf-overs").value || 10)), xi: Math.max(2, Math.min(11, +$("mf-xi").value || 11)), bpo: Math.max(4, Math.min(10, +$("mf-bpo").value || 6)), wdp: penOf({ v: $("mf-wdp").value }, "v"), nbp: penOf({ v: $("mf-nbp").value }, "v"), xbw: $("mf-xbw").checked, xbn: $("mf-xbn").checked,
-    status: old ? old.status : "scheduled", inns: old ? old.inns || [] : [], createdAt: old ? old.createdAt : new Date().toISOString() };
+    status: old ? old.status : "scheduled", inns: old ? old.inns || [] : [], createdBy: old ? old.createdBy || "" : Store.me(), createdAt: old ? old.createdAt : new Date().toISOString() };
   if (await Store.put("cr_matches", id, m)) { $("match-form-panel").hidden = true; notice(old ? "Match updated." : "Match created.", "ok"); }
 });
 
@@ -737,17 +741,19 @@ $("league-form").addEventListener("submit", async (ev) => {
 function renderMatch() {
   const m = Store.get("cr_matches", currentMatch);
   if (!m) { $("match-head").innerHTML = `<div class="panel empty">This match no longer exists.</div>`; $("scorecard").innerHTML = ""; $("scorer").hidden = true; $("match-tools").innerHTML = ""; return; }
-  const ed = Store.canEdit();
-  $("match-tools").innerHTML = ed ? `<button class="btn small" type="button" id="mt-edit">Edit match</button>
+  const ed = Store.canEditMatch(m);
+  const lockNote = Store.canEdit() && !ed ? `<span class="muted" style="font-size:13px">Only ${esc(scorerName(m.createdBy))}, who created this match, can edit or score it.</span>` : "";
+  $("match-tools").innerHTML = !ed ? lockNote : 
+     `<button class="btn small" type="button" id="mt-edit">Edit match</button>
     ${m.status !== "done" ? `<button class="btn small" type="button" id="mt-abandon">${m.status === "abandoned" ? "Restore match" : "Mark abandoned"}</button>` : ""}
-    <button class="btn small danger" type="button" data-del="cr_matches:${esc(m.id)}">Delete</button>` : "";
+    <button class="btn small danger" type="button" data-del="cr_matches:${esc(m.id)}">Delete</button>`;
   if (ed) {
     $("mt-edit").onclick = () => editMatchSetup(m);
     const ab = $("mt-abandon"); if (ab) ab.onclick = async () => { const { id, ...r } = m; await Store.put("cr_matches", id, { ...r, status: m.status === "abandoned" ? (m.inns && m.inns.length ? "live" : "scheduled") : "abandoned" }); };
   }
   // head: board with current/last innings
   const ci = (m.inns || []).length - 1, res = (m.status === "done" || m.status === "abandoned") ? resultOf(m) : null;
-  const meta = [m.stage, `${m.overs} ov`, bpoOf(m) !== 6 ? `${bpoOf(m)}-ball overs` : "", penOf(m, "wdp") !== 1 || penOf(m, "nbp") !== 1 ? `Wd ${penOf(m, "wdp")} · Nb ${penOf(m, "nbp")}` : "", xbOf(m, "w") && xbOf(m, "n") ? "Wd/Nb count as a ball" : xbOf(m, "w") ? "Wides count as a ball" : xbOf(m, "n") ? "No-balls count as a ball" : "", `${m.xi}-a-side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ");
+  const meta = [m.stage, m.createdBy ? `Scorer: ${scorerName(m.createdBy)}` : "", `${m.overs} ov`, bpoOf(m) !== 6 ? `${bpoOf(m)}-ball overs` : "", penOf(m, "wdp") !== 1 || penOf(m, "nbp") !== 1 ? `Wd ${penOf(m, "wdp")} · Nb ${penOf(m, "nbp")}` : "", xbOf(m, "w") && xbOf(m, "n") ? "Wd/Nb count as a ball" : xbOf(m, "w") ? "Wides count as a ball" : xbOf(m, "n") ? "No-balls count as a ball" : "", `${m.xi}-a-side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ");
   const toss = m.toss && m.toss.winner ? ` · Toss: ${esc(teamShort(m.toss.winner))}, ${esc(m.toss.chose)}` : "";
   let head = `<div class="board"><div class="top"><b>${esc(teamName(m.a))} <span style="opacity:.6">v</span> ${esc(teamName(m.b))}</b><span class="meta">${meta}${toss}</span></div>`;
   if (ci >= 0) {
