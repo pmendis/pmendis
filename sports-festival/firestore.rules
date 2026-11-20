@@ -49,6 +49,15 @@ service cloud.firestore {
           && d.get('proposedBy', '').size() <= 60;
     }
     function ownsProposal() { return request.auth != null && resource.data.ownerUid == request.auth.uid; }
+    // ---------- Cricket app (cricket/) ----------
+    // Anyone can read. Any username/password account created by the organiser in
+    // Firebase Authentication can score (anonymous visitors cannot).
+    function isScorer() { return request.auth != null && request.auth.token.firebase.sign_in_provider == 'password'; }
+    match /cr_settings/{d} { allow read: if true; allow write: if isScorer(); }
+    match /cr_teams/{d}    { allow read: if true; allow write: if isScorer(); }
+    match /cr_players/{d}  { allow read: if true; allow write: if isScorer(); }
+    match /cr_matches/{d}  { allow read: if true; allow write: if isScorer(); }
+
     match /proposals/{id} {
       allow create: if request.auth != null && validProposal();
       allow update: if ownsProposal() && validProposal();

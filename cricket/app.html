@@ -1,0 +1,872 @@
+<title>Festival Cricket</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: scoreboard header band, tab bar, then one working view; the scoring pad is a fixed card under the live score. */
+:root {
+  --bg: #f2f5f2; --surface: #ffffff; --ink: #142019; --muted: #5a675f; --line: #d9e1db;
+  --accent: #c2410c; --accent-ink: #ffffff;            /* leather-ball red */
+  --pitch: #14532d; --pitch-ink: #eef7f0;              /* outfield green */
+  --ok: #1d7a4a; --ok-bg: #e3f4ea; --warn: #9a5b00; --warn-bg: #fdf0d9; --bad: #b3261e; --bad-bg: #fbe4e2;
+  --four: #1d4ed8; --six: #7c3aed;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1511; --surface: #16201a; --ink: #e6efe8; --muted: #9db0a3; --line: #27352c;
+  --accent: #f97316; --accent-ink: #1a0b03; --pitch: #0f3a21; --pitch-ink: #e6efe8;
+  --ok: #6fd39c; --ok-bg: #12301f; --warn: #f2bf62; --warn-bg: #33270f; --bad: #ff8a80; --bad-bg: #3a1714;
+  --four: #7aa2ff; --six: #b794ff; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e1511; --surface: #16201a; --ink: #e6efe8; --muted: #9db0a3; --line: #27352c;
+  --accent: #f97316; --accent-ink: #1a0b03; --pitch: #0f3a21; --pitch-ink: #e6efe8;
+  --ok: #6fd39c; --ok-bg: #12301f; --warn: #f2bf62; --warn-bg: #33270f; --bad: #ff8a80; --bad-bg: #3a1714;
+  --four: #7aa2ff; --six: #b794ff; color-scheme: dark }
+
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5; margin: 0; }
+.wrap { margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+[hidden] { display: none !important; }
+.num, td.num, th.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+header.band { background: var(--pitch); color: var(--pitch-ink);
+  background-image: repeating-linear-gradient(90deg, transparent 0 46px, rgba(255,255,255,.035) 46px 92px); }
+header.band .wrap { padding-block: 8px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
+header.band .eyebrow { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
+header.band h1 { font-size: clamp(20px, 3.4vw, 26px); font-weight: 800; text-transform: uppercase; line-height: 1.05; }
+header.band h1 span { color: #fbbf24; }
+.hdr-right { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.pillbtn { background: none; border: 1px solid rgba(255,255,255,.3); color: inherit; border-radius: 99px; padding: 2px 10px; font: 500 12px var(--font-body); cursor: pointer; }
+.mode { font-size: 12px; padding: 2px 10px; border-radius: 99px; border: 1px solid rgba(255,255,255,.25); display: inline-flex; gap: 6px; align-items: center; }
+.mode::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.mode.ed { color: #86efac; } .mode.view { color: #fde68a; }
+
+nav.tabs { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+nav.tabs .wrap { display: flex; gap: 2px; overflow-x: auto; }
+nav.tabs button { font: 600 15px var(--font-display); text-transform: uppercase; letter-spacing: .06em; background: none; border: 0; color: var(--muted);
+  padding: 7px 12px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+
+main { padding-block: 14px 48px; }
+.notice { padding: 9px 12px; border-radius: var(--r); background: var(--warn-bg); color: var(--warn); margin-bottom: 12px; }
+.notice[data-kind="ok"] { background: var(--ok-bg); color: var(--ok); }
+.notice[data-kind="bad"] { background: var(--bad-bg); color: var(--bad); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; }
+.panel + .panel { margin-top: 14px; }
+.panel h2 { font-size: 18px; text-transform: uppercase; margin-bottom: 8px; }
+.panel h2 small { display: block; font: 400 12px var(--font-body); color: var(--muted); text-transform: none; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.panel-head h2 { margin: 0; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.grid2 > .panel + .panel { margin-top: 0; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font: 600 11px var(--font-body); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+tr.me td { background: var(--ok-bg); }
+.muted { color: var(--muted); } .sub { font-size: 12px; color: var(--muted); }
+.empty { padding: 22px 8px; text-align: center; color: var(--muted); }
+.chip { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg); white-space: nowrap; }
+.chip.live { background: var(--bad); color: #fff; border-color: var(--bad); }
+.chip.done { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.chip.ab { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+
+form { display: grid; gap: 10px; }
+label { display: grid; gap: 3px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+input, select, textarea { font: 400 14px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; width: 100%; }
+textarea { min-height: 110px; resize: vertical; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { font: 600 14px var(--font-body); border-radius: var(--r); padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.small { padding: 4px 10px; font-size: 12px; }
+.btn.danger { color: var(--bad); }
+.btn.danger.armed { background: var(--bad); color: #fff; border-color: var(--bad); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+button.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+
+/* match list */
+.mrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 9px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.mrow:hover { background: var(--bg); }
+.mrow .teams { display: grid; gap: 2px; }
+.mrow .tline { display: flex; justify-content: space-between; gap: 10px; font-weight: 600; }
+.mrow .tline .sc { font-variant-numeric: tabular-nums; }
+.mrow .meta { font-size: 12px; color: var(--muted); }
+.group-title { font: 700 13px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 12px 0 2px; }
+
+/* scoreboard */
+.board { background: var(--pitch); color: var(--pitch-ink); border-radius: var(--r); padding: 12px 14px; }
+.board .big { font: 800 40px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.board .big small { font-size: 20px; opacity: .85; margin-left: 6px; }
+.board .line { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; opacity: .92; margin-top: 4px; }
+.board .bat { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.board .bat .on::after { content: " *"; color: #fbbf24; }
+.over { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.ball { min-width: 28px; height: 28px; padding: 0 5px; border-radius: 99px; display: inline-grid; place-items: center; font: 700 12px var(--font-body); background: rgba(255,255,255,.14); color: inherit; }
+.ball.b4 { background: var(--four); color: #fff; } .ball.b6 { background: var(--six); color: #fff; } .ball.bw { background: var(--bad); color: #fff; } .ball.bx { background: #fbbf24; color: #1a1300; }
+.panel .ball { background: var(--bg); border: 1px solid var(--line); }
+
+/* scoring pad */
+.pad { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 10px; }
+.pad button { font: 700 20px var(--font-display); padding: 12px 0; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.pad button.k4 { color: var(--four); } .pad button.k6 { color: var(--six); }
+.pad button.x { font-size: 15px; background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.pad button.w { font-size: 16px; background: var(--bad); color: #fff; border-color: var(--bad); grid-column: span 2; }
+.pad button.undo { font-size: 15px; grid-column: span 2; }
+.sheet { margin-top: 10px; border: 1px solid var(--line); border-radius: var(--r); padding: 10px; background: var(--bg); display: grid; gap: 8px; }
+.sheet .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.sheet .opts button { min-width: 44px; font: 700 15px var(--font-body); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.sheet .opts button[aria-pressed="true"] { background: var(--pitch); color: var(--pitch-ink); border-color: var(--pitch); }
+
+.lead td:first-child { width: 26px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lead .hl { font-weight: 700; }
+.tabs2 { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.tabs2 button { font: 600 13px var(--font-body); border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 99px; padding: 4px 12px; cursor: pointer; }
+.tabs2 button[aria-pressed="true"] { background: var(--pitch); border-color: var(--pitch); color: var(--pitch-ink); }
+
+@media (max-width: 760px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .row3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 420px) { .pad button { font-size: 18px; padding: 11px 0; } }
+@media (prefers-reduced-motion: no-preference) { .btn, .pad button { transition: background .12s, transform .06s; } .pad button:active { transform: scale(.96); } }
+</style>
+
+<header class="band">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Inter-Department Sports Festival</div>
+      <h1 id="lg-title">Festival <span>Cricket</span></h1>
+    </div>
+    <div class="hdr-right">
+      <button class="pillbtn" type="button" id="auth-btn">Scorer sign in</button>
+      <span class="mode view" id="mode">View only</span>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap" role="tablist">
+    <button role="tab" data-tab="standings">Standings</button>
+    <button role="tab" data-tab="matches">Matches</button>
+    <button role="tab" data-tab="stats">Stats</button>
+    <button role="tab" data-tab="teams">Teams</button>
+  </div>
+</nav>
+
+<main class="wrap">
+  <div id="notice" class="notice" hidden></div>
+
+  <div class="panel" id="auth-panel" hidden style="margin-bottom:14px">
+    <h2>Scorer sign in <small>use the username and password the organiser created for you</small></h2>
+    <form id="auth-form" autocomplete="on">
+      <div class="row2">
+        <label>Username<input id="auth-user" required autocomplete="username" placeholder="e.g. scorer1"></label>
+        <label>Password<input id="auth-pass" type="password" required autocomplete="current-password"></label>
+      </div>
+      <div class="btns"><button class="btn primary" type="submit">Sign in</button><button class="btn" type="button" id="auth-cancel">Cancel</button></div>
+    </form>
+  </div>
+
+  <!-- STANDINGS -->
+  <section data-view="standings" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>Points table <small>Win 2 · Tie / No result 1 · Loss 0 · ranked by points, then net run rate</small></h2>
+        <button class="btn small" type="button" id="league-edit" hidden>League settings</button></div>
+      <div class="table-wrap" id="standings"></div>
+    </div>
+    <div class="panel" id="live-panel" hidden><h2>Live now</h2><div id="live-list"></div></div>
+    <div class="panel" id="league-panel" hidden>
+      <h2>League settings</h2>
+      <form id="league-form">
+        <div class="row2">
+          <label>League name<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
+          <label>Default overs per innings<input id="lg-overs" type="number" min="1" max="50" value="10"></label>
+        </div>
+        <label>Default players per side<input id="lg-xi" type="number" min="2" max="11" value="11"></label>
+        <div class="btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="league-cancel">Cancel</button></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- MATCHES -->
+  <section data-view="matches" hidden>
+    <div class="panel" id="match-form-panel" hidden>
+      <h2 id="mf-title">New match</h2>
+      <form id="match-form">
+        <input type="hidden" id="mf-id">
+        <div class="row2">
+          <label>Team A<select id="mf-a" required></select></label>
+          <label>Team B<select id="mf-b" required></select></label>
+        </div>
+        <div class="row2">
+          <label>Date &amp; time<input id="mf-when" type="datetime-local"></label>
+          <label>Venue<input id="mf-venue" maxlength="60"></label>
+        </div>
+        <div class="row3">
+          <label>Stage<select id="mf-stage"><option>League</option><option>Quarter-final</option><option>Semi-final</option><option>Final</option><option>Friendly</option></select></label>
+          <label>Overs<input id="mf-overs" type="number" min="1" max="50" value="10"></label>
+          <label>Players per side<input id="mf-xi" type="number" min="2" max="11" value="11"></label>
+        </div>
+        <div class="btns"><button class="btn primary" type="submit" id="mf-save">Create match</button><button class="btn" type="button" id="mf-cancel">Cancel</button></div>
+      </form>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Matches</h2><button class="btn primary small" type="button" id="match-add" hidden>+ New match</button></div>
+      <div id="match-list"></div>
+    </div>
+  </section>
+
+  <!-- MATCH DETAIL -->
+  <section data-view="match" hidden>
+    <div class="btns" style="margin-bottom:10px"><button class="btn small" type="button" id="back-matches">← All matches</button>
+      <span id="match-tools" class="btns"></span></div>
+    <div id="match-head"></div>
+    <div id="scorer" hidden></div>
+    <div id="scorecard"></div>
+  </section>
+
+  <!-- STATS -->
+  <section data-view="stats" hidden>
+    <div class="grid2">
+      <div class="panel"><h2>Best batsmen <small>most runs</small></h2><div class="table-wrap" id="st-bat"></div></div>
+      <div class="panel"><h2>Best bowlers <small>most wickets, then economy</small></h2><div class="table-wrap" id="st-bowl"></div></div>
+      <div class="panel"><h2>Best fielders <small>catches, run-outs, stumpings</small></h2><div class="table-wrap" id="st-field"></div></div>
+      <div class="panel"><h2>Player of the tournament <small>1 point per run · 20 per wicket · 10 per catch, run-out or stumping</small></h2><div class="table-wrap" id="st-mvp"></div></div>
+    </div>
+  </section>
+
+  <!-- TEAMS -->
+  <section data-view="teams" hidden>
+    <div class="panel" id="team-form-panel" hidden>
+      <h2 id="tf-title">Add team</h2>
+      <form id="team-form">
+        <input type="hidden" id="tf-id">
+        <div class="row2">
+          <label>Team name<input id="tf-name" required maxlength="50" placeholder="e.g. Finance"></label>
+          <label>Short name<input id="tf-short" maxlength="5" placeholder="FIN"></label>
+        </div>
+        <label>Players <span style="text-transform:none;letter-spacing:0;font-weight:400">(one per line; existing players keep their stats)</span><textarea id="tf-players" placeholder="Kamal Perera&#10;Nimal Silva&#10;…"></textarea></label>
+        <div class="btns"><button class="btn primary" type="submit" id="tf-save">Add team</button><button class="btn" type="button" id="tf-cancel">Cancel</button></div>
+      </form>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Teams &amp; squads</h2><button class="btn primary small" type="button" id="team-add" hidden>+ Add team</button></div>
+      <div id="team-list"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+"use strict";
+/* =====================================================================
+   Pure cricket engine: an innings is a list of ball events, replayed
+   into a full state. Undo = drop the last event.
+   ball: { b: bowler, s: striker, ns: non-striker, r: runs off bat,
+           x: null | { k: "wd"|"nb"|"b"|"lb", r: extra runs },
+           w: null | { k: dismissal, out: pid, f: fielder pid }, nb: next batter }
+   ===================================================================== */
+const DISMISSALS = ["bowled", "caught", "lbw", "run out", "stumped", "hit wicket"];
+const BOWLER_CREDIT = new Set(["bowled", "caught", "lbw", "stumped", "hit wicket"]);
+const oversStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
+function replay(m, i) {
+  const inn = m.inns && m.inns[i];
+  const st = { runs: 0, wk: 0, legal: 0, ex: { wd: 0, nb: 0, b: 0, lb: 0 }, bat: {}, bowl: {}, order: [], bowlOrder: [], fow: [],
+    overs: [[]], s: null, ns: null, b: null, lastOverBowler: null, overRuns: 0, started: !!inn };
+  if (!inn) return st;
+  const B = (pid) => { if (!pid) return null; if (!st.bat[pid]) { st.bat[pid] = { pid, r: 0, b: 0, f4: 0, f6: 0, out: false, how: "", bw: null, fd: null }; st.order.push(pid); } return st.bat[pid]; };
+  const W = (pid) => { if (!st.bowl[pid]) { st.bowl[pid] = { pid, balls: 0, r: 0, w: 0, m: 0, wd: 0, nb: 0 }; st.bowlOrder.push(pid); } return st.bowl[pid]; };
+  if (inn.open) { B(inn.open[0]); B(inn.open[1]); st.s = inn.open[0]; st.ns = inn.open[1]; st.b = inn.openBowler || null; }
+  for (const e of inn.ev || []) {
+    const bw = W(e.b), x = e.x, r = e.r || 0;
+    B(e.s); B(e.ns);
+    let legal = true, ran = 0, total = 0, charged = 0, sym = "";
+    if (x && x.k === "wd") { legal = false; total = 1 + (x.r || 0); charged = total; st.ex.wd += total; bw.wd += total; ran = x.r || 0; sym = (total > 1 ? total : "") + "wd"; }
+    else if (x && x.k === "nb") { legal = false; total = 1 + r; charged = total; st.ex.nb += 1; bw.nb += 1; const sb = B(e.s); sb.r += r; sb.b += 1; if (r === 4) sb.f4++; if (r === 6) sb.f6++; ran = r; sym = (r ? r : "") + "nb"; }
+    else if (x && (x.k === "b" || x.k === "lb")) { total = x.r || 0; st.ex[x.k] += total; B(e.s).b += 1; ran = total; sym = total + x.k; }
+    else { total = r; charged = r; const sb = B(e.s); sb.r += r; sb.b += 1; if (r === 4) sb.f4++; if (r === 6) sb.f6++; ran = r; sym = r === 0 ? "•" : String(r); }
+    st.runs += total; bw.r += charged; st.overRuns += charged;
+    if (legal) { st.legal++; bw.balls++; }
+    let s = e.s, ns = e.ns;
+    if (ran % 2 === 1) [s, ns] = [ns, s];
+    let cls = r === 4 && !x ? "b4" : r === 6 && !x ? "b6" : x ? "bx" : "";
+    if (e.w) {
+      st.wk++; const ob = B(e.w.out); ob.out = true; ob.how = e.w.k; ob.fd = e.w.f || null;
+      ob.bw = BOWLER_CREDIT.has(e.w.k) ? e.b : null; if (ob.bw) bw.w++;
+      st.fow.push({ wk: st.wk, runs: st.runs, pid: e.w.out, over: oversStr(st.legal) });
+      sym = "W" + (ran ? "+" + ran : ""); cls = "bw";
+      const nb = e.nb || null; if (nb) B(nb);
+      if (s === e.w.out) s = nb; else if (ns === e.w.out) ns = nb;
+    }
+    st.overs[st.overs.length - 1].push({ sym, cls });
+    if (legal && st.legal % 6 === 0) {
+      if (st.overRuns === 0) bw.m++;
+      st.overRuns = 0; [s, ns] = [ns, s]; st.lastOverBowler = e.b; st.b = null; st.overs.push([]);
+    } else st.b = e.b;
+    if (e.swap) [s, ns] = [ns, s]; // scorer's manual strike correction
+    st.s = s; st.ns = ns;
+  }
+  if (!st.overs[st.overs.length - 1].length && st.overs.length > 1) st.overs.pop();
+  return st;
+}
+function inningsDone(m, i, st) {
+  st = st || replay(m, i);
+  const inn = m.inns && m.inns[i]; if (!inn) return false;
+  if (inn.closed) return true;
+  if (st.legal >= (m.overs || 0) * 6) return true;
+  if (st.wk >= (m.xi || 11) - 1) return true;
+  if (i === 1) { const t = replay(m, 0).runs + 1; if (st.runs >= t) return true; }
+  return false;
+}
+function resultOf(m) {
+  if (m.status === "abandoned") return { text: "No result (abandoned)", winner: null, tie: false, nr: true };
+  if (!m.inns || m.inns.length < 2) return null;
+  const a = replay(m, 0), b = replay(m, 1), A = m.inns[0].bat, Bt = m.inns[1].bat;
+  if (b.runs > a.runs) { const left = (m.xi || 11) - 1 - b.wk; return { text: `${teamName(Bt)} won by ${left} wicket${left === 1 ? "" : "s"}`, winner: Bt, tie: false }; }
+  if (b.runs === a.runs) return { text: "Match tied", winner: null, tie: true };
+  const d = a.runs - b.runs; return { text: `${teamName(A)} won by ${d} run${d === 1 ? "" : "s"}`, winner: A, tie: false };
+}
+/* Points table with ICC net run rate: an all-out side counts its full quota of overs */
+function standings() {
+  const rows = {};
+  for (const t of teams()) rows[t.id] = { id: t.id, p: 0, w: 0, l: 0, t: 0, nr: 0, pts: 0, rf: 0, bf: 0, ra: 0, bb: 0 };
+  for (const m of matches()) {
+    if (m.stage && m.stage !== "League") continue;
+    if (!rows[m.a] || !rows[m.b]) continue;
+    if (m.status === "abandoned") { for (const id of [m.a, m.b]) { rows[id].p++; rows[id].nr++; rows[id].pts += 1; } continue; }
+    if (m.status !== "done") continue;
+    const res = resultOf(m); if (!res) continue;
+    for (const id of [m.a, m.b]) rows[id].p++;
+    if (res.tie) for (const id of [m.a, m.b]) { rows[id].t++; rows[id].pts += 1; }
+    else { const lo = res.winner === m.a ? m.b : m.a; rows[res.winner].w++; rows[res.winner].pts += 2; rows[lo].l++; }
+    for (let i = 0; i < 2; i++) {
+      const inn = m.inns[i], st = replay(m, i), allOut = st.wk >= (m.xi || 11) - 1;
+      const balls = allOut ? (m.overs || 0) * 6 : st.legal;
+      if (rows[inn.bat]) { rows[inn.bat].rf += st.runs; rows[inn.bat].bf += balls; }
+      if (rows[inn.bowl]) { rows[inn.bowl].ra += st.runs; rows[inn.bowl].bb += balls; }
+    }
+  }
+  const list = Object.values(rows).map((r) => ({ ...r, nrr: (r.bf ? r.rf / (r.bf / 6) : 0) - (r.bb ? r.ra / (r.bb / 6) : 0) }));
+  return list.sort((x, y) => y.pts - x.pts || y.nrr - x.nrr || y.w - x.w || teamName(x.id).localeCompare(teamName(y.id)));
+}
+/* Player stats across every match with scoring (live included) */
+function playerStats() {
+  const S = {};
+  const P = (pid) => S[pid] ||= { pid, inns: 0, no: 0, r: 0, b: 0, f4: 0, f6: 0, hs: 0, hsNo: false, oi: 0, balls: 0, rc: 0, w: 0, best: null, ct: 0, ro: 0, stp: 0 };
+  for (const m of matches()) {
+    if (!m.inns) continue;
+    m.inns.forEach((inn, i) => {
+      const st = replay(m, i);
+      for (const bt of Object.values(st.bat)) {
+        const p = P(bt.pid); p.inns++; p.r += bt.r; p.b += bt.b; p.f4 += bt.f4; p.f6 += bt.f6; if (!bt.out) p.no++;
+        if (bt.r > p.hs || (bt.r === p.hs && !bt.out)) { p.hs = bt.r; p.hsNo = !bt.out; }
+        if (bt.out && bt.fd) { const f = P(bt.fd); if (bt.how === "caught") f.ct++; else if (bt.how === "run out") f.ro++; else if (bt.how === "stumped") f.stp++; }
+      }
+      for (const bw of Object.values(st.bowl)) {
+        const p = P(bw.pid); p.oi++; p.balls += bw.balls; p.rc += bw.r; p.w += bw.w;
+        if (!p.best || bw.w > p.best.w || (bw.w === p.best.w && bw.r < p.best.r)) p.best = { w: bw.w, r: bw.r };
+      }
+    });
+  }
+  return Object.values(S).filter((p) => player(p.pid));
+}
+
+/* =========================== app shell =========================== */
+const COLS = ["cr_settings", "cr_teams", "cr_players", "cr_matches"];
+const LS_KEY = "festcricket.v1";
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const nameKey = (n) => String(n || "").trim().replace(/\s+/g, " ").toLowerCase();
+
+const Store = {
+  mode: "wait", data: { cr_settings: {}, cr_teams: {}, cr_players: {}, cr_matches: {} }, db: null, fb: null, user: null,
+  async init() {
+    if (window.claude && typeof window.claude.use === "function") { try { this.db = await window.claude.use("db"); } catch (e) { this.db = null; } }
+    if (this.db) return this.initCloud();
+    if (await this.tryFirebase()) return;
+    this.mode = "local";
+    try { const raw = localStorage.getItem(LS_KEY); if (raw) Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
+    render();
+  },
+  initCloud() {
+    this.mode = "cloud";
+    for (const c of COLS) this.db.collection(c).onSnapshot((snap) => { const n = {}; for (const d of snap.docs) n[d.id] = d.data(); this.data[c] = n; render(); },
+      (err) => notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page.", "bad"));
+    render();
+  },
+  async tryFirebase() {
+    const cfg = window.FIREBASE_CONFIG;
+    if (!cfg || !cfg.apiKey || !cfg.projectId || /^YOUR_/.test(cfg.apiKey)) return false;
+    const load = (src) => new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.appendChild(s); });
+    try {
+      const base = "https://www.gstatic.com/firebasejs/10.14.1/";
+      await load(base + "firebase-app-compat.js");
+      await Promise.all([load(base + "firebase-firestore-compat.js"), load(base + "firebase-auth-compat.js")]);
+      firebase.initializeApp(cfg); this.fb = firebase.firestore();
+    } catch (e) { notice("Couldn't load the shared database. Showing data saved in this browser instead.", "warn"); return false; }
+    this.mode = "firebase";
+    firebase.auth().onAuthStateChanged((u) => { this.user = u && !u.isAnonymous ? u : null; render(); });
+    const ok = new Set(), timer = setTimeout(() => { if (ok.size < COLS.length) notice("Still waiting for the shared database. Check your internet connection.", "warn", "sync"); }, 12000);
+    for (const c of COLS) this.fb.collection(c).onSnapshot({ includeMetadataChanges: true }, (snap) => {
+      const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.data[c] = n;
+      if (!snap.metadata.fromCache) { ok.add(c); if (ok.size >= COLS.length) { clearTimeout(timer); if ($("notice").dataset.tag === "sync") $("notice").hidden = true; } }
+      render();
+    }, (err) => { clearTimeout(timer); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page.", "bad"); });
+    render(); return true;
+  },
+  canEdit() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && !!this.user); },
+  persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) { notice("This browser blocked saving.", "bad"); } },
+  async put(col, id, obj) {
+    if (!this.canEdit()) { notice("Sign in as a scorer (top right) to make changes.", "bad"); return false; }
+    try {
+      if (this.mode === "firebase") await this.fb.collection(col).doc(id).set(obj);
+      else if (this.mode === "cloud") await this.db.collection(col).doc(id).set(obj);
+      else { this.data[col] = { ...this.data[col], [id]: obj }; this.persist(); render(); }
+      return true;
+    } catch (e) { notice((e && (e.code === "permission-denied" || e.code === "permission_denied")) ? "This account can't make changes. Ask the organiser." : "Couldn't save (" + (e && e.code || "error") + "). Try again.", "bad"); return false; }
+  },
+  async remove(col, id) {
+    if (!this.canEdit()) { notice("Sign in as a scorer (top right) to make changes.", "bad"); return false; }
+    try {
+      if (this.mode === "firebase") await this.fb.collection(col).doc(id).delete();
+      else if (this.mode === "cloud") await this.db.collection(col).doc(id).delete();
+      else { const n = { ...this.data[col] }; delete n[id]; this.data[col] = n; this.persist(); render(); }
+      return true;
+    } catch (e) { notice("Couldn't delete (" + (e && e.code || "error") + ").", "bad"); return false; }
+  },
+  list(col) { return Object.entries(this.data[col] || {}).map(([id, v]) => ({ id, ...v })); },
+  get(col, id) { const v = (this.data[col] || {})[id]; return v ? { id, ...v } : null; },
+};
+function notice(msg, kind, tag) {
+  const n = $("notice"); n.textContent = msg; n.dataset.kind = kind || "warn"; n.dataset.tag = tag || ""; n.hidden = !msg;
+  clearTimeout(notice.t); if (msg && kind === "ok") notice.t = setTimeout(() => { n.hidden = true; }, 2500);
+}
+const settings = () => Store.get("cr_settings", "league") || {};
+const teams = () => Store.list("cr_teams").sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+const team = (id) => Store.get("cr_teams", id);
+const teamName = (id) => (team(id) || {}).name || "?";
+const teamShort = (id) => { const t = team(id) || {}; return t.short || (t.name || "?").slice(0, 3).toUpperCase(); };
+const player = (id) => Store.get("cr_players", id);
+const pname = (id) => (player(id) || {}).name || "?";
+const squad = (tid) => Store.list("cr_players").filter((p) => p.team === tid).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+const matches = () => Store.list("cr_matches").sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.createdAt || "").localeCompare(b.createdAt || ""));
+const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
+const nrrFmt = (n) => (n >= 0 ? "+" : "") + n.toFixed(3);
+const scoreStr = (st) => `${st.runs}/${st.wk}`;
+const sr = (r, b) => b ? (r * 100 / b).toFixed(1) : "–";
+const econ = (r, balls) => balls ? (r * 6 / balls).toFixed(2) : "–";
+
+/* two-click delete (the viewer blocks confirm dialogs) */
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-del]");
+  document.querySelectorAll("button.armed").forEach((x) => { if (x !== b) { x.classList.remove("armed"); x.textContent = x.dataset.label || "Delete"; } });
+  if (!b) return;
+  if (!b.classList.contains("armed")) { b.classList.add("armed"); b.dataset.label = b.textContent; b.textContent = "Confirm"; return; }
+  const [col, id] = b.dataset.del.split(":"); onDelete(col, id);
+});
+async function onDelete(col, id) {
+  if (col === "cr_teams" && matches().some((m) => m.a === id || m.b === id)) { notice("This team has matches. Delete its matches first.", "bad"); return; }
+  if (col === "cr_teams") for (const p of squad(id)) await Store.remove("cr_players", p.id);
+  if (await Store.remove(col, id)) { notice("Deleted.", "ok"); if (col === "cr_matches") go("matches"); }
+}
+
+/* routing: #standings #matches #stats #teams #m-<id> */
+const TABS = ["standings", "matches", "stats", "teams"];
+let currentMatch = null;
+function go(h) { location.hash = h; route(); }
+function route() {
+  const h = location.hash.slice(1);
+  let view = TABS.includes(h) ? h : "standings";
+  currentMatch = null;
+  if (h.startsWith("m-")) { currentMatch = h.slice(2); view = "match"; }
+  document.querySelectorAll("[data-view]").forEach((s) => { s.hidden = s.dataset.view !== view; });
+  document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === view || (view === "match" && b.dataset.tab === "matches"))));
+  render();
+}
+document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
+window.addEventListener("hashchange", route);
+$("back-matches").onclick = () => go("matches");
+
+/* ----- sign in (Firebase email/password; a bare username becomes <name>@cricket.local) ----- */
+$("auth-btn").onclick = async () => {
+  if (Store.mode !== "firebase") return;
+  if (Store.user) { await firebase.auth().signOut(); notice("Signed out.", "ok"); return; }
+  $("auth-panel").hidden = false; $("auth-user").focus();
+};
+$("auth-cancel").onclick = () => { $("auth-panel").hidden = true; };
+$("auth-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  let u = $("auth-user").value.trim(); if (u && !u.includes("@")) u += "@cricket.local";
+  try { await firebase.auth().signInWithEmailAndPassword(u, $("auth-pass").value); $("auth-panel").hidden = true; $("auth-pass").value = ""; notice("Signed in. You can score now.", "ok"); }
+  catch (e) { notice("Sign-in failed: wrong username or password.", "bad"); }
+});
+
+/* ============================== render ============================== */
+function render() {
+  const ed = Store.canEdit();
+  const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
+  m.textContent = Store.mode === "wait" ? "Connecting…" : Store.mode === "local" ? "Saved in this browser" : ed ? "Scorer" + (Store.user ? " · " + (Store.user.email || "").replace("@cricket.local", "") : "") : "View only";
+  const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase"; ab.textContent = Store.user ? "Sign out" : "Scorer sign in";
+  ["match-add", "team-add", "league-edit"].forEach((id) => { $(id).hidden = !ed; });
+  if (!ed) ["match-form-panel", "team-form-panel", "league-panel"].forEach((id) => { $(id).hidden = true; });
+  const lg = settings();
+  $("lg-title").innerHTML = lg.name ? esc(lg.name) : "Festival <span>Cricket</span>";
+  renderStandings(); renderMatchList(); renderStats(); renderTeams();
+  if (currentMatch) renderMatch();
+}
+
+function renderStandings() {
+  const rows = standings();
+  $("standings").innerHTML = rows.length ? `<table><thead><tr><th>#</th><th>Team</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">NR</th><th class="num">Pts</th><th class="num">NRR</th></tr></thead><tbody>${rows.map((r, i) =>
+    `<tr><td class="num">${i + 1}</td><td><b>${esc(teamName(r.id))}</b><div class="sub">For ${r.rf}/${oversStr(r.bf)} · Against ${r.ra}/${oversStr(r.bb)}</div></td><td class="num">${r.p}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.t}</td><td class="num">${r.nr}</td><td class="num"><b>${r.pts}</b></td><td class="num">${r.bf || r.bb ? nrrFmt(r.nrr) : "–"}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No teams yet.${Store.canEdit() ? " Add them in <b>Teams</b>." : ""}</div>`;
+  const live = matches().filter((x) => x.status === "live");
+  $("live-panel").hidden = !live.length;
+  $("live-list").innerHTML = live.map(matchRow).join("");
+}
+function matchScoreLine(m, tid) {
+  const i = (m.inns || []).findIndex((x) => x.bat === tid); if (i < 0) return "";
+  const st = replay(m, i); return `${scoreStr(st)} <span class="muted">(${oversStr(st.legal)})</span>`;
+}
+function matchRow(m) {
+  const chip = m.status === "live" ? '<span class="chip live">LIVE</span>' : m.status === "done" ? '<span class="chip done">Result</span>' : m.status === "abandoned" ? '<span class="chip ab">Abandoned</span>' : '<span class="chip">Upcoming</span>';
+  const res = (m.status === "done" || m.status === "abandoned") ? resultOf(m) : null;
+  return `<div class="mrow" data-open="${esc(m.id)}" role="link" tabindex="0">
+    <div class="teams"><div class="tline"><span>${esc(teamName(m.a))}</span><span class="sc">${matchScoreLine(m, m.a)}</span></div>
+      <div class="tline"><span>${esc(teamName(m.b))}</span><span class="sc">${matchScoreLine(m, m.b)}</span></div>
+      <div class="meta">${[m.stage, `${m.overs} overs`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ")}${res ? ` · <b>${esc(res.text)}</b>` : ""}</div></div>
+    <div>${chip}</div></div>`;
+}
+document.addEventListener("click", (ev) => { const r = ev.target.closest("[data-open]"); if (r) go("m-" + r.dataset.open); });
+document.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { const r = ev.target.closest && ev.target.closest("[data-open]"); if (r) go("m-" + r.dataset.open); } });
+
+function renderMatchList() {
+  const all = matches(); const live = all.filter((m) => m.status === "live"), up = all.filter((m) => !m.status || m.status === "scheduled"), done = all.filter((m) => m.status === "done" || m.status === "abandoned").reverse();
+  $("match-list").innerHTML = all.length ? [["Live", live], ["Upcoming", up], ["Results", done]].filter(([, l]) => l.length)
+    .map(([t, l]) => `<div class="group-title">${t}</div>` + l.map(matchRow).join("")).join("")
+    : `<div class="empty">No matches yet.${Store.canEdit() ? " Use <b>+ New match</b> once teams are added." : ""}</div>`;
+}
+
+/* ----- match form ----- */
+function fillTeamSelects(sel, val) { sel.innerHTML = `<option value="">Choose…</option>` + teams().map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join(""); sel.value = val || ""; }
+$("match-add").onclick = () => {
+  if (teams().length < 2) { notice("Add at least two teams first (Teams tab).", "bad"); return; }
+  const lg = settings(); $("match-form").reset(); $("mf-id").value = ""; fillTeamSelects($("mf-a")); fillTeamSelects($("mf-b"));
+  $("mf-overs").value = lg.overs || 10; $("mf-xi").value = lg.xi || 11; $("mf-title").textContent = "New match"; $("mf-save").textContent = "Create match";
+  $("match-form-panel").hidden = false; $("mf-a").focus();
+};
+$("mf-cancel").onclick = () => { $("match-form-panel").hidden = true; };
+function editMatchSetup(m) {
+  go("matches"); fillTeamSelects($("mf-a"), m.a); fillTeamSelects($("mf-b"), m.b);
+  $("mf-id").value = m.id; $("mf-when").value = m.when || ""; $("mf-venue").value = m.venue || ""; $("mf-stage").value = m.stage || "League";
+  $("mf-overs").value = m.overs || 10; $("mf-xi").value = m.xi || 11; $("mf-title").textContent = "Edit match"; $("mf-save").textContent = "Save changes";
+  $("match-form-panel").hidden = false; window.scrollTo({ top: 0, behavior: "smooth" });
+}
+$("match-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const a = $("mf-a").value, b = $("mf-b").value;
+  if (!a || !b || a === b) { notice("Choose two different teams.", "bad"); return; }
+  const id = $("mf-id").value || uid(), old = Store.get("cr_matches", id);
+  if (old && old.inns && old.inns.length && (old.a !== a || old.b !== b)) { notice("Scoring has started; teams can't be changed. Undo all balls first.", "bad"); return; }
+  const { id: _, ...rest } = old || {};
+  const m = { ...rest, a, b, when: $("mf-when").value, venue: $("mf-venue").value.trim(), stage: $("mf-stage").value,
+    overs: Math.max(1, Math.min(50, +$("mf-overs").value || 10)), xi: Math.max(2, Math.min(11, +$("mf-xi").value || 11)),
+    status: old ? old.status : "scheduled", inns: old ? old.inns || [] : [], createdAt: old ? old.createdAt : new Date().toISOString() };
+  if (await Store.put("cr_matches", id, m)) { $("match-form-panel").hidden = true; notice(old ? "Match updated." : "Match created.", "ok"); }
+});
+
+/* ----- league settings ----- */
+$("league-edit").onclick = () => { const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("league-panel").hidden = false; };
+$("league-cancel").onclick = () => { $("league-panel").hidden = true; };
+$("league-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11 })) { $("league-panel").hidden = true; notice("Saved.", "ok"); }
+});
+
+/* ============================ match view ============================ */
+function renderMatch() {
+  const m = Store.get("cr_matches", currentMatch);
+  if (!m) { $("match-head").innerHTML = `<div class="panel empty">This match no longer exists.</div>`; $("scorecard").innerHTML = ""; $("scorer").hidden = true; $("match-tools").innerHTML = ""; return; }
+  const ed = Store.canEdit();
+  $("match-tools").innerHTML = ed ? `<button class="btn small" type="button" id="mt-edit">Edit match</button>
+    ${m.status !== "done" ? `<button class="btn small" type="button" id="mt-abandon">${m.status === "abandoned" ? "Restore match" : "Mark abandoned"}</button>` : ""}
+    <button class="btn small danger" type="button" data-del="cr_matches:${esc(m.id)}">Delete</button>` : "";
+  if (ed) {
+    $("mt-edit").onclick = () => editMatchSetup(m);
+    const ab = $("mt-abandon"); if (ab) ab.onclick = async () => { const { id, ...r } = m; await Store.put("cr_matches", id, { ...r, status: m.status === "abandoned" ? (m.inns && m.inns.length ? "live" : "scheduled") : "abandoned" }); };
+  }
+  // head: board with current/last innings
+  const ci = (m.inns || []).length - 1, res = (m.status === "done" || m.status === "abandoned") ? resultOf(m) : null;
+  let head = `<div class="board"><div class="sub" style="color:inherit;opacity:.85">${[m.stage, `${m.overs} overs`, `${m.xi} a side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ")}</div>
+    <div style="font:700 18px var(--font-display);text-transform:uppercase;margin-top:2px">${esc(teamName(m.a))} <span style="opacity:.6">v</span> ${esc(teamName(m.b))}</div>`;
+  if (m.toss && m.toss.winner) head += `<div class="line">${esc(teamName(m.toss.winner))} won the toss and chose to ${esc(m.toss.chose)}</div>`;
+  if (ci >= 0) {
+    const st = replay(m, ci), inn = m.inns[ci];
+    head += `<div style="margin-top:8px">${esc(teamName(inn.bat))}</div><div class="big">${scoreStr(st)}<small>${oversStr(st.legal)} / ${m.overs} ov</small></div>`;
+    const crr = st.legal ? (st.runs * 6 / st.legal).toFixed(2) : "0.00";
+    let line = `<span>CRR ${crr}</span>`;
+    if (ci === 1) {
+      const target = replay(m, 0).runs + 1, need = target - st.runs, left = m.overs * 6 - st.legal;
+      line += `<span>Target ${target}</span>` + (!res && need > 0 ? `<span><b>Need ${need} from ${left} ball${left === 1 ? "" : "s"}</b></span><span>RRR ${left ? (need * 6 / left).toFixed(2) : "–"}</span>` : "");
+    } else if (m.inns[1] === undefined && inningsDone(m, 0, st) && !res) line += `<span><b>Innings break · target ${st.runs + 1}</b></span>`;
+    head += `<div class="line">${line}</div>`;
+    if (!res && !inningsDone(m, ci, st) && st.s) {
+      const bs = st.bat[st.s], bn = st.ns && st.bat[st.ns], bw = st.b ? st.bowl[st.b] : st.lastOverBowler ? st.bowl[st.lastOverBowler] : null;
+      head += `<div class="bat"><span class="on">${esc(pname(st.s))}</span><span>${bs.r} (${bs.b})</span>`
+        + (bn ? `<span>${esc(pname(st.ns))}</span><span>${bn.r} (${bn.b})</span>` : "")
+        + (bw ? `<span style="opacity:.85">${esc(pname(bw.pid))} <small>(bowling)</small></span><span style="opacity:.85">${oversStr(bw.balls)}-${bw.m}-${bw.r}-${bw.w}</span>` : "") + `</div>`;
+    }
+    const lastOver = st.overs[st.overs.length - 1] || [];
+    if (lastOver.length) head += `<div class="over">${lastOver.map((b) => `<span class="ball ${b.cls}">${esc(b.sym)}</span>`).join("")}</div>`;
+  }
+  if (res) head += `<div style="margin-top:8px;font-weight:700">${esc(res.text)}</div>`;
+  head += `</div>`;
+  $("match-head").innerHTML = head;
+  const scorerOn = ed && m.status !== "done" && m.status !== "abandoned";
+  $("scorer").hidden = !scorerOn; if (scorerOn) renderScorer(m); else if (ed && m.status === "done") renderDoneTools(m);
+  $("scorecard").innerHTML = (m.inns || []).map((inn, i) => scorecardHtml(m, i)).reverse().join("") || `<div class="panel empty" style="margin-top:14px">Not started yet.</div>`;
+}
+function renderDoneTools(m) {
+  $("scorer").hidden = false;
+  $("scorer").innerHTML = `<div class="panel" style="margin-top:14px"><div class="btns"><span class="muted">Scoring finished.</span><button class="btn small" type="button" id="sc-undo-done">Undo last ball and reopen</button></div></div>`;
+  $("sc-undo-done").onclick = () => undoBall(m);
+}
+function dismissalText(bt) {
+  if (!bt.out) return "not out";
+  const f = bt.fd ? pname(bt.fd) : "", b = bt.bw ? pname(bt.bw) : "";
+  switch (bt.how) {
+    case "bowled": return `b ${b}`; case "lbw": return `lbw b ${b}`; case "hit wicket": return `hit wicket b ${b}`;
+    case "caught": return bt.fd === bt.bw ? `c & b ${b}` : `c ${f} b ${b}`;
+    case "stumped": return `st ${f} b ${b}`; case "run out": return `run out${f ? " (" + f + ")" : ""}`; default: return bt.how;
+  }
+}
+function scorecardHtml(m, i) {
+  const inn = m.inns[i], st = replay(m, i), ex = st.ex, exT = ex.wd + ex.nb + ex.b + ex.lb;
+  const yetToBat = squad(inn.bat).filter((p) => !st.bat[p.id]);
+  return `<div class="panel" style="margin-top:14px"><div class="panel-head"><h2>${esc(teamName(inn.bat))} innings <small>${i === 0 ? "1st" : "2nd"} innings</small></h2>
+    <div style="font:800 22px var(--font-display)">${scoreStr(st)} <span class="muted" style="font-size:15px">(${oversStr(st.legal)} ov)</span></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Batter</th><th></th><th class="num">R</th><th class="num">B</th><th class="num">4s</th><th class="num">6s</th><th class="num">SR</th></tr></thead><tbody>
+    ${st.order.map((pid) => { const b = st.bat[pid]; const on = !b.out && (pid === st.s || pid === st.ns) && !inningsDone(m, i, st);
+      return `<tr><td><b>${esc(pname(pid))}</b>${on && pid === st.s ? " *" : ""}</td><td class="sub">${b.out ? esc(dismissalText(b)) : on ? "batting" : "not out"}</td><td class="num"><b>${b.r}</b></td><td class="num">${b.b}</td><td class="num">${b.f4}</td><td class="num">${b.f6}</td><td class="num">${sr(b.r, b.b)}</td></tr>`; }).join("")}
+    <tr><td>Extras</td><td class="sub">wd ${ex.wd}, nb ${ex.nb}, b ${ex.b}, lb ${ex.lb}</td><td class="num"><b>${exT}</b></td><td colspan="4"></td></tr>
+    <tr><td><b>Total</b></td><td class="sub">${st.wk} wkt${st.wk === 1 ? "" : "s"}, ${oversStr(st.legal)} overs</td><td class="num"><b>${st.runs}</b></td><td colspan="4" class="sub">RR ${st.legal ? (st.runs * 6 / st.legal).toFixed(2) : "–"}</td></tr>
+    </tbody></table></div>
+    ${yetToBat.length && !inningsDone(m, i, st) ? `<div class="sub" style="margin-top:6px">Yet to bat: ${yetToBat.map((p) => esc(p.name)).join(", ")}</div>` : ""}
+    ${st.fow.length ? `<div class="sub" style="margin-top:6px"><b>Fall of wickets:</b> ${st.fow.map((f) => `${f.runs}-${f.wk} (${esc(pname(f.pid))}, ${f.over})`).join(" · ")}</div>` : ""}
+    <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Bowler</th><th class="num">O</th><th class="num">M</th><th class="num">R</th><th class="num">W</th><th class="num">Econ</th><th class="num">Wd</th><th class="num">Nb</th></tr></thead><tbody>
+    ${st.bowlOrder.map((pid) => { const b = st.bowl[pid]; return `<tr><td><b>${esc(pname(pid))}</b></td><td class="num">${oversStr(b.balls)}</td><td class="num">${b.m}</td><td class="num">${b.r}</td><td class="num"><b>${b.w}</b></td><td class="num">${econ(b.r, b.balls)}</td><td class="num">${b.wd}</td><td class="num">${b.nb}</td></tr>`; }).join("") || `<tr><td colspan="8" class="muted">No balls bowled yet.</td></tr>`}
+    </tbody></table></div>
+    ${st.overs.some((o) => o.length) ? `<div class="sub" style="margin-top:8px"><b>Overs</b></div>${st.overs.map((o, k) => o.length ? `<div class="over" style="align-items:center"><span class="sub" style="width:44px">Ov ${k + 1}</span>${o.map((b) => `<span class="ball ${b.cls}">${esc(b.sym)}</span>`).join("")}</div>` : "").join("")}` : ""}
+  </div>`;
+}
+
+/* ============================ scoring pad ============================ */
+let sheet = null; // which extra/wicket sheet is open, with its picks
+function playerOptions(list, sel, placeholder) { return `<option value="">${esc(placeholder || "Choose…")}</option>` + list.map((p) => `<option value="${esc(p.id)}" ${p.id === sel ? "selected" : ""}>${esc(p.name)}</option>`).join(""); }
+async function saveMatch(m, patch) { const { id, ...rest } = m; return Store.put("cr_matches", id, { ...rest, ...patch }); }
+function renderScorer(m) {
+  const box = $("scorer"), inns = m.inns || [], ci = inns.length - 1;
+  const cur = ci >= 0 ? replay(m, ci) : null;
+  // 1) toss + first innings setup
+  if (ci < 0 || (ci === 0 && inningsDone(m, 0, cur) && inns.length === 1)) {
+    const second = ci === 0;
+    const batT = second ? inns[0].bowl : null, bowlT = second ? inns[0].bat : null;
+    if (squad(m.a).length < 2 || squad(m.b).length < 2) { box.innerHTML = `<div class="panel" style="margin-top:14px"><div class="empty">Add at least two players to each team (Teams tab) before scoring.</div></div>`; return; }
+    box.innerHTML = `<div class="panel" style="margin-top:14px"><h2>${second ? "Start 2nd innings" : "Toss and start"} <small>${second ? `target ${cur.runs + 1}` : "who bats first, the opening batters and bowler"}</small></h2>
+      <form id="start-form">
+        ${second ? `<div class="sub">${esc(teamName(batT))} bat · ${esc(teamName(bowlT))} bowl</div>` : `<div class="row2">
+          <label>Toss won by<select id="sf-toss" required><option value="">Choose…</option><option value="${esc(m.a)}">${esc(teamName(m.a))}</option><option value="${esc(m.b)}">${esc(teamName(m.b))}</option></select></label>
+          <label>Chose to<select id="sf-chose"><option value="bat">Bat</option><option value="bowl">Bowl</option></select></label></div>`}
+        <div class="row3">
+          <label>Striker<select id="sf-s" required></select></label>
+          <label>Non-striker<select id="sf-ns" required></select></label>
+          <label>Opening bowler<select id="sf-b" required></select></label>
+        </div>
+        <div class="btns"><button class="btn primary" type="submit">Start innings</button>${second ? `<button class="btn" type="button" id="sf-undo">Undo last ball of 1st innings</button>` : ""}</div>
+      </form></div>`;
+    const fill = () => {
+      let bt = batT, bwT = bowlT;
+      if (!second) { const tw = $("sf-toss").value, ch = $("sf-chose").value; if (!tw) { bt = bwT = null; } else { bt = ch === "bat" ? tw : (tw === m.a ? m.b : m.a); bwT = bt === m.a ? m.b : m.a; } }
+      const keep = (id) => $(id).value;
+      const s = keep("sf-s"), ns = keep("sf-ns"), b = keep("sf-b");
+      $("sf-s").innerHTML = playerOptions(bt ? squad(bt) : [], s); $("sf-ns").innerHTML = playerOptions(bt ? squad(bt) : [], ns); $("sf-b").innerHTML = playerOptions(bwT ? squad(bwT) : [], b);
+      return [bt, bwT];
+    };
+    fill();
+    if (!second) { $("sf-toss").onchange = fill; $("sf-chose").onchange = fill; }
+    if (second) $("sf-undo").onclick = () => undoBall(m);
+    $("start-form").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const [bt, bwT] = fill(); const s = $("sf-s").value, ns = $("sf-ns").value, b = $("sf-b").value;
+      if (!bt || !s || !ns || !b) { notice("Choose the toss result, both openers and the bowler.", "bad"); return; }
+      if (s === ns) { notice("Striker and non-striker must be different players.", "bad"); return; }
+      const patch = { inns: [...inns, { bat: bt, bowl: bwT, open: [s, ns], openBowler: b, ev: [] }], status: "live" };
+      if (!second) patch.toss = { winner: $("sf-toss").value, chose: $("sf-chose").value };
+      await saveMatch(m, patch);
+    };
+    return;
+  }
+  const inn = inns[ci], st = cur;
+  const done = inningsDone(m, ci, st);
+  // 2) need a bowler for the new over
+  if (!done && !st.b) {
+    const opts = squad(inn.bowl).filter((p) => p.id !== st.lastOverBowler);
+    box.innerHTML = `<div class="panel" style="margin-top:14px"><h2>Over ${Math.floor(st.legal / 6) + 1} <small>choose the bowler (not ${esc(pname(st.lastOverBowler))}, who bowled the last over)</small></h2>
+      <div class="btns"><select id="nb-bowler" style="max-width:260px">${playerOptions(opts, "")}</select><button class="btn primary" type="button" id="nb-go">Start over</button><button class="btn" type="button" id="nb-undo">Undo last ball</button></div></div>`;
+    $("nb-go").onclick = () => { const v = $("nb-bowler").value; if (!v) { notice("Choose a bowler.", "bad"); return; } nextBowler = v; renderMatch(); };
+    $("nb-undo").onclick = () => undoBall(m);
+    if (nextBowler && opts.some((p) => p.id === nextBowler)) { /* chosen, fall through to pad */ } else return;
+  }
+  if (done) {
+    box.innerHTML = `<div class="panel" style="margin-top:14px"><div class="btns"><span class="muted">${ci === 0 ? "1st innings complete." : "Match complete."}</span>
+      ${ci === 1 ? `<button class="btn primary" type="button" id="fin-go">Confirm result</button>` : ""}<button class="btn" type="button" id="fin-undo">Undo last ball</button>
+      ${!inn.closed ? "" : `<button class="btn" type="button" id="fin-reopen">Reopen innings</button>`}</div></div>`;
+    if (ci === 1) $("fin-go").onclick = async () => { const res = resultOf(m); await saveMatch(m, { status: "done", resultText: res ? res.text : "" }); notice(res ? res.text : "Saved.", "ok"); };
+    $("fin-undo").onclick = () => undoBall(m);
+    const ro = $("fin-reopen"); if (ro) ro.onclick = async () => { const ii = [...inns]; ii[ci] = { ...inn, closed: false }; await saveMatch(m, { inns: ii }); };
+    return;
+  }
+  const bowler = st.b || nextBowler;
+  const pad = `<div class="pad">
+      ${[0, 1, 2, 3, 4, 6].map((r) => `<button type="button" data-run="${r}" class="${r === 4 ? "k4" : r === 6 ? "k6" : ""}">${r}</button>`).join("")}
+      <button type="button" class="x" data-sheet="wd">Wd</button><button type="button" class="x" data-sheet="nb">Nb</button>
+      <button type="button" class="x" data-sheet="b">Bye</button><button type="button" class="x" data-sheet="lb">LB</button>
+      <button type="button" class="w" data-sheet="w">Wicket</button>
+      <button type="button" class="undo" id="pad-undo" ${inn.ev.length ? "" : "disabled"}>↶ Undo</button>
+      <button type="button" class="undo" id="pad-swap">⇄ Swap strike</button>
+      <button type="button" class="undo" id="pad-close">End innings</button>
+    </div>`;
+  box.innerHTML = `<div class="panel" style="margin-top:14px"><div class="panel-head"><h2>Score <small>${esc(pname(st.s))} on strike · ${esc(pname(bowler))} bowling · over ${Math.floor(st.legal / 6) + 1}, ball ${st.legal % 6 + 1}</small></h2></div>${pad}<div id="sheet"></div></div>`;
+  box.querySelectorAll("[data-run]").forEach((b) => b.onclick = () => addBall(m, { r: +b.dataset.run }));
+  box.querySelectorAll("[data-sheet]").forEach((b) => b.onclick = () => { sheet = sheet && sheet.k === b.dataset.sheet ? null : { k: b.dataset.sheet }; drawSheet(m, st, inn); });
+  $("pad-undo").onclick = () => undoBall(m);
+  $("pad-swap").onclick = async () => { // record as a correction on the innings openers when no balls, else swap via a flag on the last ball
+    const ii = [...inns], cp = { ...inn };
+    if (!cp.ev.length) cp.open = [cp.open[1], cp.open[0]];
+    else { const evs = [...cp.ev]; const last = { ...evs[evs.length - 1] }; last.swap = !last.swap; evs[evs.length - 1] = last; cp.ev = evs; }
+    ii[ci] = cp; await saveMatch(m, { inns: ii });
+  };
+  $("pad-close").onclick = async (e) => {
+    const b = e.currentTarget; if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Confirm end"; return; }
+    const ii = [...inns]; ii[ci] = { ...inn, closed: true }; await saveMatch(m, { inns: ii });
+  };
+  drawSheet(m, st, inn);
+}
+let nextBowler = null;
+function drawSheet(m, st, inn) {
+  const host = $("sheet"); if (!host) return;
+  if (!sheet) { host.innerHTML = ""; return; }
+  const k = sheet.k;
+  const opts = (vals, key, cur) => `<div class="opts">${vals.map((v) => `<button type="button" data-pick="${key}" data-v="${v}" aria-pressed="${String(cur) === String(v)}">${v}</button>`).join("")}</div>`;
+  if (k === "wd") host.innerHTML = `<div class="sheet"><b>Wide</b><span class="sub">extra runs taken or boundary (1 wide is added automatically)</span>${opts([0, 1, 2, 3, 4], "r", sheet.r ?? 0)}<div class="btns"><button class="btn primary" type="button" id="sh-ok">Add wide</button></div></div>`;
+  if (k === "nb") host.innerHTML = `<div class="sheet"><b>No-ball</b><span class="sub">runs off the bat (1 no-ball is added automatically)</span>${opts([0, 1, 2, 3, 4, 6], "r", sheet.r ?? 0)}<div class="btns"><button class="btn primary" type="button" id="sh-ok">Add no-ball</button></div></div>`;
+  if (k === "b" || k === "lb") host.innerHTML = `<div class="sheet"><b>${k === "b" ? "Byes" : "Leg-byes"}</b>${opts([1, 2, 3, 4], "r", sheet.r ?? 1)}<div class="btns"><button class="btn primary" type="button" id="sh-ok">Add ${k === "b" ? "byes" : "leg-byes"}</button></div></div>`;
+  if (k === "w") {
+    const kind = sheet.kind || "bowled", needF = kind === "caught" || kind === "run out" || kind === "stumped";
+    const last = st.wk + 1 >= (m.xi || 11) - 1;
+    const avail = squad(inn.bat).filter((p) => !st.bat[p.id]);
+    const outOpts = kind === "run out" ? [st.s, st.ns] : [st.s];
+    host.innerHTML = `<div class="sheet"><b>Wicket</b>${opts(DISMISSALS, "kind", kind)}
+      <div class="row2">
+        <label>Who is out<select id="w-out">${outOpts.map((p) => `<option value="${esc(p)}" ${p === (sheet.out || st.s) ? "selected" : ""}>${esc(pname(p))}${p === st.s ? " (striker)" : " (non-striker)"}</option>`).join("")}</select></label>
+        ${needF ? `<label>${kind === "caught" ? "Caught by" : kind === "stumped" ? "Stumped by" : "Fielder"}<select id="w-f">${playerOptions(squad(inn.bowl), sheet.f || "", kind === "caught" ? "Choose fielder…" : "Choose…")}</select></label>` : "<span></span>"}
+      </div>
+      ${kind === "run out" ? `<span class="sub">runs completed before the run-out</span>${opts([0, 1, 2, 3], "r", sheet.r ?? 0)}` : ""}
+      ${last ? `<span class="sub">This is the last wicket: the innings will end.</span>` : `<label>Next batter<select id="w-nb">${playerOptions(avail, sheet.nb || "")}</select></label>`}
+      <div class="btns"><button class="btn primary" type="button" id="sh-ok">Add wicket</button></div></div>`;
+  }
+  host.querySelectorAll("[data-pick]").forEach((b) => b.onclick = () => { sheet[b.dataset.pick] = b.dataset.pick === "kind" ? b.dataset.v : +b.dataset.v; if ($("w-out")) sheet.out = $("w-out").value; if ($("w-f")) sheet.f = $("w-f").value; if ($("w-nb")) sheet.nb = $("w-nb").value; drawSheet(m, st, inn); });
+  $("sh-ok").onclick = () => {
+    if (k === "wd") return addBall(m, { r: 0, x: { k: "wd", r: sheet.r || 0 } });
+    if (k === "nb") return addBall(m, { r: sheet.r || 0, x: { k: "nb", r: 0 } });
+    if (k === "b" || k === "lb") return addBall(m, { r: 0, x: { k, r: sheet.r || 1 } });
+    const kind = sheet.kind || "bowled", needF = kind === "caught" || kind === "run out" || kind === "stumped";
+    const out = $("w-out").value, f = needF ? $("w-f").value : "", nb = $("w-nb") ? $("w-nb").value : "";
+    if (needF && !f) { notice("Choose the fielder.", "bad"); return; }
+    if ($("w-nb") && !nb) { notice("Choose the next batter.", "bad"); return; }
+    addBall(m, { r: kind === "run out" ? (sheet.r || 0) : 0, w: { k: kind, out, f: f || null }, nb: nb || null });
+  };
+}
+async function addBall(m, e) {
+  const inns = [...m.inns], ci = inns.length - 1, inn = { ...inns[ci] }, st = replay(m, ci);
+  if (inningsDone(m, ci, st)) return;
+  const b = st.b || nextBowler; if (!b) { notice("Choose the bowler first.", "bad"); return; }
+  const ev = { b, s: st.s, ns: st.ns, r: e.r || 0, x: e.x || null, w: e.w || null, nb: e.nb || null };
+  inn.ev = [...(inn.ev || []), ev]; inns[ci] = inn;
+  sheet = null;
+  const next = { ...m, inns };
+  const patch = { inns };
+  if (ci === 1 && inningsDone(next, 1)) { const res = resultOf(next); patch.status = "done"; patch.resultText = res ? res.text : ""; }
+  if (await saveMatch(m, patch)) { if (!replay(next, ci).b) nextBowler = null; if (patch.status === "done") notice(patch.resultText, "ok"); }
+}
+async function undoBall(m) {
+  const inns = [...(m.inns || [])]; if (!inns.length) return;
+  let ci = inns.length - 1; let inn = { ...inns[ci], closed: false };
+  if (!inn.ev.length) { inns.pop(); if (!inns.length) return saveMatch(m, { inns: [], status: "scheduled", toss: null }); ci--; inn = { ...inns[ci], closed: false }; }
+  if (inn.ev.length) { const last = inn.ev[inn.ev.length - 1]; inn.ev = inn.ev.slice(0, -1); nextBowler = last.b; }
+  inns[ci] = inn; sheet = null;
+  await saveMatch(m, { inns, status: "live", resultText: "" });
+}
+
+/* ============================== stats ============================== */
+function renderStats() {
+  const S = playerStats(), tag = (pid) => `<span class="sub">${esc(teamShort((player(pid) || {}).team))}</span>`;
+  const top = (arr) => arr.slice(0, 10);
+  const bat = top(S.filter((p) => p.inns).sort((a, b) => b.r - a.r || (b.r / Math.max(1, b.b)) - (a.r / Math.max(1, a.b))));
+  $("st-bat").innerHTML = bat.length ? `<table class="lead"><thead><tr><th></th><th>Player</th><th class="num">Runs</th><th class="num">Inn</th><th class="num">HS</th><th class="num">Avg</th><th class="num">SR</th><th class="num">4s/6s</th></tr></thead><tbody>${bat.map((p, i) => {
+    const outs = p.inns - p.no; return `<tr><td>${i + 1}</td><td><b>${esc(pname(p.pid))}</b> ${tag(p.pid)}</td><td class="num hl">${p.r}</td><td class="num">${p.inns}</td><td class="num">${p.hs}${p.hsNo ? "*" : ""}</td><td class="num">${outs ? (p.r / outs).toFixed(1) : "–"}</td><td class="num">${sr(p.r, p.b)}</td><td class="num">${p.f4}/${p.f6}</td></tr>`; }).join("")}</tbody></table>` : `<div class="empty">No batting yet.</div>`;
+  const bowl = top(S.filter((p) => p.balls).sort((a, b) => b.w - a.w || (a.rc / a.balls) - (b.rc / b.balls)));
+  $("st-bowl").innerHTML = bowl.length ? `<table class="lead"><thead><tr><th></th><th>Player</th><th class="num">Wkts</th><th class="num">Overs</th><th class="num">Runs</th><th class="num">Econ</th><th class="num">Best</th></tr></thead><tbody>${bowl.map((p, i) =>
+    `<tr><td>${i + 1}</td><td><b>${esc(pname(p.pid))}</b> ${tag(p.pid)}</td><td class="num hl">${p.w}</td><td class="num">${oversStr(p.balls)}</td><td class="num">${p.rc}</td><td class="num">${econ(p.rc, p.balls)}</td><td class="num">${p.best ? p.best.w + "/" + p.best.r : "–"}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No bowling yet.</div>`;
+  const fld = top(S.filter((p) => p.ct + p.ro + p.stp).sort((a, b) => (b.ct + b.ro + b.stp) - (a.ct + a.ro + a.stp) || b.ct - a.ct));
+  $("st-field").innerHTML = fld.length ? `<table class="lead"><thead><tr><th></th><th>Player</th><th class="num">Total</th><th class="num">Ct</th><th class="num">RO</th><th class="num">St</th></tr></thead><tbody>${fld.map((p, i) =>
+    `<tr><td>${i + 1}</td><td><b>${esc(pname(p.pid))}</b> ${tag(p.pid)}</td><td class="num hl">${p.ct + p.ro + p.stp}</td><td class="num">${p.ct}</td><td class="num">${p.ro}</td><td class="num">${p.stp}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No catches, run-outs or stumpings yet.</div>`;
+  const mvp = top(S.map((p) => ({ ...p, pts: p.r + 20 * p.w + 10 * (p.ct + p.ro + p.stp) })).filter((p) => p.pts).sort((a, b) => b.pts - a.pts));
+  $("st-mvp").innerHTML = mvp.length ? `<table class="lead"><thead><tr><th></th><th>Player</th><th class="num">Points</th><th class="num">Runs</th><th class="num">Wkts</th><th class="num">Field</th></tr></thead><tbody>${mvp.map((p, i) =>
+    `<tr><td>${i + 1}</td><td><b>${esc(pname(p.pid))}</b> ${tag(p.pid)}</td><td class="num hl">${p.pts}</td><td class="num">${p.r}</td><td class="num">${p.w}</td><td class="num">${p.ct + p.ro + p.stp}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Nothing yet.</div>`;
+}
+
+/* ============================== teams ============================== */
+function renderTeams() {
+  const ed = Store.canEdit(), T = teams();
+  $("team-list").innerHTML = T.length ? T.map((t) => { const sq = squad(t.id);
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="panel-head" style="margin:0"><div><b style="font-size:15px">${esc(t.name)}</b> <span class="chip">${esc(teamShort(t.id))}</span> <span class="sub">${sq.length} player${sq.length === 1 ? "" : "s"}</span></div>
+      ${ed ? `<div class="btns"><button class="btn small" type="button" data-tedit="${esc(t.id)}">Edit</button><button class="btn small danger" type="button" data-del="cr_teams:${esc(t.id)}">Delete</button></div>` : ""}</div>
+      <div class="sub" style="margin-top:4px">${sq.map((p) => esc(p.name)).join(" · ") || "No players yet."}</div></div>`; }).join("")
+    : `<div class="empty">No teams yet.${ed ? " Use <b>+ Add team</b>." : ""}</div>`;
+}
+document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-tedit]"); if (b) openTeam(b.dataset.tedit); });
+$("team-add").onclick = () => openTeam(null);
+$("tf-cancel").onclick = () => { $("team-form-panel").hidden = true; };
+function openTeam(id) {
+  const t = id ? team(id) : null; $("team-form").reset(); $("tf-id").value = id || "";
+  if (t) { $("tf-name").value = t.name; $("tf-short").value = t.short || ""; $("tf-players").value = squad(id).map((p) => p.name).join("\n"); }
+  $("tf-title").textContent = t ? "Edit team" : "Add team"; $("tf-save").textContent = t ? "Save changes" : "Add team";
+  $("team-form-panel").hidden = false; window.scrollTo({ top: 0, behavior: "smooth" }); $("tf-name").focus();
+}
+$("team-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const id = $("tf-id").value || uid(), name = $("tf-name").value.trim(); if (!name) return;
+  if (teams().some((t) => t.id !== id && nameKey(t.name) === nameKey(name))) { notice(`"${name}" already exists.`, "bad"); return; }
+  if (!(await Store.put("cr_teams", id, { name, short: $("tf-short").value.trim().toUpperCase() }))) return;
+  // squad: keep existing players by name (their stats stay), add new ones, remove names deleted from the list if they never played
+  const want = [...new Set($("tf-players").value.split("\n").map((s) => s.trim().replace(/\s+/g, " ")).filter(Boolean))];
+  const have = squad(id), used = new Set();
+  for (const m of matches()) for (const inn of m.inns || []) { (inn.open || []).forEach((p) => used.add(p)); if (inn.openBowler) used.add(inn.openBowler); for (const e of inn.ev || []) [e.b, e.s, e.ns, e.nb, e.w && e.w.out, e.w && e.w.f].forEach((p) => p && used.add(p)); }
+  for (const n of want) if (!have.some((p) => nameKey(p.name) === nameKey(n))) await Store.put("cr_players", uid(), { name: n, team: id });
+  let kept = 0;
+  for (const p of have) if (!want.some((n) => nameKey(n) === nameKey(p.name))) { if (used.has(p.id)) kept++; else await Store.remove("cr_players", p.id); }
+  $("team-form-panel").hidden = true;
+  notice(kept ? `Saved. ${kept} removed player${kept === 1 ? " has" : "s have"} match records and were kept.` : "Team saved.", "ok");
+});
+
+/* boot */
+route();
+Store.init();
+})();
+</script>

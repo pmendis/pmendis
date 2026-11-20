@@ -3,7 +3,7 @@ name: Deploy Sports Festival app to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ["sports-festival/**", ".github/workflows/sports-festival-pages.yml"]
+    paths: ["sports-festival/**", "cricket/**", ".github/workflows/sports-festival-pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -47,6 +47,16 @@ jobs:
             cat sports-festival/app.html
             echo '</body></html>'
           } > _site/index.html
+          # Cricket scoring app: its own page at /cricket/, same Firebase project (cr_* collections)
+          mkdir -p _site/cricket
+          {
+            echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            echo '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+            echo '<meta http-equiv="Cache-Control" content="no-cache">'
+            echo "<script src=\"../firebase-config.js?v=$VERSION\"></script></head><body>"
+            cat cricket/app.html
+            echo '</body></html>'
+          } > _site/cricket/index.html
         env:
           FIREBASE_CONFIG: ${{ vars.FIREBASE_CONFIG }}
       - uses: actions/configure-pages@v5
