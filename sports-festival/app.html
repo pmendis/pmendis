@@ -298,35 +298,35 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   <section data-view="propose" hidden>
     <div class="split">
       <div class="panel">
-        <h2>Propose a player <small>no sign-in needed · the house organiser reviews every proposal before it reaches the squad list</small></h2>
-        <div class="lang-switch" role="group" aria-label="Message language">
-          <span class="muted">Messages in:</span>
+        <h2><span data-i18n="title">Propose a player</span> <small data-i18n="sub">no sign-in needed · the house organiser reviews every proposal before it reaches the squad list</small></h2>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <span class="muted" data-i18n="langLabel">Language:</span>
           <button type="button" data-lang="en">English</button><button type="button" data-lang="si">සිංහල</button><button type="button" data-lang="ta">தமிழ்</button>
         </div>
         <form id="prop-form" autocomplete="off">
           <input type="hidden" id="prop-id">
           <div class="row2">
-            <label>EPF number<input id="prop-ref" maxlength="30" inputmode="numeric" placeholder="Enter first"></label>
-            <label>Full name<input id="prop-name" required maxlength="80"></label>
+            <label><span data-i18n="lEpf">EPF number</span><input id="prop-ref" maxlength="30" inputmode="numeric" placeholder="Enter first" data-i18n-ph="phEpf"></label>
+            <label><span data-i18n="lName">Full name</span><input id="prop-name" required maxlength="80"></label>
           </div>
           <div class="update-line" id="prop-found" hidden></div>
           <div class="row2">
-            <label>Gender
-              <select id="prop-gender" required><option value="">—</option><option>Female</option><option>Male</option><option>Other</option></select>
+            <label><span data-i18n="lGender">Gender</span>
+              <select id="prop-gender" required><option value="">—</option><option value="Female" data-i18n="oFemale">Female</option><option value="Male" data-i18n="oMale">Male</option><option value="Other" data-i18n="oOther">Other</option></select>
             </label>
-            <label>Age category<select id="prop-age" required><option value="">—</option><option>Below 30</option><option>30+</option><option>35+</option><option>40+</option><option>45+</option><option>50+</option><option>55+</option></select></label>
+            <label><span data-i18n="lAge">Age category</span><select id="prop-age" required><option value="">—</option><option value="Below 30" data-i18n="oBelow30">Below 30</option><option>30+</option><option>35+</option><option>40+</option><option>45+</option><option>50+</option><option>55+</option></select></label>
           </div>
           <div class="row2">
-            <label>Department<input id="prop-dept" maxlength="60" list="dept-options" placeholder="e.g. Finance"></label>
-            <label>Phone<input id="prop-phone" type="tel" maxlength="20"></label>
+            <label><span data-i18n="lDept">Department</span><input id="prop-dept" maxlength="60" list="dept-options" placeholder="e.g. Finance" data-i18n-ph="phDept"></label>
+            <label><span data-i18n="lPhone">Phone</span><input id="prop-phone" type="tel" maxlength="20"></label>
           </div>
-          <label>Proposed by<input id="prop-by" maxlength="60" placeholder="Your name (optional)"></label>
-          <fieldset><legend>Sports</legend><div class="checks" id="prop-sports"></div></fieldset>
+          <label><span data-i18n="lBy">Proposed by</span><input id="prop-by" maxlength="60" placeholder="Your name (optional)" data-i18n-ph="phBy"></label>
+          <fieldset><legend data-i18n="lSports">Sports</legend><div class="checks" id="prop-sports"></div></fieldset>
           <div class="btns"><button class="btn primary" type="submit" id="prop-save">Send proposal</button>
-            <button class="btn" type="button" id="prop-cancel" hidden>Cancel edit</button></div>
+            <button class="btn" type="button" id="prop-cancel" hidden data-i18n="bCancel">Cancel edit</button></div>
         </form>
         <div id="my-props" hidden>
-          <h3 class="mine-head">Your proposals <span class="muted">(only this browser can change or delete them)</span></h3>
+          <h3 class="mine-head"><span data-i18n="hMine">Your proposals</span> <span class="muted" data-i18n="hMineSub">(only this browser can change or delete them)</span></h3>
           <div id="my-props-list"></div>
         </div>
       </div>
@@ -456,6 +456,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       hFull: "full", hLimit: "limit reached", hOnly: "{g} only", hSetGender: "set gender", hOtherAge: "other age group", hSetAge: "set age category",
       limits: "Limits per player:", athletics: "Athletics", total: "Total",
       Men: "Men", Women: "Women",
+      title: "Propose a player", sub: "no sign-in needed · the house organiser reviews every proposal before it reaches the squad list", langLabel: "Language:",
+      lEpf: "EPF number", phEpf: "Enter first", lName: "Full name", lGender: "Gender", oFemale: "Female", oMale: "Male", oOther: "Other",
+      lAge: "Age category", oBelow30: "Below 30", lDept: "Department", phDept: "e.g. Finance", lPhone: "Phone", lBy: "Proposed by", phBy: "Your name (optional)",
+      lSports: "Sports", bSend: "Send proposal", bSave: "Save changes", bCancel: "Cancel edit",
+      hMine: "Your proposals", hMineSub: "(only this browser can change or delete them)", bEdit: "Edit", bDelete: "Delete", bConfirm: "Confirm",
+      mineUpdate: "Update to an existing player", mineWaiting: "Waiting for review · sent {when}", noSports: "No sports",
     },
     si: {
       needFields: "නම, ස්ත්‍රී/පුරුෂ භාවය සහ වයස් කාණ්ඩය ඇතුළත් කරන්න.",
@@ -479,6 +485,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       hFull: "පිරී ඇත", hLimit: "උපරිමයට ළඟා විය", hOnly: "{g} සඳහා පමණි", hSetGender: "ස්ත්‍රී/පුරුෂ භාවය තෝරන්න", hOtherAge: "වෙනත් වයස් කාණ්ඩයක්", hSetAge: "වයස් කාණ්ඩය තෝරන්න",
       limits: "එක් ක්‍රීඩකයෙකුට සීමා:", athletics: "මලල ක්‍රීඩා", total: "මුළු",
       Men: "පිරිමි", Women: "කාන්තා",
+      title: "ක්‍රීඩකයෙකු යෝජනා කරන්න", sub: "ලොග් වීම අවශ්‍ය නැත · සෑම යෝජනාවක්ම කණ්ඩායම් ලැයිස්තුවට එක් කිරීමට පෙර සංවිධායකවරයා සලකා බලයි", langLabel: "භාෂාව:",
+      lEpf: "EPF අංකය", phEpf: "පළමුව", lName: "සම්පූර්ණ නම", lGender: "ස්ත්‍රී/පුරුෂ භාවය", oFemale: "ස්ත්‍රී", oMale: "පුරුෂ", oOther: "වෙනත්",
+      lAge: "වයස් කාණ්ඩය", oBelow30: "30ට අඩු", lDept: "දෙපාර්තමේන්තුව", phDept: "උදා: මුදල්", lPhone: "දුරකථන අංකය", lBy: "යෝජනා කළේ", phBy: "ඔබේ නම (අනිවාර්ය නැත)",
+      lSports: "ක්‍රීඩා", bSend: "යෝජනාව යවන්න", bSave: "වෙනස්කම් සුරකින්න", bCancel: "සංස්කරණය අවලංගු කරන්න",
+      hMine: "ඔබේ යෝජනා", hMineSub: "(මෙම බ්‍රවුසරයට පමණක් ඒවා වෙනස් කිරීමට හෝ මැකීමට හැක)", bEdit: "සංස්කරණය", bDelete: "මකන්න", bConfirm: "තහවුරු කරන්න",
+      mineUpdate: "පවතින ක්‍රීඩකයෙකුගේ විස්තර යාවත්කාලීන කිරීමක්", mineWaiting: "සලකා බැලීමට රැඳී සිටී · යැවූයේ {when}", noSports: "ක්‍රීඩා නැත",
     },
     ta: {
       needFields: "பெயர், பாலினம், வயதுப் பிரிவு ஆகியவற்றை உள்ளிடவும்.",
@@ -502,6 +514,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       hFull: "நிரம்பியது", hLimit: "வரம்பு எட்டப்பட்டது", hOnly: "{g} மட்டும்", hSetGender: "பாலினத்தைத் தெரிவு செய்யவும்", hOtherAge: "வேறு வயதுப் பிரிவு", hSetAge: "வயதுப் பிரிவைத் தெரிவு செய்யவும்",
       limits: "ஒருவருக்கான வரம்புகள்:", athletics: "தடகளம்", total: "மொத்தம்",
       Men: "ஆண்கள்", Women: "பெண்கள்",
+      title: "வீரரை முன்மொழியவும்", sub: "உள்நுழைவு தேவையில்லை · ஒவ்வொரு முன்மொழிவையும் அணிப் பட்டியலில் சேர்ப்பதற்கு முன் ஏற்பாட்டாளர் பரிசீலிப்பார்", langLabel: "மொழி:",
+      lEpf: "EPF எண்", phEpf: "முதலில்", lName: "முழுப் பெயர்", lGender: "பாலினம்", oFemale: "பெண்", oMale: "ஆண்", oOther: "மற்றவை",
+      lAge: "வயதுப் பிரிவு", oBelow30: "30 க்குக் கீழ்", lDept: "திணைக்களம்", phDept: "உதா: நிதி", lPhone: "தொலைபேசி", lBy: "முன்மொழிந்தவர்", phBy: "உங்கள் பெயர் (கட்டாயமில்லை)",
+      lSports: "விளையாட்டுகள்", bSend: "முன்மொழிவை அனுப்பு", bSave: "மாற்றங்களைச் சேமி", bCancel: "திருத்தத்தை ரத்துசெய்",
+      hMine: "உங்கள் முன்மொழிவுகள்", hMineSub: "(இந்த உலாவியில் மட்டுமே அவற்றை மாற்றவோ நீக்கவோ முடியும்)", bEdit: "திருத்து", bDelete: "நீக்கு", bConfirm: "உறுதிசெய்",
+      mineUpdate: "ஏற்கனவே உள்ள வீரருக்கான புதுப்பிப்பு", mineWaiting: "பரிசீலனைக்குக் காத்திருக்கிறது · அனுப்பியது {when}", noSports: "விளையாட்டுகள் இல்லை",
     },
   };
   let lang = "en"; try { lang = localStorage.getItem("hs.lang") || "en"; } catch (e) {}
@@ -1225,6 +1243,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   });
   function applyLang() {
     document.querySelectorAll(".lang-switch button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+    const sec = document.querySelector('section[data-view="propose"]');
+    sec.querySelectorAll("[data-i18n]").forEach((e) => { e.textContent = t(e.dataset.i18n); });
+    sec.querySelectorAll("[data-i18n-ph]").forEach((e) => { e.placeholder = t(e.dataset.i18nPh); });
+    sec.setAttribute("lang", lang);
+    $("prop-save").textContent = $("prop-id").value ? t("bSave") : t("bSend");
+    renderMine();
     renderSportChecks("prop");
     // re-word the EPF note without touching anything the visitor typed
     const ref = $("prop-ref").value.trim(), box = $("prop-found");
@@ -1242,7 +1266,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   function resetProp() {
     const by = $("prop-by").value; $("prop-form").reset(); $("prop-by").value = by; $("prop-id").value = "";
     $("prop-found").hidden = true; propLoadedRef = "";
-    $("prop-save").textContent = "Send proposal"; $("prop-cancel").hidden = true;
+    $("prop-save").textContent = t("bSend"); $("prop-cancel").hidden = true;
     $("prop-sports").querySelectorAll("input").forEach((i) => { i.checked = false; }); renderSportChecks("prop");
   }
   $("prop-cancel").onclick = resetProp;
@@ -1277,11 +1301,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("my-props").hidden = !list.length; if (!list.length) return;
     $("my-props-list").innerHTML = list.map((r) => {
       const evs = (r.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
-      return `<div class="mine-row"><div class="mine-main"><b>${esc(r.name)}</b> <span class="muted">${[r.ref ? "EPF " + r.ref : "", r.gender, r.age].filter(Boolean).map(esc).join(" · ")}</span>
-          <div>${evs.map((s) => `<span class="chip">${esc(sportLabel(s))}</span>`).join("") || '<span class="muted">No sports</span>'}</div>
-          <div class="sub">${playerByEpf(r.ref) ? "Update to an existing player · " : ""}Waiting for review · sent ${esc(fmtWhen(r.createdAt))}</div></div>
-        <div class="mine-btns"><button class="btn small" type="button" data-myedit="${esc(r.id)}">Edit</button>
-          <button class="btn small danger" type="button" data-mydel="${esc(r.id)}" data-label="Delete">Delete</button></div></div>`; }).join("");
+      const gLabel = { Female: t("oFemale"), Male: t("oMale"), Other: t("oOther") }[r.gender] || r.gender, aLabel = r.age === "Below 30" ? t("oBelow30") : r.age;
+      return `<div class="mine-row"><div class="mine-main"><b>${esc(r.name)}</b> <span class="muted">${[r.ref ? "EPF " + r.ref : "", gLabel, aLabel].filter(Boolean).map(esc).join(" · ")}</span>
+          <div>${evs.map((s) => `<span class="chip">${esc(sportLabel(s))}</span>`).join("") || `<span class="muted">${esc(t("noSports"))}</span>`}</div>
+          <div class="sub">${playerByEpf(r.ref) ? esc(t("mineUpdate")) + " · " : ""}${esc(t("mineWaiting", { when: fmtWhen(r.createdAt) }))}</div></div>
+        <div class="mine-btns"><button class="btn small" type="button" data-myedit="${esc(r.id)}">${esc(t("bEdit"))}</button>
+          <button class="btn small danger" type="button" data-mydel="${esc(r.id)}" data-label="${esc(t("bDelete"))}">${esc(t("bDelete"))}</button></div></div>`; }).join("");
   }
   function editMine(id) {
     const r = Store.mine().find((x) => x.id === id); if (!r) return;
@@ -1290,7 +1315,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     renderSportChecks("prop");
     $("prop-sports").querySelectorAll("input").forEach((i) => { i.checked = (r.sportIds || []).includes(i.value); });
     renderSportChecks("prop");
-    $("prop-save").textContent = "Save changes"; $("prop-cancel").hidden = false;
+    $("prop-save").textContent = t("bSave"); $("prop-cancel").hidden = false;
     $("prop-form").scrollIntoView({ behavior: "smooth", block: "start" }); $("prop-name").focus();
   }
   function renderReview() {
@@ -1348,7 +1373,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     document.querySelectorAll("button.confirming").forEach((x) => { if (x !== r && x !== md) { x.classList.remove("confirming"); x.textContent = x.dataset.label || "Reject"; } });
     if (me) { editMine(me.dataset.myedit); return; }
     if (md) {
-      if (!md.classList.contains("confirming")) { md.classList.add("confirming"); md.textContent = "Confirm"; return; }
+      if (!md.classList.contains("confirming")) { md.classList.add("confirming"); md.textContent = t("bConfirm"); return; }
       if ($("prop-id").value === md.dataset.mydel) resetProp();
       if (await Store.withdraw(md.dataset.mydel)) notice(t("deleted"), "ok");
       return;
