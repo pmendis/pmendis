@@ -91,6 +91,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .fs { font: 700 14px var(--font-display); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 6px; padding-top: 10px; border-top: 1px solid var(--line); }
 .fs small { font: 400 12px var(--font-body); text-transform: none; letter-spacing: 0; color: var(--muted); margin-left: 6px; }
 main.is-paused > section { display: none !important; }
+.xi-list { display: grid; grid-template-columns: 1fr; gap: 2px; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; margin-top: 4px; }
+.xi { display: flex; gap: 8px; align-items: center; text-transform: none; letter-spacing: 0; font: 400 14px var(--font-body); color: var(--ink); }
+.xi input { width: auto; }
 .btn.solid-bad { background: var(--bad); color: #fff; border-color: var(--bad); }
 .confirm-dlg { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); padding: 18px; max-width: min(380px, calc(100vw - 32px)); }
 .confirm-dlg::backdrop { background: rgba(0,0,0,.45); }
@@ -249,6 +252,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
     <div id="match-head"></div>
     <div id="scorer" hidden></div>
     <div id="scorecard"></div>
+    <div class="panel" id="xi-panel" hidden style="margin-top:14px"></div>
   </section>
 
   <!-- STATS -->
@@ -336,7 +340,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label>Team name<input id="tf-name" required maxlength="50" placeholder="e.g. Finance"></label>
           <label>Short name<input id="tf-short" maxlength="5" placeholder="FIN"></label>
         </div>
-        <label>Players <span style="text-transform:none;letter-spacing:0;font-weight:400">(one per line; existing players keep their stats)</span><textarea id="tf-players" placeholder="Kamal Perera&#10;Nimal Silva&#10;…"></textarea></label>
+        <label>Players <span style="text-transform:none;letter-spacing:0;font-weight:400">(one per line; add <b>(R)</b> after a reserve, e.g. "Kamal Perera (R)"; existing players keep their stats)</span><textarea id="tf-players" placeholder="Kamal Perera&#10;Nimal Silva&#10;…"></textarea></label>
         <div class="btns"><button class="btn primary" type="submit" id="tf-save">Add team</button><button class="btn" type="button" id="tf-cancel">Cancel</button></div>
       </form>
     </div>
@@ -630,6 +634,11 @@ const teamName = (id) => (team(id) || {}).name || "?";
 const teamShort = (id) => { const t = team(id) || {}; return t.short || (t.name || "?").slice(0, 3).toUpperCase(); };
 const player = (id) => Store.get("cr_players", id);
 const pname = (id) => (player(id) || {}).name || "?";
+// playing team for a match (picked at the toss); matches without a pick use the whole squad
+const playingOf = (m, tid) => { const ids = m && m.playing && m.playing[tid]; const sq = squad(tid); return Array.isArray(ids) ? sq.filter((p) => ids.includes(p.id)) : sq; };
+const isPlaying = (m, tid, pid) => playingOf(m, tid).some((p) => p.id === pid);
+// players a match already uses (they must stay in the playing team)
+const usedIn = (m) => { const u = new Set(); for (const inn of m.inns || []) { (inn.open || []).forEach((p) => u.add(p)); if (inn.openBowler) u.add(inn.openBowler); for (const e of inn.ev || []) [e.b, e.s, e.ns, e.nb, e.w && e.w.out].forEach((p) => p && u.add(p)); } return u; };
 const squad = (tid) => Store.list("cr_players").filter((p) => p.team === tid).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 const matches = () => Store.list("cr_matches").sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.createdAt || "").localeCompare(b.createdAt || ""));
 const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
@@ -906,6 +915,7 @@ function renderMatch() {
   $("match-head").innerHTML = head;
   const scorerOn = ed && m.status !== "done" && m.status !== "abandoned";
   $("scorer").hidden = !scorerOn; if (scorerOn) renderScorer(m); else if (ed && m.status === "done") renderDoneTools(m);
+  renderXiPanel(m, ed);
   $("scorecard").innerHTML = (m.inns || []).map((inn, i) => scorecardHtml(m, i)).reverse().join("") || `<div class="panel empty" style="margin-top:14px">Not started yet.</div>`;
 }
 function renderDoneTools(m) {
@@ -913,9 +923,9 @@ function renderDoneTools(m) {
   $("scorer").innerHTML = `<div class="panel" style="margin-top:14px"><div class="btns"><span class="muted">Scoring finished.</span><button class="btn small" type="button" id="sc-undo-done">Undo last ball and reopen</button></div></div>`;
   $("sc-undo-done").onclick = () => undoBall(m);
 }
-function dismissalText(bt) {
+function dismissalText(bt, m, fieldTeam) {
   if (!bt.out) return "not out";
-  const f = bt.fd ? pname(bt.fd) : "", b = bt.bw ? pname(bt.bw) : "";
+  const f = bt.fd ? (m && m.playing && fieldTeam && !isPlaying(m, fieldTeam, bt.fd) ? `sub (${pname(bt.fd)})` : pname(bt.fd)) : "", b = bt.bw ? pname(bt.bw) : "";
   switch (bt.how) {
     case "bowled": return `b ${b}`; case "lbw": return `lbw b ${b}`; case "hit wicket": return `hit wicket b ${b}`;
     case "caught": return bt.fd === bt.bw ? `c & b ${b}` : `c ${f} b ${b}`;
@@ -924,12 +934,12 @@ function dismissalText(bt) {
 }
 function scorecardHtml(m, i) {
   const inn = m.inns[i], st = replay(m, i), ex = st.ex, exT = ex.wd + ex.nb + ex.b + ex.lb;
-  const yetToBat = squad(inn.bat).filter((p) => !st.bat[p.id]);
+  const yetToBat = playingOf(m, inn.bat).filter((p) => !st.bat[p.id]);
   return `<div class="panel" style="margin-top:14px"><div class="panel-head"><h2>${esc(teamName(inn.bat))} innings <small>${i === 0 ? "1st" : "2nd"} innings</small></h2>
     <div style="font:800 22px var(--font-display)">${scoreStr(st)} <span class="muted" style="font-size:15px">(${oversStr(st.legal, st.bpo)} ov)</span></div></div>
     <div class="table-wrap"><table><thead><tr><th>Batter</th><th></th><th class="num">R</th><th class="num">B</th><th class="num">4s</th><th class="num">6s</th><th class="num">SR</th></tr></thead><tbody>
     ${st.order.map((pid) => { const b = st.bat[pid]; const on = !b.out && (pid === st.s || pid === st.ns) && !inningsDone(m, i, st);
-      return `<tr><td><b>${esc(pname(pid))}</b>${on && pid === st.s ? " *" : ""}</td><td class="sub">${b.out ? esc(dismissalText(b)) : on ? "batting" : "not out"}</td><td class="num"><b>${b.r}</b></td><td class="num">${b.b}</td><td class="num">${b.f4}</td><td class="num">${b.f6}</td><td class="num">${sr(b.r, b.b)}</td></tr>`; }).join("")}
+      return `<tr><td><b>${esc(pname(pid))}</b>${on && pid === st.s ? " *" : ""}</td><td class="sub">${b.out ? esc(dismissalText(b, m, inn.bowl)) : on ? "batting" : "not out"}</td><td class="num"><b>${b.r}</b></td><td class="num">${b.b}</td><td class="num">${b.f4}</td><td class="num">${b.f6}</td><td class="num">${sr(b.r, b.b)}</td></tr>`; }).join("")}
     <tr><td>Extras</td><td class="sub">wd ${ex.wd}, nb ${ex.nb}, b ${ex.b}, lb ${ex.lb}</td><td class="num"><b>${exT}</b></td><td colspan="4"></td></tr>
     <tr><td><b>Total</b></td><td class="sub">${st.wk} wkt${st.wk === 1 ? "" : "s"}, ${oversStr(st.legal, st.bpo)} overs</td><td class="num"><b>${st.runs}</b></td><td colspan="4" class="sub">RR ${st.legal ? (st.runs * st.bpo / st.legal).toFixed(2) : "–"}</td></tr>
     </tbody></table></div>
@@ -954,6 +964,8 @@ async function reassignMatch(m, name) {
   try { await Store.fb.collection("cr_matches").doc(m.id).update({ createdBy: to }); notice(`Match handed to ${scorerName(to)}.`, "ok"); }
   catch (e) { notice("Couldn't reassign (" + (e && e.code || "error") + "). Check the Firestore rules are published.", "bad"); }
 }
+// toss form: tick the non-reserves first, up to players-per-side
+function xiDefault(m, tid) { const xi = m.xi || 11, sq = squad(tid); return [...sq.filter((p) => !p.reserve), ...sq.filter((p) => p.reserve)].slice(0, xi).map((p) => p.id); }
 async function saveMatch(m, patch) { const { id, ...rest } = m; return Store.put("cr_matches", id, { ...rest, ...patch }); }
 function renderScorer(m) {
   const box = $("scorer"), inns = m.inns || [], ci = inns.length - 1;
@@ -968,6 +980,8 @@ function renderScorer(m) {
         ${second ? `<div class="sub">${esc(teamName(batT))} bat · ${esc(teamName(bowlT))} bowl</div>` : `<div class="row2">
           <label>Toss won by<select id="sf-toss" required><option value="">Choose…</option><option value="${esc(m.a)}">${esc(teamName(m.a))}</option><option value="${esc(m.b)}">${esc(teamName(m.b))}</option></select></label>
           <label>Chose to<select id="sf-chose"><option value="bat">Bat</option><option value="bowl">Bowl</option></select></label></div>`}
+        ${second ? "" : `<div class="row2" style="margin-top:6px">${[m.a, m.b].map((tid) => `<div><div class="sub" style="font-weight:700;color:var(--ink)">${esc(teamName(tid))} · playing team <span id="sf-cnt-${esc(tid)}"></span></div>
+          <div class="xi-list">${squad(tid).map((p) => `<label class="xi"><input type="checkbox" data-xi="${esc(tid)}" value="${esc(p.id)}" ${xiDefault(m, tid).includes(p.id) ? "checked" : ""}> ${esc(p.name)}${p.reserve ? ' <span class="sub">(R)</span>' : ""}</label>`).join("")}</div></div>`).join("")}</div>`}
         <div class="row3">
           <label>Striker<select id="sf-s" required></select></label>
           <label>Non-striker<select id="sf-ns" required></select></label>
@@ -980,11 +994,14 @@ function renderScorer(m) {
       if (!second) { const tw = $("sf-toss").value, ch = $("sf-chose").value; if (!tw) { bt = bwT = null; } else { bt = ch === "bat" ? tw : (tw === m.a ? m.b : m.a); bwT = bt === m.a ? m.b : m.a; } }
       const keep = (id) => $(id).value;
       const s = keep("sf-s"), ns = keep("sf-ns"), b = keep("sf-b");
-      $("sf-s").innerHTML = playerOptions(bt ? squad(bt) : [], s); $("sf-ns").innerHTML = playerOptions(bt ? squad(bt) : [], ns); $("sf-b").innerHTML = playerOptions(bwT ? squad(bwT) : [], b);
+      const pick = (tid) => !tid ? [] : second ? playingOf(m, tid) : squad(tid).filter((p) => ticked(tid).includes(p.id));
+      if (!second) for (const tid of [m.a, m.b]) { const n = ticked(tid).length; $("sf-cnt-" + tid).textContent = `(${n}/${m.xi || 11})`; $("sf-cnt-" + tid).style.color = n > (m.xi || 11) || n < 2 ? "var(--bad)" : ""; }
+      $("sf-s").innerHTML = playerOptions(pick(bt), s); $("sf-ns").innerHTML = playerOptions(pick(bt), ns); $("sf-b").innerHTML = playerOptions(pick(bwT), b);
       return [bt, bwT];
     };
+    const ticked = (tid) => [...box.querySelectorAll(`[data-xi="${tid}"]:checked`)].map((c) => c.value);
     fill();
-    if (!second) { $("sf-toss").onchange = fill; $("sf-chose").onchange = fill; }
+    if (!second) { $("sf-toss").onchange = fill; $("sf-chose").onchange = fill; box.querySelectorAll("[data-xi]").forEach((c) => c.onchange = fill); }
     if (second) $("sf-undo").onclick = () => undoBall(m);
     $("start-form").onsubmit = async (ev) => {
       ev.preventDefault();
@@ -992,6 +1009,10 @@ function renderScorer(m) {
       if (!bt || !s || !ns || !b) { notice("Choose the toss result, both openers and the bowler.", "bad"); return; }
       if (s === ns) { notice("Striker and non-striker must be different players.", "bad"); return; }
       const patch = { inns: [...inns, { bat: bt, bowl: bwT, open: [s, ns], openBowler: b, ev: [] }], status: "live" };
+      if (!second) {
+        for (const tid of [m.a, m.b]) { const n = ticked(tid).length; if (n < 2 || n > (m.xi || 11)) { notice(`${teamName(tid)}: pick between 2 and ${m.xi || 11} players for the playing team (now ${n}).`, "bad"); return; } }
+        patch.playing = { [m.a]: ticked(m.a), [m.b]: ticked(m.b) };
+      }
       if (!second) patch.toss = { winner: $("sf-toss").value, chose: $("sf-chose").value };
       await saveMatch(m, patch);
     };
@@ -1004,10 +1025,10 @@ function renderScorer(m) {
     const mob = limOf(m, "mob"), mxb = limOf(m, "mxb"), used = Object.keys(st.bowl);
     const oversBy = (pid) => Math.floor(((st.bowl[pid] || {}).balls || 0) / st.bpo);
     const allowed = (p) => p.id !== st.lastOverBowler && (!mob || oversBy(p.id) < mob) && (!mxb || used.length < mxb || used.includes(p.id));
-    let opts = squad(inn.bowl).filter(allowed), limitNote = "";
+    let opts = playingOf(m, inn.bowl).filter(allowed), limitNote = "";
     if (mob || mxb) limitNote = `<div class="sub" style="margin:-4px 0 8px">Limits: ${[mob ? `max ${mob} over${mob === 1 ? "" : "s"} per bowler` : "", mxb ? `max ${mxb} bowlers (${used.length} used)` : ""].filter(Boolean).join(" · ")}</div>`;
     if (!opts.length) { // limits can't be met (e.g. too few bowlers left): let the scorer choose anyone but the last bowler
-      opts = squad(inn.bowl).filter((p) => p.id !== st.lastOverBowler);
+      opts = playingOf(m, inn.bowl).filter((p) => p.id !== st.lastOverBowler);
       limitNote += `<div class="sub" style="color:var(--bad);margin:0 0 8px">No bowler is left within the limits. Choose any bowler; check with the umpires.</div>`;
     }
     box.innerHTML = `<div class="panel" style="margin-top:14px"><h2>Over ${Math.floor(st.legal / st.bpo) + 1} <small>choose the bowler (not ${esc(pname(st.lastOverBowler))}, who bowled the last over)</small></h2>${limitNote}
@@ -1063,12 +1084,12 @@ function drawSheet(m, st, inn) {
   if (k === "w") {
     const kind = sheet.kind || "bowled", needF = kind === "caught" || kind === "run out" || kind === "stumped";
     const last = st.wk + 1 >= (m.xi || 11) - 1;
-    const avail = squad(inn.bat).filter((p) => !st.bat[p.id]);
+    const avail = playingOf(m, inn.bat).filter((p) => !st.bat[p.id]);
     const outOpts = kind === "run out" ? [st.s, st.ns] : [st.s];
     host.innerHTML = `<div class="sheet"><b>Wicket</b>${opts(DISMISSALS, "kind", kind)}
       <div class="row2">
         <label>Who is out<select id="w-out">${outOpts.map((p) => `<option value="${esc(p)}" ${p === (sheet.out || st.s) ? "selected" : ""}>${esc(pname(p))}${p === st.s ? " (striker)" : " (non-striker)"}</option>`).join("")}</select></label>
-        ${needF ? `<label>${kind === "caught" ? "Caught by" : kind === "stumped" ? "Stumped by" : "Fielder"}<select id="w-f">${playerOptions(squad(inn.bowl), sheet.f || "", kind === "caught" ? "Choose fielder…" : "Choose…")}</select></label>` : "<span></span>"}
+        ${needF ? `<label>${kind === "caught" ? "Caught by" : kind === "stumped" ? "Stumped by" : "Fielder"}<select id="w-f">${playerOptions(squad(inn.bowl).map((p) => isPlaying(m, inn.bowl, p.id) ? p : { ...p, name: p.name + " (sub)" }), sheet.f || "", kind === "caught" ? "Choose fielder…" : "Choose…")}</select></label>` : "<span></span>"}
       </div>
       ${kind === "run out" ? `<span class="sub">runs completed before the run-out</span>${opts([0, 1, 2, 3], "r", sheet.r ?? 0)}` : ""}
       ${last ? `<span class="sub">This is the last wicket: the innings will end.</span>` : `<label>Next batter<select id="w-nb">${playerOptions(avail, sheet.nb || "")}</select></label>`}
@@ -1125,13 +1146,37 @@ function renderStats() {
     `<tr><td>${i + 1}</td><td><b>${esc(pname(p.pid))}</b> ${tag(p.pid)}</td><td class="num hl">${p.pts}</td><td class="num">${p.r}</td><td class="num">${p.w}</td><td class="num">${p.ct + p.ro + p.stp}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Nothing yet.</div>`;
 }
 
+/* ----- playing teams on the match page (and changing them mid-match) ----- */
+function renderXiPanel(m, ed) {
+  const p = $("xi-panel"); p.hidden = !m.playing; if (!m.playing) return;
+  p.innerHTML = `<div class="panel-head"><h2>Playing teams</h2>${ed && m.status !== "done" ? '<button class="btn small" type="button" id="xi-edit">Change</button>' : ""}</div>` +
+    [m.a, m.b].map((tid) => { const pl = playingOf(m, tid), res = squad(tid).filter((x) => !pl.some((y) => y.id === x.id));
+      return `<div style="margin-bottom:6px"><b>${esc(teamName(tid))}</b> <span class="sub">(${pl.length})</span><div class="sub">${pl.map((x) => esc(x.name)).join(" · ")}</div>${res.length ? `<div class="sub"><b>Reserves:</b> ${res.map((x) => esc(x.name)).join(" · ")}</div>` : ""}</div>`; }).join("");
+  const b = $("xi-edit"); if (b) b.onclick = () => openXiDialog(m);
+}
+const xiDlg = document.createElement("dialog"); xiDlg.className = "confirm-dlg"; document.body.appendChild(xiDlg);
+function openXiDialog(m) {
+  const used = usedIn(m);
+  xiDlg.innerHTML = `<h3>Change playing teams</h3><p>Players who have already batted or bowled stay in. Up to ${m.xi || 11} per side.</p>` +
+    [m.a, m.b].map((tid) => `<div class="sub" style="font-weight:700;color:var(--ink);margin-top:8px">${esc(teamName(tid))}</div><div class="xi-list">${squad(tid).map((x) => `<label class="xi"><input type="checkbox" data-xd="${esc(tid)}" value="${esc(x.id)}" ${isPlaying(m, tid, x.id) ? "checked" : ""} ${used.has(x.id) ? "disabled" : ""}> ${esc(x.name)}${x.reserve ? ' <span class="sub">(R)</span>' : ""}</label>`).join("")}</div>`).join("") +
+    `<div class="btns" style="margin-top:12px"><button class="btn" type="button" value="no">Cancel</button><button class="btn primary" type="button" value="yes">Save</button></div>`;
+  xiDlg.showModal();
+  xiDlg.querySelector('[value="no"]').onclick = () => xiDlg.close();
+  xiDlg.querySelector('[value="yes"]').onclick = async () => {
+    const pick = {}; for (const tid of [m.a, m.b]) { pick[tid] = [...xiDlg.querySelectorAll(`[data-xd="${tid}"]`)].filter((c) => c.checked).map((c) => c.value);
+      if (pick[tid].length < 2 || pick[tid].length > (m.xi || 11)) { notice(`${teamName(tid)}: pick between 2 and ${m.xi || 11} players (now ${pick[tid].length}).`, "bad"); return; } }
+    xiDlg.close(); const cur = Store.get("cr_matches", m.id) || m; if (await saveMatch(cur, { playing: pick })) notice("Playing teams updated.", "ok");
+  };
+}
+
 /* ============================== teams ============================== */
 function renderTeams() {
   const ed = Store.can("teams"), T = teams();
   $("team-list").innerHTML = T.length ? T.map((t) => { const sq = squad(t.id);
     return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="panel-head" style="margin:0"><div><b style="font-size:15px">${esc(t.name)}</b> <span class="chip">${esc(teamShort(t.id))}</span> <span class="sub">${sq.length} player${sq.length === 1 ? "" : "s"}</span></div>
       ${ed ? `<div class="btns"><button class="btn small" type="button" data-tedit="${esc(t.id)}">Edit</button><button class="btn small danger" type="button" data-del="cr_teams:${esc(t.id)}">Delete</button></div>` : ""}</div>
-      <div class="sub" style="margin-top:4px">${sq.map((p) => esc(p.name)).join(" · ") || "No players yet."}</div></div>`; }).join("")
+      <div class="sub" style="margin-top:4px">${sq.filter((p) => !p.reserve).map((p) => esc(p.name)).join(" · ") || "No players yet."}</div>
+      ${sq.some((p) => p.reserve) ? `<div class="sub" style="margin-top:2px"><b>Reserves:</b> ${sq.filter((p) => p.reserve).map((p) => esc(p.name)).join(" · ")}</div>` : ""}</div>`; }).join("")
     : `<div class="empty">No teams yet.${ed ? " Use <b>+ Add team</b>." : ""}</div>`;
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-tedit]"); if (b) openTeam(b.dataset.tedit); });
@@ -1139,7 +1184,7 @@ $("team-add").onclick = () => openTeam(null);
 $("tf-cancel").onclick = () => { $("team-form-panel").hidden = true; };
 function openTeam(id) {
   const t = id ? team(id) : null; $("team-form").reset(); $("tf-id").value = id || "";
-  if (t) { $("tf-name").value = t.name; $("tf-short").value = t.short || ""; $("tf-players").value = squad(id).map((p) => p.name).join("\n"); }
+  if (t) { $("tf-name").value = t.name; $("tf-short").value = t.short || ""; $("tf-players").value = squad(id).map((p) => p.name + (p.reserve ? " (R)" : "")).join("\n"); }
   $("tf-title").textContent = t ? "Edit team" : "Add team"; $("tf-save").textContent = t ? "Save changes" : "Add team";
   $("team-form-panel").hidden = false; window.scrollTo({ top: 0, behavior: "smooth" }); $("tf-name").focus();
 }
@@ -1149,10 +1194,14 @@ $("team-form").addEventListener("submit", async (ev) => {
   if (teams().some((t) => t.id !== id && nameKey(t.name) === nameKey(name))) { notice(`"${name}" already exists.`, "bad"); return; }
   if (!(await Store.put("cr_teams", id, { name, short: $("tf-short").value.trim().toUpperCase() }))) return;
   // squad: keep existing players by name (their stats stay), add new ones, remove names deleted from the list if they never played
-  const want = [...new Set($("tf-players").value.split("\n").map((s) => s.trim().replace(/\s+/g, " ")).filter(Boolean))];
+  const lines = $("tf-players").value.split("\n").map((s) => s.trim().replace(/\s+/g, " ")).filter(Boolean);
+  const resv = new Set(), want = [];
+  for (const l of lines) { const r = /\s*\((r|reserve)\)\s*$/i.test(l), n = l.replace(/\s*\((r|reserve)\)\s*$/i, "").trim(); if (!n || want.some((w) => nameKey(w) === nameKey(n))) continue; want.push(n); if (r) resv.add(nameKey(n)); }
   const have = squad(id), used = new Set();
   for (const m of matches()) for (const inn of m.inns || []) { (inn.open || []).forEach((p) => used.add(p)); if (inn.openBowler) used.add(inn.openBowler); for (const e of inn.ev || []) [e.b, e.s, e.ns, e.nb, e.w && e.w.out, e.w && e.w.f].forEach((p) => p && used.add(p)); }
-  for (const n of want) if (!have.some((p) => nameKey(p.name) === nameKey(n))) await Store.put("cr_players", uid(), { name: n, team: id });
+  for (const n of want) { const ex = have.find((p) => nameKey(p.name) === nameKey(n)), r = resv.has(nameKey(n));
+    if (!ex) await Store.put("cr_players", uid(), { name: n, team: id, reserve: r });
+    else if (!!ex.reserve !== r) { const { id: pid, ...rest } = ex; await Store.put("cr_players", pid, { ...rest, reserve: r }); } }
   let kept = 0;
   for (const p of have) if (!want.some((n) => nameKey(n) === nameKey(p.name))) { if (used.has(p.id)) kept++; else await Store.remove("cr_players", p.id); }
   $("team-form-panel").hidden = true;
