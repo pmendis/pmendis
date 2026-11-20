@@ -101,7 +101,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 .group-title { font: 700 13px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 12px 0 2px; }
 
 /* scoreboard */
-.board { background: var(--pitch); color: var(--pitch-ink); border-radius: var(--r); padding: 8px 12px; display: grid; gap: 4px; }
+.board { background: var(--pitch); color: var(--pitch-ink); border-radius: var(--r); padding: 8px 12px; display: grid; gap: 4px;  position: sticky; top: calc(var(--tabs-h, 44px) + env(safe-area-inset-top, 0px)); z-index: 4; box-shadow: 0 6px 12px -8px rgba(0,0,0,.45); }
 .board .top { display: flex; flex-wrap: wrap; gap: 0 10px; align-items: baseline; }
 .board .top b { font: 700 16px var(--font-display); text-transform: uppercase; letter-spacing: .02em; }
 .board .top .meta { font-size: 12px; opacity: .8; }
@@ -498,6 +498,8 @@ function route() {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === view || (view === "match" && b.dataset.tab === "matches"))));
   render();
 }
+const setTabsH = () => document.documentElement.style.setProperty("--tabs-h", document.querySelector("nav.tabs").offsetHeight + "px");
+setTabsH(); addEventListener("resize", setTabsH);
 document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
 window.addEventListener("hashchange", route);
 $("back-matches").onclick = () => go("matches");
