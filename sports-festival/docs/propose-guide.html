@@ -45,6 +45,38 @@
   .si ol li { font-size: 11.2pt; line-height: 1.55; }
   .si .tips { font-size: 10.6pt; padding: 5mm 6mm; }
   footer { margin: 6mm 16mm 10mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 3mm; }
+  .shots { margin: 6mm 16mm 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; align-items: start; }
+  .shots figure { margin: 0; }
+  .shots img { width: 100%; max-height: 64mm; object-fit: contain; object-position: top; display: block; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 8px rgba(20,27,43,.12); background: #fff; }
+  .shots figcaption { margin-top: 2mm; font-size: 9pt; line-height: 1.35; color: var(--muted); text-align: center; }
+  /* make room for the screenshots */
+  ol { margin-top: 5mm; gap: 2.6mm; }
+  ol li { font-size: 10.2pt; line-height: 1.45; grid-template-columns: 8mm 1fr; gap: 3mm; }
+  ol li::before { width: 8mm; height: 8mm; font-size: 11pt; }
+  .tips { padding: 3.5mm 5mm; font-size: 9.4pt; line-height: 1.45; }
+  .tips h2 { font-size: 11pt; margin-bottom: 1mm; }
+  header { padding: 9mm 16mm 6mm; }
+  .en header h1 { font-size: 28pt; margin: 2mm 0 1mm; }
+  .link { margin-top: 5mm; padding: 3mm 5mm; }
+  footer { margin: 4mm 16mm 7mm; }
+  /* Sinhala and Tamil are taller scripts: compact them so each language stays on one A4 page */
+  .si header, .ta header { padding: 8mm 16mm 5mm; }
+  .si header h1, .ta header h1 { font-size: 18pt; margin: 2mm 0 1mm; }
+  .si header p, .ta header p { font-size: 10pt; }
+  .si .link, .ta .link { margin-top: 4mm; }
+  .si .link .url, .ta .link .url { font-size: 15pt; }
+  .si .shots, .ta .shots { margin-top: 4mm; }
+  .si .shots img, .ta .shots img { max-height: 54mm; }
+  .si .shots figcaption, .ta .shots figcaption { font-size: 8.4pt; }
+  .si ol, .ta ol { margin-top: 4mm; gap: 1.8mm; }
+  .si ol li, .ta ol li { font-size: 9.6pt; line-height: 1.42; }
+  .si .limits span, .ta .limits span { font-size: 9pt; }
+  .si .limits, .ta .limits { margin-top: 1mm; }
+  .si .tips, .ta .tips { font-size: 8.9pt; line-height: 1.4; padding: 3mm 5mm; }
+  .si footer, .ta footer { margin: 3mm 16mm 6mm; }
+  .si .shots img { max-height: 62mm; }
+  .si ol { gap: 2.8mm; }
+  .si ol li { font-size: 10.2pt; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -61,6 +93,7 @@
     <div><div class="lbl">මෙම සබැඳිය විවෘත කරන්න</div><div class="url">pmendis.github.io/pmendis</div></div>
     <div class="no">ලොග් වීම අවශ්‍ය නැත</div>
   </div>
+  <div class="shots"><figure><img src="shot-1-epf.png" alt=""><figcaption>පියවර 2 · EPF අංකය ඇතුළත් කළ විට විස්තර පිරවේ</figcaption></figure><figure><img src="shot-2-sports.png" alt=""><figcaption>පියවර 4–5 · ක්‍රීඩා ටික් කර යවන්න</figcaption></figure><figure><img src="shot-3-mine.png" alt=""><figcaption>පියවර 6 · ඔබේ යෝජනා</figcaption></figure></div>
   <ol>
     <li><div>ඔබේ දුරකථනයෙන් ඉහත සබැඳිය විවෘත කරන්න. <span class="tag">Propose</span> පිටුව මුලින්ම විවෘත වේ.</div></li>
     <li><div>පළමුවෙන්ම ඔබේ <b>EPF අංකය</b> ඇතුළත් කරන්න. ඔබ දැනටමත් ලැයිස්තුවේ සිටී නම්, ඔබේ විස්තර ස්වයංක්‍රීයව පිරවේ. වෙනස් කළ යුතු දේ පමණක් වෙනස් කරන්න.</div></li>
@@ -94,6 +127,7 @@
     <div><div class="lbl">இந்த இணைப்பைத் திறக்கவும்</div><div class="url">pmendis.github.io/pmendis</div></div>
     <div class="no">உள்நுழைவு தேவையில்லை</div>
   </div>
+  <div class="shots"><figure><img src="shot-1-epf.png" alt=""><figcaption>படி 2 · EPF உள்ளிட்டதும் விவரங்கள் நிரம்பும்</figcaption></figure><figure><img src="shot-2-sports.png" alt=""><figcaption>படி 4–5 · விளையாட்டுகளைத் தெரிவு செய்து அனுப்பவும்</figcaption></figure><figure><img src="shot-3-mine.png" alt=""><figcaption>படி 6 · உங்கள் முன்மொழிவுகள்</figcaption></figure></div>
   <ol>
     <li><div>உங்கள் கைபேசியில் மேலே உள்ள இணைப்பைத் திறக்கவும். <span class="tag">Propose</span> பக்கம் முதலில் திறக்கும்.</div></li>
     <li><div>முதலில் உங்கள் <b>EPF எண்ணை</b> உள்ளிடவும். நீங்கள் ஏற்கனவே பட்டியலில் இருந்தால், உங்கள் விவரங்கள் தானாக நிரப்பப்படும். மாற்ற வேண்டியவற்றை மட்டும் மாற்றவும்.</div></li>
@@ -127,6 +161,7 @@
     <div><div class="lbl">Open this link</div><div class="url">pmendis.github.io/pmendis</div></div>
     <div class="no">No login needed</div>
   </div>
+  <div class="shots"><figure><img src="shot-1-epf.png" alt=""><figcaption>Step 2 · enter EPF, your details load</figcaption></figure><figure><img src="shot-2-sports.png" alt=""><figcaption>Steps 4–5 · tick sports and send</figcaption></figure><figure><img src="shot-3-mine.png" alt=""><figcaption>Step 6 · your proposals</figcaption></figure></div>
   <ol>
     <li><div>Open the link above on your phone. The <span class="tag">Propose</span> page opens first.</div></li>
     <li><div>Enter your <b>EPF number</b> first. If you are already on the list, your details fill in automatically. Change only what needs changing.</div></li>
