@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How to propose a player</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Inter:wght@400;600;700&family=Barlow+Condensed:wght@700;800&display=swap">
+<style>
+  @page { size: A4; margin: 0; }
+  :root { --navy: #1f3a68; --clay: #e2531b; --ink: #141b2b; --muted: #5b6577; --line: #dce1ea; --tint: #f3f5f8; --ok: #1d7a4a; --okbg: #e3f4ea; }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--ink); background: #fff; font-family: "Inter", "Noto Sans Sinhala", "Noto Sans Tamil", sans-serif; }
+  .page { width: 210mm; height: 297mm; padding: 0; display: flex; flex-direction: column; page-break-after: always; overflow: hidden; }
+  .page:last-child { page-break-after: auto; }
+  .si { font-family: "Noto Sans Sinhala", "Inter", sans-serif; }
+  .ta { font-family: "Noto Sans Tamil", "Inter", sans-serif; }
+  header { background: var(--navy); color: #f3f6fb; padding: 14mm 16mm 10mm; position: relative; }
+  header .lang { position: absolute; top: 9mm; right: 16mm; font: 700 11pt "Inter", sans-serif; letter-spacing: .08em; background: rgba(255,255,255,.14); padding: 3px 10px; border-radius: 99px; }
+  header .eyebrow { font: 600 9pt "Inter", sans-serif; letter-spacing: .16em; text-transform: uppercase; opacity: .8; }
+  header h1 { margin: 4mm 0 2mm; font-size: 25pt; line-height: 1.2; font-weight: 700; }
+  .en header h1 { font-family: "Barlow Condensed", "Inter", sans-serif; font-size: 34pt; text-transform: uppercase; letter-spacing: .01em; }
+  header p { margin: 0; font-size: 11.5pt; opacity: .92; }
+  .link { margin: 8mm 16mm 0; border: 2px solid var(--clay); border-radius: 10px; padding: 4mm 6mm; display: flex; align-items: center; gap: 6mm; }
+  .link .lbl { font-size: 10pt; color: var(--muted); }
+  .link .url { font: 700 17pt "Inter", sans-serif; color: var(--clay); letter-spacing: .01em; }
+  .link .no { margin-left: auto; text-align: right; font-size: 10pt; color: var(--ok); background: var(--okbg); padding: 2mm 3.5mm; border-radius: 6px; font-weight: 600; max-width: 55mm; }
+  ol { list-style: none; counter-reset: s; margin: 7mm 16mm 0; padding: 0; display: grid; gap: 4.2mm; }
+  ol li { counter-increment: s; display: grid; grid-template-columns: 10mm 1fr; gap: 4mm; font-size: 11.5pt; line-height: 1.55; }
+  ol li::before { content: counter(s); width: 10mm; height: 10mm; border-radius: 50%; background: var(--navy); color: #fff; font: 700 13pt "Inter", sans-serif; display: grid; place-items: center; }
+  ol li b { font-weight: 700; }
+  .btn { display: inline-block; font: 600 10pt "Inter", sans-serif; background: var(--clay); color: #fff; padding: 0 7px; border-radius: 4px; white-space: nowrap; }
+  .tag { display: inline-block; font: 600 10pt "Inter", sans-serif; border: 1px solid var(--line); background: var(--tint); padding: 0 6px; border-radius: 4px; white-space: nowrap; }
+  .limits { margin-top: 2mm; display: flex; flex-wrap: wrap; gap: 2mm; }
+  .limits span { font-size: 10pt; background: var(--tint); border: 1px solid var(--line); border-radius: 99px; padding: 1px 9px; }
+  .tips { margin: auto 16mm 0; background: #fdf0d9; border-radius: 10px; padding: 5mm 6mm; font-size: 10.5pt; line-height: 1.55; }
+  .tips h2 { margin: 0 0 2mm; font-size: 12pt; color: #9a5b00; }
+  .tips ul { margin: 0; padding-left: 5mm; }
+  /* Sinhala and Tamil script runs longer: tighten so each stays on one A4 page */
+  .si header, .ta header { padding: 11mm 16mm 8mm; }
+  .si header h1, .ta header h1 { font-size: 21pt; margin: 3mm 0 1.5mm; }
+  .si ol, .ta ol { gap: 3mm; margin-top: 6mm; }
+  .si ol li, .ta ol li { font-size: 10.4pt; line-height: 1.5; }
+  .si .tips, .ta .tips { font-size: 9.8pt; padding: 4mm 5mm; }
+  .si .link, .ta .link { margin-top: 6mm; }
+  .si ol { gap: 4mm; margin-top: 7mm; }
+  .si ol li { font-size: 11.2pt; line-height: 1.55; }
+  .si .tips { font-size: 10.6pt; padding: 5mm 6mm; }
+  footer { margin: 6mm 16mm 10mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 3mm; }
+</style>
+</head>
+<body>
+
+<!-- ============ SINHALA ============ -->
+<section class="page si" lang="si">
+  <header>
+    <span class="lang">සිංහල</span>
+    <div class="eyebrow">Inter-Department Sports Festival</div>
+    <h1>ක්‍රීඩා සඳහා ඔබේ නම යෝජනා කරන ආකාරය</h1>
+    <p>අන්තර් දෙපාර්තමේන්තු ක්‍රීඩා උළෙල · ලොග් වීමක් හෝ මුරපදයක් අවශ්‍ය නැත</p>
+  </header>
+  <div class="link">
+    <div><div class="lbl">මෙම සබැඳිය විවෘත කරන්න</div><div class="url">pmendis.github.io/pmendis</div></div>
+    <div class="no">ලොග් වීම අවශ්‍ය නැත</div>
+  </div>
+  <ol>
+    <li><div>ඔබේ දුරකථනයෙන් ඉහත සබැඳිය විවෘත කරන්න. <span class="tag">Propose</span> පිටුව මුලින්ම විවෘත වේ.</div></li>
+    <li><div>පළමුවෙන්ම ඔබේ <b>EPF අංකය</b> ඇතුළත් කරන්න. ඔබ දැනටමත් ලැයිස්තුවේ සිටී නම්, ඔබේ විස්තර ස්වයංක්‍රීයව පිරවේ. වෙනස් කළ යුතු දේ පමණක් වෙනස් කරන්න.</div></li>
+    <li><div><b>සම්පූර්ණ නම</b>, <b>ස්ත්‍රී/පුරුෂ භාවය</b> (Gender) සහ <b>වයස් කාණ්ඩය</b> (Age category) ඇතුළත් කරන්න. මේවා අනිවාර්යයි. ඔබේ දෙපාර්තමේන්තුව සහ දුරකථන අංකයද එක් කරන්න.</div></li>
+    <li><div>ඔබට සහභාගී වීමට අවශ්‍ය <b>ක්‍රීඩා ටික් කරන්න</b>. අළු පැහැයෙන් ඇති ක්‍රීඩා ඔබේ වයස් කාණ්ඩයට හෝ ස්ත්‍රී/පුරුෂ භාවයට අදාළ නැත, නැතහොත් කණ්ඩායම දැනටමත් පිරී ඇත.
+      <div class="limits"><span>Track &amp; Field උපරිම 3</span><span>Relay උපරිම 2</span><span>අනෙකුත් කණ්ඩායම්/තනි ක්‍රීඩා උපරිම 3</span></div></div></li>
+    <li><div><span class="btn">Send proposal</span> බොත්තම ඔබන්න. ඔබේ යෝජනාව ලැබුණු බව පණිවිඩයකින් දැනුම් දෙනු ඇත.</div></li>
+    <li><div>ඔබේ යෝජනාව <span class="tag">Your proposals</span> යටතේ පෙනේ. සංවිධායකවරයා සලකා බලන තුරු <b>Edit</b> මගින් වෙනස් කිරීමට හෝ <b>Delete</b> මගින් ඉවත් කිරීමට ඔබට හැකිය.</div></li>
+    <li><div>සංවිධායකවරයා පිළිගත් පසු ඔබේ නම කණ්ඩායම් ලැයිස්තුවට <b>Proposed</b> ලෙස එක් වේ. අවසාන කණ්ඩායමට තෝරාගත් විට <b>Confirmed</b> ලෙස සලකුණු වේ.</div></li>
+  </ol>
+  <div class="tips">
+    <h2>සැලකිය යුතුයි</h2>
+    <ul>
+      <li>යෝජනාව පසුව වෙනස් කිරීමට <b>එකම දුරකථනය සහ එකම බ්‍රවුසරය</b> භාවිත කරන්න. Incognito / Private window භාවිත නොකරන්න.</li>
+      <li>එකම EPF අංකයෙන් නැවත යෝජනා කිරීමට අවශ්‍ය නැත. EPF අංකය ඇතුළත් කළ විට ඔබේ පෙර යෝජනාව විවෘත වේ.</li>
+      <li>ගැටලුවක් ඇත්නම් ඔබේ දෙපාර්තමේන්තුවේ ක්‍රීඩා සංවිධායකවරයා අමතන්න.</li>
+    </ul>
+  </div>
+  <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
+</section>
+
+<!-- ============ TAMIL ============ -->
+<section class="page ta" lang="ta">
+  <header>
+    <span class="lang">தமிழ்</span>
+    <div class="eyebrow">Inter-Department Sports Festival</div>
+    <h1>விளையாட்டுகளுக்கு உங்கள் பெயரை முன்மொழிவது எப்படி</h1>
+    <p>திணைக்களங்களுக்கிடையிலான விளையாட்டு விழா · உள்நுழைவோ கடவுச்சொல்லோ தேவையில்லை</p>
+  </header>
+  <div class="link">
+    <div><div class="lbl">இந்த இணைப்பைத் திறக்கவும்</div><div class="url">pmendis.github.io/pmendis</div></div>
+    <div class="no">உள்நுழைவு தேவையில்லை</div>
+  </div>
+  <ol>
+    <li><div>உங்கள் கைபேசியில் மேலே உள்ள இணைப்பைத் திறக்கவும். <span class="tag">Propose</span> பக்கம் முதலில் திறக்கும்.</div></li>
+    <li><div>முதலில் உங்கள் <b>EPF எண்ணை</b> உள்ளிடவும். நீங்கள் ஏற்கனவே பட்டியலில் இருந்தால், உங்கள் விவரங்கள் தானாக நிரப்பப்படும். மாற்ற வேண்டியவற்றை மட்டும் மாற்றவும்.</div></li>
+    <li><div><b>முழுப் பெயர்</b>, <b>பாலினம்</b> (Gender), <b>வயதுப் பிரிவு</b> (Age category) ஆகியவற்றை உள்ளிடவும். இவை கட்டாயமானவை. உங்கள் திணைக்களம் மற்றும் தொலைபேசி எண்ணையும் சேர்க்கவும்.</div></li>
+    <li><div>நீங்கள் பங்கேற்க விரும்பும் <b>விளையாட்டுகளைத் தெரிவு செய்யவும்</b> (tick). சாம்பல் நிறத்தில் உள்ளவை உங்கள் வயதுப் பிரிவு அல்லது பாலினத்திற்குப் பொருந்தாதவை, அல்லது அந்த அணி ஏற்கனவே நிரம்பியுள்ளது.
+      <div class="limits"><span>Track &amp; Field அதிகபட்சம் 3</span><span>Relay அதிகபட்சம் 2</span><span>மற்ற அணி/தனிநபர் விளையாட்டுகள் அதிகபட்சம் 3</span></div></div></li>
+    <li><div><span class="btn">Send proposal</span> பொத்தானை அழுத்தவும். உங்கள் முன்மொழிவு கிடைத்ததாக ஒரு செய்தி தோன்றும்.</div></li>
+    <li><div>உங்கள் முன்மொழிவு <span class="tag">Your proposals</span> என்பதன் கீழ் தெரியும். ஏற்பாட்டாளர் பரிசீலிக்கும் வரை <b>Edit</b> மூலம் மாற்றலாம் அல்லது <b>Delete</b> மூலம் நீக்கலாம்.</div></li>
+    <li><div>ஏற்பாட்டாளர் ஏற்றுக்கொண்டதும் உங்கள் பெயர் அணிப் பட்டியலில் <b>Proposed</b> எனச் சேர்க்கப்படும். இறுதி அணிக்குத் தெரிவானால் <b>Confirmed</b> எனக் குறிக்கப்படும்.</div></li>
+  </ol>
+  <div class="tips">
+    <h2>கவனிக்க வேண்டியவை</h2>
+    <ul>
+      <li>பின்னர் முன்மொழிவை மாற்ற <b>அதே கைபேசியையும் அதே உலாவியையும்</b> பயன்படுத்தவும். Incognito / Private சாளரத்தைப் பயன்படுத்த வேண்டாம்.</li>
+      <li>ஒரே EPF எண்ணுக்கு மீண்டும் முன்மொழியத் தேவையில்லை. EPF எண்ணை உள்ளிட்டதும் உங்கள் முந்தைய முன்மொழிவு திறக்கும்.</li>
+      <li>ஏதேனும் சிக்கல் இருந்தால் உங்கள் திணைக்கள விளையாட்டு ஏற்பாட்டாளரைத் தொடர்புகொள்ளவும்.</li>
+    </ul>
+  </div>
+  <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
+</section>
+
+<!-- ============ ENGLISH ============ -->
+<section class="page en" lang="en">
+  <header>
+    <span class="lang">ENGLISH</span>
+    <div class="eyebrow">Inter-Department Sports Festival</div>
+    <h1>How to propose yourself for sports</h1>
+    <p>Takes about two minutes · no login or password needed</p>
+  </header>
+  <div class="link">
+    <div><div class="lbl">Open this link</div><div class="url">pmendis.github.io/pmendis</div></div>
+    <div class="no">No login needed</div>
+  </div>
+  <ol>
+    <li><div>Open the link above on your phone. The <span class="tag">Propose</span> page opens first.</div></li>
+    <li><div>Enter your <b>EPF number</b> first. If you are already on the list, your details fill in automatically. Change only what needs changing.</div></li>
+    <li><div>Enter your <b>full name</b>, <b>gender</b> and <b>age category</b>. These are required. Add your department and phone number too.</div></li>
+    <li><div><b>Tick the sports</b> you want to take part in. Greyed-out sports don't match your age category or gender, or the team is already full.
+      <div class="limits"><span>Track &amp; Field: up to 3</span><span>Relay: up to 2</span><span>Other team / individual sports: up to 3</span></div></div></li>
+    <li><div>Press <span class="btn">Send proposal</span>. A message confirms it was received.</div></li>
+    <li><div>Your proposal appears under <span class="tag">Your proposals</span>. Until the organiser reviews it, you can change it with <b>Edit</b> or remove it with <b>Delete</b>.</div></li>
+    <li><div>Once the organiser accepts it, your name joins the squad list as <b>Proposed</b>. If you are selected for the final squad, it is marked <b>Confirmed</b>.</div></li>
+  </ol>
+  <div class="tips">
+    <h2>Good to know</h2>
+    <ul>
+      <li>To change your proposal later, use <b>the same phone and the same browser</b>. Don't use an Incognito / Private window.</li>
+      <li>No need to propose the same EPF number twice. Entering it again opens your earlier proposal.</li>
+      <li>If something doesn't work, contact your department's sports organiser.</li>
+    </ul>
+  </div>
+  <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
+</section>
+
+</body>
+</html>
