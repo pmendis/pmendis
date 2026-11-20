@@ -88,6 +88,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .btn.small { padding: 4px 10px; font-size: 12px; }
 .btn.danger { color: var(--bad); }
 .btn.danger.armed { background: var(--bad); color: #fff; border-color: var(--bad); }
+.btn.solid-bad { background: var(--bad); color: #fff; border-color: var(--bad); }
+.confirm-dlg { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); padding: 18px; max-width: min(380px, calc(100vw - 32px)); }
+.confirm-dlg::backdrop { background: rgba(0,0,0,.45); }
+.confirm-dlg h3 { margin: 0 0 6px; }
+.confirm-dlg p { margin: 0 0 14px; color: var(--muted); }
+.confirm-dlg .btns { justify-content: flex-end; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 button.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
 
@@ -471,14 +477,26 @@ const scoreStr = (st) => `${st.runs}/${st.wk}`;
 const sr = (r, b) => b ? (r * 100 / b).toFixed(1) : "–";
 const econ = (r, balls) => balls ? (r * 6 / balls).toFixed(2) : "–";
 
-/* two-click delete (the viewer blocks confirm dialogs) */
-document.addEventListener("click", (ev) => {
-  const b = ev.target.closest("button[data-del]");
-  document.querySelectorAll("button.armed").forEach((x) => { if (x !== b) { x.classList.remove("armed"); x.textContent = x.dataset.label || "Delete"; } });
-  if (!b) return;
-  if (!b.classList.contains("armed")) { b.classList.add("armed"); b.dataset.label = b.textContent; b.textContent = "Confirm"; return; }
-  const [col, id] = b.dataset.del.split(":"); onDelete(col, id);
+/* delete confirmation dialog (in-page, since the viewer blocks confirm()) */
+const delDlg = document.createElement("dialog"); delDlg.className = "confirm-dlg";
+delDlg.innerHTML = `<h3>Delete?</h3><p id="del-msg"></p><div class="btns"><button class="btn" type="button" value="no">Cancel</button><button class="btn solid-bad" type="button" value="yes">Delete</button></div>`;
+document.body.appendChild(delDlg);
+let delPending = null;
+delDlg.addEventListener("click", (ev) => {
+  const v = ev.target.closest("button")?.value;
+  if (v === "yes" && delPending) { const [col, id] = delPending; delPending = null; delDlg.close(); onDelete(col, id); }
+  else if (v === "no" || ev.target === delDlg) { delPending = null; delDlg.close(); }
 });
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-del]"); if (!b) return;
+  const [col, id] = b.dataset.del.split(":"); delPending = [col, id];
+  let what = "this item";
+  if (col === "cr_matches") { const m = matches().find((x) => x.id === id); if (m) what = `the match ${teamName(m.a)} v ${teamName(m.b)} and all its scoring`; }
+  if (col === "cr_teams") what = `the team ${teamName(id)}`;
+  delDlg.querySelector("#del-msg").textContent = `This permanently deletes ${what} for everyone. This can't be undone.`;
+  delDlg.showModal(); delDlg.querySelector('[value="no"]').focus();
+});
+
 async function onDelete(col, id) {
   if (col === "cr_teams" && matches().some((m) => m.a === id || m.b === id)) { notice("This team has matches. Delete its matches first.", "bad"); return; }
   if (col === "cr_teams") for (const p of squad(id)) await Store.remove("cr_players", p.id);
