@@ -32,6 +32,9 @@ jobs:
           else
             cp sports-festival/firebase-config.js _site/firebase-config.js
           fi
+          # Player guide (PDF + one image per language) published under /guide/
+          mkdir -p _site/guide
+          cp sports-festival/docs/propose-guide.pdf sports-festival/docs/propose-guide-*.png _site/guide/
           # Version stamp: the app compares it with version.json (fetched past the cache) and reloads if it is out of date.
           VERSION="${GITHUB_SHA::12}-${GITHUB_RUN_NUMBER}"
           printf '{"v":"%s"}\n' "$VERSION" > _site/version.json
