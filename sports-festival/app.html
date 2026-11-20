@@ -256,7 +256,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
             </label>
           </div>
           <label>Age category
-            <select id="player-age"><option value="">—</option><option>Below 30</option><option>30+</option><option>35+</option><option>40+</option><option>45+</option><option>50+</option><option>55+</option></select>
+            <select id="player-age" required><option value="">—</option><option>Below 30</option><option>30+</option><option>35+</option><option>40+</option><option>45+</option><option>50+</option><option>55+</option></select>
           </label>
           <div class="row2">
             <label>Department<input id="player-dept" maxlength="60" list="dept-options" placeholder="e.g. Finance"></label>
@@ -1105,6 +1105,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     ev.preventDefault();
     const existing = $("player-id").value ? Store.get("players", $("player-id").value) : null;
     const id = existing ? existing.id : uid(), name = $("player-name").value.trim(); if (!name) return;
+    if (!$("player-age").value) { notice("Choose the player's age category.", "bad"); $("player-age").focus(); return; }
     const ref = $("player-ref").value.trim();
     if (ref && players().some((p) => p.id !== id && (p.ref || "").toLowerCase() === ref.toLowerCase())) { notice(`EPF number ${ref} is already registered.`, "bad"); return; }
     const sportIds = [...$("player-sports").querySelectorAll("input:checked")].map((i) => i.value);
