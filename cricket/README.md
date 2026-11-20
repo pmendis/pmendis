@@ -23,7 +23,8 @@ Anyone can view. Scoring and editing need a **username and password** that you c
 2. Email: `<username>@cricket.local` (e.g. `scorer1@cricket.local`), and a password.
 3. The scorer signs in with just **scorer1** and the password ("Scorer sign in", top right).
 
-Any Email/Password account in the project can score (anonymous visitors cannot).
+Only accounts ending in **@cricket.local** can score. Sports-app editors (normal email
+accounts) cannot score cricket, and cricket scorers cannot edit the sports app.
 Delete a user in Firebase to remove their access.
 
 ## Firebase setup

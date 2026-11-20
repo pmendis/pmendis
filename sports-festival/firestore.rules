@@ -11,6 +11,7 @@ service cloud.firestore {
     // Editors: the owner, plus anyone with a document in /organisers (approved in the app).
     function isOrganiser() {
       return request.auth != null
+          && !request.auth.token.email.lower().matches('.*@cricket[.]local$')
           && (isOwner() || exists(/databases/$(database)/documents/organisers/$(myKey())));
     }
 
@@ -30,6 +31,7 @@ service cloud.firestore {
     // Access requests: a signed-in person may create or update their own; editors read and delete.
     match /requests/{key} {
       allow create, update: if request.auth != null && key == myKey()
+                            && !myKey().matches('.*@cricket[.]local$')
                             && request.resource.data.email.lower() == myKey();
       allow read, delete: if isOrganiser();
     }
@@ -50,9 +52,14 @@ service cloud.firestore {
     }
     function ownsProposal() { return request.auth != null && resource.data.ownerUid == request.auth.uid; }
     // ---------- Cricket app (cricket/) ----------
-    // Anyone can read. Any username/password account created by the organiser in
-    // Firebase Authentication can score (anonymous visitors cannot).
-    function isScorer() { return request.auth != null && request.auth.token.firebase.sign_in_provider == 'password'; }
+    // Anyone can read. Only scorer accounts can write: Email/Password users whose email ends in
+    // @cricket.local (create them in Firebase Authentication, e.g. scorer1@cricket.local).
+    // Sports editors (normal emails) cannot score, and scorers cannot edit the sports app.
+    function isScorer() {
+      return request.auth != null
+          && request.auth.token.firebase.sign_in_provider == 'password'
+          && request.auth.token.email.lower().matches('.*@cricket[.]local$');
+    }
     match /cr_settings/{d} { allow read: if true; allow write: if isScorer(); }
     match /cr_teams/{d}    { allow read: if true; allow write: if isScorer(); }
     match /cr_players/{d}  { allow read: if true; allow write: if isScorer(); }
