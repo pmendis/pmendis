@@ -9,81 +9,59 @@
   :root { --navy: #1f3a68; --clay: #e2531b; --ink: #141b2b; --muted: #5b6577; --line: #dce1ea; --tint: #f3f5f8; --ok: #1d7a4a; --okbg: #e3f4ea; }
   * { box-sizing: border-box; }
   body { margin: 0; color: var(--ink); background: #fff; font-family: "Inter", "Noto Sans Sinhala", "Noto Sans Tamil", sans-serif; }
-  .page { width: 210mm; height: 297mm; padding: 0; display: flex; flex-direction: column; page-break-after: always; overflow: hidden; }
-  .page:last-child { page-break-after: auto; }
   .si { font-family: "Noto Sans Sinhala", "Inter", sans-serif; }
   .ta { font-family: "Noto Sans Tamil", "Inter", sans-serif; }
-  header { background: var(--navy); color: #f3f6fb; padding: 14mm 16mm 10mm; position: relative; }
-  header .lang { position: absolute; top: 9mm; right: 16mm; font: 700 11pt "Inter", sans-serif; letter-spacing: .08em; background: rgba(255,255,255,.14); padding: 3px 10px; border-radius: 99px; }
-  header .eyebrow { font: 600 9pt "Inter", sans-serif; letter-spacing: .16em; text-transform: uppercase; opacity: .8; }
-  header h1 { margin: 4mm 0 2mm; font-size: 25pt; line-height: 1.2; font-weight: 700; }
-  .en header h1 { font-family: "Barlow Condensed", "Inter", sans-serif; font-size: 34pt; text-transform: uppercase; letter-spacing: .01em; }
-  header p { margin: 0; font-size: 11.5pt; opacity: .92; }
-  .link { margin: 8mm 16mm 0; border: 2px solid var(--clay); border-radius: 10px; padding: 4mm 6mm; display: flex; align-items: center; gap: 6mm; }
-  .link .lbl { font-size: 10pt; color: var(--muted); }
-  .link .url { font: 700 17pt "Inter", sans-serif; color: var(--clay); letter-spacing: .01em; }
-  .link .no { margin-left: auto; text-align: right; font-size: 10pt; color: var(--ok); background: var(--okbg); padding: 2mm 3.5mm; border-radius: 6px; font-weight: 600; max-width: 55mm; }
-  ol { list-style: none; counter-reset: s; margin: 7mm 16mm 0; padding: 0; display: grid; gap: 4.2mm; }
-  ol li { counter-increment: s; display: grid; grid-template-columns: 10mm 1fr; gap: 4mm; font-size: 11.5pt; line-height: 1.55; }
-  ol li::before { content: counter(s); width: 10mm; height: 10mm; border-radius: 50%; background: var(--navy); color: #fff; font: 700 13pt "Inter", sans-serif; display: grid; place-items: center; }
-  ol li b { font-weight: 700; }
-  .btn { display: inline-block; font: 600 10pt "Inter", sans-serif; background: var(--clay); color: #fff; padding: 0 7px; border-radius: 4px; white-space: nowrap; }
-  .tag { display: inline-block; font: 600 10pt "Inter", sans-serif; border: 1px solid var(--line); background: var(--tint); padding: 0 6px; border-radius: 4px; white-space: nowrap; }
+  .page { width: 210mm; height: 297mm; display: flex; flex-direction: column; page-break-after: always; overflow: hidden; background: #fff; }
+  .lang-block:last-child .page:last-child { page-break-after: auto; }
+  header { background: var(--navy); color: #f3f6fb; padding: 11mm 15mm 8mm; position: relative; }
+  header .lang { position: absolute; top: 8mm; right: 15mm; font: 700 13pt "Inter", sans-serif; letter-spacing: .06em; background: rgba(255,255,255,.16); padding: 3px 12px; border-radius: 99px; }
+  header .eyebrow { font: 600 10pt "Inter", sans-serif; letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+  header h1 { margin: 3mm 0 2mm; font-size: 27pt; line-height: 1.2; font-weight: 700; padding-right: 30mm; }
+  .en header h1 { font-family: "Barlow Condensed", "Inter", sans-serif; font-size: 38pt; text-transform: uppercase; }
+  header p { margin: 0; font-size: 13pt; opacity: .95; }
+  header.mini { padding: 8mm 15mm 6mm; }
+  header.mini h1 { font-size: 20pt; margin: 2mm 0 0; }
+  .en header.mini h1 { font-size: 26pt; }
+  .link { margin: 6mm 15mm 0; border: 2.5px solid var(--clay); border-radius: 12px; padding: 4mm 6mm; display: flex; align-items: center; gap: 5mm; }
+  .link .lbl { font-size: 12pt; color: var(--muted); }
+  .link .url { font: 700 21pt "Inter", sans-serif; color: var(--clay); }
+  .link .no { margin-left: auto; text-align: right; font-size: 12pt; color: var(--ok); background: var(--okbg); padding: 2mm 4mm; border-radius: 8px; font-weight: 700; max-width: 52mm; }
+  ol { list-style: none; counter-reset: s; margin: 6mm 15mm 0; padding: 0; display: grid; gap: 4mm; }
+  ol li { counter-increment: s; display: grid; grid-template-columns: 11mm 1fr; gap: 4mm; font-size: 14pt; line-height: 1.5; }
+  .si ol li, .ta ol li { font-size: 13pt; line-height: 1.5; }
+  ol li::before { content: counter(s); width: 11mm; height: 11mm; border-radius: 50%; background: var(--navy); color: #fff; font: 700 15pt "Inter", sans-serif; display: grid; place-items: center; }
+  .btn { display: inline-block; font-weight: 700; background: var(--clay); color: #fff; padding: 0 8px; border-radius: 5px; white-space: nowrap; }
+  .tag { display: inline-block; font-weight: 700; border: 1px solid var(--line); background: var(--tint); padding: 0 7px; border-radius: 5px; white-space: nowrap; }
   .limits { margin-top: 2mm; display: flex; flex-wrap: wrap; gap: 2mm; }
-  .limits span { font-size: 10pt; background: var(--tint); border: 1px solid var(--line); border-radius: 99px; padding: 1px 9px; }
-  .tips { margin: auto 16mm 0; background: #fdf0d9; border-radius: 10px; padding: 5mm 6mm; font-size: 10.5pt; line-height: 1.55; }
-  .tips h2 { margin: 0 0 2mm; font-size: 12pt; color: #9a5b00; }
-  .tips ul { margin: 0; padding-left: 5mm; }
-  /* Sinhala and Tamil script runs longer: tighten so each stays on one A4 page */
-  .si header, .ta header { padding: 11mm 16mm 8mm; }
-  .si header h1, .ta header h1 { font-size: 21pt; margin: 3mm 0 1.5mm; }
-  .si ol, .ta ol { gap: 3mm; margin-top: 6mm; }
-  .si ol li, .ta ol li { font-size: 10.4pt; line-height: 1.5; }
-  .si .tips, .ta .tips { font-size: 9.8pt; padding: 4mm 5mm; }
-  .si .link, .ta .link { margin-top: 6mm; }
-  .si ol { gap: 4mm; margin-top: 7mm; }
-  .si ol li { font-size: 11.2pt; line-height: 1.55; }
-  .si .tips { font-size: 10.6pt; padding: 5mm 6mm; }
-  footer { margin: 6mm 16mm 10mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 3mm; }
-  .shots { margin: 6mm 16mm 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; align-items: start; }
-  .shots figure { margin: 0; }
-  .shots img { width: 100%; max-height: 64mm; object-fit: contain; object-position: top; display: block; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 8px rgba(20,27,43,.12); background: #fff; }
-  .shots figcaption { margin-top: 2mm; font-size: 9pt; line-height: 1.35; color: var(--muted); text-align: center; }
-  /* make room for the screenshots */
-  ol { margin-top: 5mm; gap: 2.6mm; }
-  ol li { font-size: 10.2pt; line-height: 1.45; grid-template-columns: 8mm 1fr; gap: 3mm; }
-  ol li::before { width: 8mm; height: 8mm; font-size: 11pt; }
-  .tips { padding: 3.5mm 5mm; font-size: 9.4pt; line-height: 1.45; }
-  .tips h2 { font-size: 11pt; margin-bottom: 1mm; }
-  header { padding: 9mm 16mm 6mm; }
-  .en header h1 { font-size: 28pt; margin: 2mm 0 1mm; }
-  .link { margin-top: 5mm; padding: 3mm 5mm; }
-  footer { margin: 4mm 16mm 7mm; }
-  /* Sinhala and Tamil are taller scripts: compact them so each language stays on one A4 page */
-  .si header, .ta header { padding: 8mm 16mm 5mm; }
-  .si header h1, .ta header h1 { font-size: 18pt; margin: 2mm 0 1mm; }
-  .si header p, .ta header p { font-size: 10pt; }
-  .si .link, .ta .link { margin-top: 4mm; }
-  .si .link .url, .ta .link .url { font-size: 15pt; }
-  .si .shots, .ta .shots { margin-top: 4mm; }
-  .si .shots img, .ta .shots img { max-height: 54mm; }
-  .si .shots figcaption, .ta .shots figcaption { font-size: 8.4pt; }
-  .si ol, .ta ol { margin-top: 4mm; gap: 1.8mm; }
-  .si ol li, .ta ol li { font-size: 9.6pt; line-height: 1.42; }
-  .si .limits span, .ta .limits span { font-size: 9pt; }
-  .si .limits, .ta .limits { margin-top: 1mm; }
-  .si .tips, .ta .tips { font-size: 8.9pt; line-height: 1.4; padding: 3mm 5mm; }
-  .si footer, .ta footer { margin: 3mm 16mm 6mm; }
-  .si .shots img { max-height: 62mm; }
-  .si ol { gap: 2.8mm; }
-  .si ol li { font-size: 10.2pt; line-height: 1.5; }
-  .ta ol { margin-bottom: 3mm; } .ta .shots img { max-height: 52mm; }
+  .limits span { font-size: 12pt; background: var(--tint); border: 1px solid var(--line); border-radius: 99px; padding: 1px 10px; }
+  .tips { margin: auto 15mm 0; background: #fdf0d9; border-radius: 12px; padding: 5mm 6mm; font-size: 12.5pt; line-height: 1.5; }
+  .si .tips, .ta .tips { font-size: 12pt; }
+  .tips h2 { margin: 0 0 2mm; font-size: 14pt; color: #9a5b00; }
+  .tips ul { margin: 0; padding-left: 6mm; }
+  footer { margin: 5mm 15mm 8mm; display: flex; justify-content: space-between; font-size: 10pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 3mm; }
+  .shots-page footer { margin-top: auto; }
+  .shots.big { margin: 7mm 15mm 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7mm 8mm; align-items: start; }
+  .shots.big figure { margin: 0; }
+  .shots.big figure:nth-child(3) { grid-column: 1 / -1; justify-self: center; width: calc(50% - 4mm); }
+  .shots.big img { width: 100%; display: block; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 3px 12px rgba(20,27,43,.14); background: #fff; }
+  .shots.big figcaption { margin-top: 2.5mm; font-size: 12.5pt; line-height: 1.35; color: var(--ink); text-align: center; font-weight: 600; }
+  /* page 2: screenshot 3 and tips side by side */
+  .shots.big figure:nth-child(3) { grid-column: auto; justify-self: stretch; width: auto; }
+  .shots.big .tips { margin: 0; align-self: start; }
+  /* page 1: steps fill the page */
+  .page:not(.shots-page) ol { margin-top: 8mm; gap: 5mm; }
+  .si ol li, .ta ol li { font-size: 12.6pt; }
+  .page:not(.shots-page) footer { margin-top: auto; }
+  .ta .page:not(.shots-page) ol, .ta.page:not(.shots-page) ol { gap: 3.5mm; margin-top: 6mm; }
+  .ta ol li { font-size: 12.2pt; line-height: 1.45; }
+  .ta .shots.big { gap: 5mm 7mm; margin-top: 5mm; }
+  .ta .shots.big .tips { font-size: 11pt; padding: 4mm 5mm; }
+  .ta .shots.big figcaption { font-size: 11.5pt; }
 </style>
 </head>
 <body>
-
-<!-- ============ SINHALA ============ -->
-<section class="page si" lang="si">
+<div class="lang-block si" lang="si">
+<section class="page si">
   <header>
     <span class="lang">සිංහල</span>
     <div class="eyebrow">Inter-Department Sports Festival</div>
@@ -94,7 +72,6 @@
     <div><div class="lbl">මෙම සබැඳිය විවෘත කරන්න</div><div class="url">pmendis.github.io/pmendis</div></div>
     <div class="no">ලොග් වීම අවශ්‍ය නැත</div>
   </div>
-  <div class="shots"><figure><img src="shot-1-epf-si.png" alt=""><figcaption>පියවර 2 · EPF අංකය ඇතුළත් කළ විට විස්තර පිරවේ</figcaption></figure><figure><img src="shot-2-sports-si.png" alt=""><figcaption>පියවර 4–5 · ක්‍රීඩා ටික් කර යවන්න</figcaption></figure><figure><img src="shot-3-mine-si.png" alt=""><figcaption>පියවර 6 · ඔබේ යෝජනා</figcaption></figure></div>
   <ol>
     <li><div>ඔබේ දුරකථනයෙන් ඉහත සබැඳිය විවෘත කරන්න. <span class="tag">Propose</span> පිටුව මුලින්ම විවෘත වේ. පෝරමයේ ඉහළින් ඇති <span class="tag">සිංහල</span> බොත්තම ඔබා භාෂාව තෝරන්න.</div></li>
     <li><div>පළමුවෙන්ම ඔබේ <b>EPF අංකය</b> ඇතුළත් කරන්න. ඔබ දැනටමත් ලැයිස්තුවේ සිටී නම්, ඔබේ විස්තර ස්වයංක්‍රීයව පිරවේ. වෙනස් කළ යුතු දේ පමණක් වෙනස් කරන්න.</div></li>
@@ -105,6 +82,10 @@
     <li><div>ඔබේ යෝජනාව <span class="tag">ඔබේ යෝජනා</span> යටතේ පෙනේ. සංවිධායකවරයා සලකා බලන තුරු <b>සංස්කරණය</b> මගින් වෙනස් කිරීමට හෝ <b>මකන්න</b> මගින් ඉවත් කිරීමට ඔබට හැකිය.</div></li>
     <li><div>සංවිධායකවරයා පිළිගත් පසු ඔබේ නම කණ්ඩායම් ලැයිස්තුවට <b>Proposed</b> ලෙස එක් වේ. අවසාන කණ්ඩායමට තෝරාගත් විට <b>Confirmed</b> ලෙස සලකුණු වේ.</div></li>
   </ol>
+  <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
+</section>
+<section class="page si shots-page"><header class="mini"><span class="lang">සිංහල</span><div class="eyebrow">Inter-Department Sports Festival</div><h1>ක්‍රීඩා සඳහා ඔබේ නම යෝජනා කරන ආකාරය</h1></header>
+  <div class="shots big"><figure><img src="shot-1-epf-si.png" alt=""><figcaption>පියවර 2 · EPF අංකය ඇතුළත් කළ විට විස්තර පිරවේ</figcaption></figure><figure><img src="shot-2-sports-si.png" alt=""><figcaption>පියවර 4–5 · ක්‍රීඩා ටික් කර යවන්න</figcaption></figure><figure><img src="shot-3-mine-si.png" alt=""><figcaption>පියවර 6 · ඔබේ යෝජනා</figcaption></figure>
   <div class="tips">
     <h2>සැලකිය යුතුයි</h2>
     <ul>
@@ -112,12 +93,12 @@
       <li>එකම EPF අංකයෙන් නැවත යෝජනා කිරීමට අවශ්‍ය නැත. EPF අංකය ඇතුළත් කළ විට ඔබේ පෙර යෝජනාව විවෘත වේ.</li>
       <li>ගැටලුවක් ඇත්නම් ඔබේ දෙපාර්තමේන්තුවේ ක්‍රීඩා සංවිධායකවරයා අමතන්න.</li>
     </ul>
-  </div>
+  </div></div>
   <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
 </section>
-
-<!-- ============ TAMIL ============ -->
-<section class="page ta" lang="ta">
+</div>
+<div class="lang-block ta" lang="ta">
+<section class="page ta">
   <header>
     <span class="lang">தமிழ்</span>
     <div class="eyebrow">Inter-Department Sports Festival</div>
@@ -128,7 +109,6 @@
     <div><div class="lbl">இந்த இணைப்பைத் திறக்கவும்</div><div class="url">pmendis.github.io/pmendis</div></div>
     <div class="no">உள்நுழைவு தேவையில்லை</div>
   </div>
-  <div class="shots"><figure><img src="shot-1-epf-ta.png" alt=""><figcaption>படி 2 · EPF உள்ளிட்டதும் விவரங்கள் நிரம்பும்</figcaption></figure><figure><img src="shot-2-sports-ta.png" alt=""><figcaption>படி 4–5 · விளையாட்டுகளைத் தெரிவு செய்து அனுப்பவும்</figcaption></figure><figure><img src="shot-3-mine-ta.png" alt=""><figcaption>படி 6 · உங்கள் முன்மொழிவுகள்</figcaption></figure></div>
   <ol>
     <li><div>உங்கள் கைபேசியில் மேலே உள்ள இணைப்பைத் திறக்கவும். <span class="tag">Propose</span> பக்கம் முதலில் திறக்கும். படிவத்தின் மேலே உள்ள <span class="tag">தமிழ்</span> பொத்தானை அழுத்தி மொழியைத் தெரிவு செய்யவும்.</div></li>
     <li><div>முதலில் உங்கள் <b>EPF எண்ணை</b> உள்ளிடவும். நீங்கள் ஏற்கனவே பட்டியலில் இருந்தால், உங்கள் விவரங்கள் தானாக நிரப்பப்படும். மாற்ற வேண்டியவற்றை மட்டும் மாற்றவும்.</div></li>
@@ -139,6 +119,10 @@
     <li><div>உங்கள் முன்மொழிவு <span class="tag">உங்கள் முன்மொழிவுகள்</span> என்பதன் கீழ் தெரியும். ஏற்பாட்டாளர் பரிசீலிக்கும் வரை <b>திருத்து</b> மூலம் மாற்றலாம் அல்லது <b>நீக்கு</b> மூலம் நீக்கலாம்.</div></li>
     <li><div>ஏற்பாட்டாளர் ஏற்றுக்கொண்டதும் உங்கள் பெயர் அணிப் பட்டியலில் <b>Proposed</b> எனச் சேர்க்கப்படும். இறுதி அணிக்குத் தெரிவானால் <b>Confirmed</b> எனக் குறிக்கப்படும்.</div></li>
   </ol>
+  <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
+</section>
+<section class="page ta shots-page"><header class="mini"><span class="lang">தமிழ்</span><div class="eyebrow">Inter-Department Sports Festival</div><h1>விளையாட்டுகளுக்கு உங்கள் பெயரை முன்மொழிவது எப்படி</h1></header>
+  <div class="shots big"><figure><img src="shot-1-epf-ta.png" alt=""><figcaption>படி 2 · EPF உள்ளிட்டதும் விவரங்கள் நிரம்பும்</figcaption></figure><figure><img src="shot-2-sports-ta.png" alt=""><figcaption>படி 4–5 · விளையாட்டுகளைத் தெரிவு செய்து அனுப்பவும்</figcaption></figure><figure><img src="shot-3-mine-ta.png" alt=""><figcaption>படி 6 · உங்கள் முன்மொழிவுகள்</figcaption></figure>
   <div class="tips">
     <h2>கவனிக்க வேண்டியவை</h2>
     <ul>
@@ -146,12 +130,12 @@
       <li>ஒரே EPF எண்ணுக்கு மீண்டும் முன்மொழியத் தேவையில்லை. EPF எண்ணை உள்ளிட்டதும் உங்கள் முந்தைய முன்மொழிவு திறக்கும்.</li>
       <li>ஏதேனும் சிக்கல் இருந்தால் உங்கள் திணைக்கள விளையாட்டு ஏற்பாட்டாளரைத் தொடர்புகொள்ளவும்.</li>
     </ul>
-  </div>
+  </div></div>
   <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
 </section>
-
-<!-- ============ ENGLISH ============ -->
-<section class="page en" lang="en">
+</div>
+<div class="lang-block en" lang="en">
+<section class="page en">
   <header>
     <span class="lang">ENGLISH</span>
     <div class="eyebrow">Inter-Department Sports Festival</div>
@@ -162,7 +146,6 @@
     <div><div class="lbl">Open this link</div><div class="url">pmendis.github.io/pmendis</div></div>
     <div class="no">No login needed</div>
   </div>
-  <div class="shots"><figure><img src="shot-1-epf-en.png" alt=""><figcaption>Step 2 · enter EPF, your details load</figcaption></figure><figure><img src="shot-2-sports-en.png" alt=""><figcaption>Steps 4–5 · tick sports and send</figcaption></figure><figure><img src="shot-3-mine-en.png" alt=""><figcaption>Step 6 · your proposals</figcaption></figure></div>
   <ol>
     <li><div>Open the link above on your phone. The <span class="tag">Propose</span> page opens first. To read it in Sinhala or Tamil, tap <span class="tag">සිංහල</span> or <span class="tag">தமிழ்</span> at the top of the form.</div></li>
     <li><div>Enter your <b>EPF number</b> first. If you are already on the list, your details fill in automatically. Change only what needs changing.</div></li>
@@ -173,6 +156,10 @@
     <li><div>Your proposal appears under <span class="tag">Your proposals</span>. Until the organiser reviews it, you can change it with <b>Edit</b> or remove it with <b>Delete</b>.</div></li>
     <li><div>Once the organiser accepts it, your name joins the squad list as <b>Proposed</b>. If you are selected for the final squad, it is marked <b>Confirmed</b>.</div></li>
   </ol>
+  <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
+</section>
+<section class="page en shots-page"><header class="mini"><span class="lang">ENGLISH</span><div class="eyebrow">Inter-Department Sports Festival</div><h1>How to propose yourself for sports</h1></header>
+  <div class="shots big"><figure><img src="shot-1-epf-en.png" alt=""><figcaption>Step 2 · enter EPF, your details load</figcaption></figure><figure><img src="shot-2-sports-en.png" alt=""><figcaption>Steps 4–5 · tick sports and send</figcaption></figure><figure><img src="shot-3-mine-en.png" alt=""><figcaption>Step 6 · your proposals</figcaption></figure>
   <div class="tips">
     <h2>Good to know</h2>
     <ul>
@@ -180,9 +167,9 @@
       <li>No need to propose the same EPF number twice. Entering it again opens your earlier proposal.</li>
       <li>If something doesn't work, contact your department's sports organiser.</li>
     </ul>
-  </div>
+  </div></div>
   <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
 </section>
-
+</div>
 </body>
 </html>
