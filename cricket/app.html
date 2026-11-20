@@ -743,10 +743,12 @@ function renderMatch() {
   if (!m) { $("match-head").innerHTML = `<div class="panel empty">This match no longer exists.</div>`; $("scorecard").innerHTML = ""; $("scorer").hidden = true; $("match-tools").innerHTML = ""; return; }
   const ed = Store.canEditMatch(m);
   const lockNote = Store.canEdit() && !ed ? `<span class="muted" style="font-size:13px">Only ${esc(scorerName(m.createdBy))}, who created this match, can edit or score it.</span>` : "";
-  $("match-tools").innerHTML = !ed ? lockNote : 
+  const ownerTools = Store.mode === "firebase" && Store.owner ? `<span class="btns" style="gap:6px;align-items:center"><input id="mt-to" list="mt-scorers" placeholder="scorer username" style="max-width:150px;padding:5px 8px" autocomplete="off"><datalist id="mt-scorers">${[...new Set(matches().map((x) => x.createdBy).filter(Boolean))].map((e) => `<option value="${esc(scorerName(e))}">`).join("")}</datalist><button class="btn small" type="button" id="mt-reassign">Reassign scorer</button></span>` : "";
+  $("match-tools").innerHTML = ownerTools || (!ed ? lockNote : 
      `<button class="btn small" type="button" id="mt-edit">Edit match</button>
     ${m.status !== "done" ? `<button class="btn small" type="button" id="mt-abandon">${m.status === "abandoned" ? "Restore match" : "Mark abandoned"}</button>` : ""}
-    <button class="btn small danger" type="button" data-del="cr_matches:${esc(m.id)}">Delete</button>`;
+    <button class="btn small danger" type="button" data-del="cr_matches:${esc(m.id)}">Delete</button>`);
+  if (ownerTools) $("mt-reassign").onclick = () => reassignMatch(m, $("mt-to").value);
   if (ed) {
     $("mt-edit").onclick = () => editMatchSetup(m);
     const ab = $("mt-abandon"); if (ab) ab.onclick = async () => { const { id, ...r } = m; await Store.put("cr_matches", id, { ...r, status: m.status === "abandoned" ? (m.inns && m.inns.length ? "live" : "scheduled") : "abandoned" }); };
@@ -817,6 +819,15 @@ function scorecardHtml(m, i) {
 /* ============================ scoring pad ============================ */
 let sheet = null; // which extra/wicket sheet is open, with its picks
 function playerOptions(list, sel, placeholder) { return `<option value="">${esc(placeholder || "Choose…")}</option>` + list.map((p) => `<option value="${esc(p.id)}" ${p.id === sel ? "selected" : ""}>${esc(p.name)}</option>`).join(""); }
+/* owner only: hand a match to another scorer (the rules let the owner change nothing but createdBy) */
+async function reassignMatch(m, name) {
+  let to = String(name || "").trim().toLowerCase(); if (!to) { notice("Type the scorer's username, e.g. scorer2.", "bad"); return; }
+  if (!to.includes("@")) to += "@cricket.local";
+  if (!/@cricket\.local$/.test(to)) { notice("Scorer usernames end in @cricket.local.", "bad"); return; }
+  if (to === m.createdBy) { notice(`${scorerName(to)} already has this match.`, "warn"); return; }
+  try { await Store.fb.collection("cr_matches").doc(m.id).update({ createdBy: to }); notice(`Match handed to ${scorerName(to)}.`, "ok"); }
+  catch (e) { notice("Couldn't reassign (" + (e && e.code || "error") + "). Check the Firestore rules are published.", "bad"); }
+}
 async function saveMatch(m, patch) { const { id, ...rest } = m; return Store.put("cr_matches", id, { ...rest, ...patch }); }
 function renderScorer(m) {
   const box = $("scorer"), inns = m.inns || [], ci = inns.length - 1;

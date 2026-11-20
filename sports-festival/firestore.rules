@@ -65,13 +65,17 @@ service cloud.firestore {
     match /cr_teams/{d}    { allow read: if true; allow write: if isScorer(); allow delete: if isOwner(); }
     match /cr_players/{d}  { allow read: if true; allow write: if isScorer(); allow delete: if isOwner(); }
     // Matches: the scorer who creates a match is stored in createdBy; only that scorer can edit, score or delete it.
-    // Older matches without createdBy stay open to every scorer. The owner can still delete any match.
+    // Older matches without createdBy stay open to every scorer. The owner can delete any match or reassign it.
     match /cr_matches/{d} {
       allow read: if true;
       allow create: if isScorer() && request.resource.data.createdBy == request.auth.token.email.lower();
       allow update: if isScorer()
                     && resource.data.get('createdBy', '') in ['', request.auth.token.email.lower()]
                     && request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '');
+      // The owner can hand a match to another scorer: only createdBy may change, and only to a scorer account.
+      allow update: if isOwner()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['createdBy'])
+                    && request.resource.data.createdBy.matches('.*@cricket[.]local$');
       allow delete: if isOwner()
                     || (isScorer() && resource.data.get('createdBy', '') in ['', request.auth.token.email.lower()]);
     }
