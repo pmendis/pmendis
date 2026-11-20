@@ -299,6 +299,19 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-ko-sf" style="width:auto"> Semi-final</label>
           <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-ko-f" style="width:auto"> Final</label>
         </div>
+        <h3 class="fs">Super Over <small>played when a match in these stages ends in a tie; repeated until there is a winner</small></h3>
+        <div class="row3">
+          <label>Overs<input id="lg-soOvers" type="number" min="1" max="5" value="1"></label>
+          <label>Balls per over <span style="text-transform:none;letter-spacing:0;font-weight:400">(blank = match's)</span><input id="lg-soBpo" type="number" min="4" max="10" placeholder="same"></label>
+          <label>Wickets allowed<input id="lg-soWk" type="number" min="1" max="10" value="2"></label>
+        </div>
+        <p class="muted" style="margin:0 0 4px;font-size:12.5px">"Wickets allowed" = the innings ends when this many wickets fall (e.g. 2).</p>
+        <div class="btns" style="gap:14px">
+          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-so-lg" style="width:auto"> League</label>
+          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-so-qf" style="width:auto"> Quarter-final</label>
+          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-so-sf" style="width:auto"> Semi-final</label>
+          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-so-f" style="width:auto"> Final</label>
+        </div>
         <h3 class="fs">Public viewing <small>for heavy traffic</small></h3>
         <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-public" style="width:auto"> Allow viewing without signing in (public live page and this app)</label>
         <p class="muted" style="margin:4px 0 0;font-size:12.5px">When off, visitors see "Live scores are paused" and stop reading the database. Scorers and the owner can still sign in and work. Public live page: <a id="lg-public-link" href="live/" target="_blank" rel="noopener">cricket/live/</a></p>
@@ -389,6 +402,10 @@ const xbOf = (m, k) => { const v = m && m["xb" + k]; return v === undefined ? !!
 const limOf = (m, k) => Math.max(0, Math.floor(+(m && m[k]) || 0));
 // knockout defaults: { overs, bpo, stages: [...] }; stages default to semi-final + final
 const koOf = (lg) => { const k = (lg && lg.ko) || {}; return { overs: +k.overs || 0, bpo: +k.bpo || 0, stages: Array.isArray(k.stages) ? k.stages : ["Semi-final", "Final"] }; };
+// Super Over settings: { overs, bpo (0 = match's), wk, stages }
+const soOf = (lg) => { const k = (lg && lg.so) || {}; return { overs: Math.max(1, +k.overs || 1), bpo: +k.bpo || 0, wk: Math.max(1, +k.wk || 2), stages: Array.isArray(k.stages) ? k.stages : ["Quarter-final", "Semi-final", "Final"] }; };
+const SO_IDS = { "League": "lg-so-lg", "Quarter-final": "lg-so-qf", "Semi-final": "lg-so-sf", "Final": "lg-so-f" };
+const soApplies = (m) => soOf(settings()).stages.includes(m.stage || "League");
 const KO_IDS = { "Quarter-final": "lg-ko-qf", "Semi-final": "lg-ko-sf", "Final": "lg-ko-f" };
 const bpoOf = (m) => Math.max(1, +(m && m.bpo) || 6);
 const oversStr = (balls, bpo = 6) => `${Math.floor(balls / bpo)}.${balls % bpo}`;
@@ -444,6 +461,7 @@ function inningsDone(m, i, st) {
   return false;
 }
 function resultOf(m) {
+  if (m.soWinner && m.__so === undefined) return { text: `Match tied · ${teamName(m.soWinner)} won the Super Over`, winner: m.soWinner, tie: false, so: true };
   if (m.status === "abandoned") return { text: "No result (abandoned)", winner: null, tie: false, nr: true };
   if (!m.inns || m.inns.length < 2) return null;
   const a = replay(m, 0), b = replay(m, 1), A = m.inns[0].bat, Bt = m.inns[1].bat;
@@ -820,7 +838,7 @@ function renderStandings() {
   $("standings").innerHTML = rows.length ? `<table><thead><tr><th>#</th><th>Team</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">NR</th>${bpOn ? '<th class="num">BP</th>' : ""}<th class="num">Pts</th><th class="num">NRR</th></tr></thead><tbody>${rows.map((r, i) =>
     `<tr><td class="num">${i + 1}</td><td><b>${esc(teamName(r.id))}</b><div class="sub">For ${r.rf}/${settings().nrr === "balls" ? r.bf + " b" : ovStr(r.bf, bpoOf(settings()))} · Against ${r.ra}/${settings().nrr === "balls" ? r.bb + " b" : ovStr(r.bb, bpoOf(settings()))}</div></td><td class="num">${r.p}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.t}</td><td class="num">${r.nr}</td>${bpOn ? `<td class="num">${r.bp}</td>` : ""}<td class="num"><b>${r.pts}</b></td><td class="num">${r.bf || r.bb ? nrrFmt(r.nrr) : "–"}</td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">No teams yet.${Store.can("teams") ? " Add them in <b>Teams</b>." : ""}</div>`;
-  const live = matches().filter((x) => x.status === "live");
+  const live = matches().filter((x) => x.status === "live" || x.status === "super");
   $("live-panel").hidden = !live.length;
   $("live-list").innerHTML = live.map(matchRow).join("");
 }
@@ -829,7 +847,7 @@ function matchScoreLine(m, tid) {
   const st = replay(m, i); return `${scoreStr(st)} <span class="muted">(${oversStr(st.legal, st.bpo)})</span>`;
 }
 function matchRow(m) {
-  const chip = m.status === "live" ? '<span class="chip live">LIVE</span>' : m.status === "done" ? '<span class="chip done">Result</span>' : m.status === "abandoned" ? '<span class="chip ab">Abandoned</span>' : '<span class="chip">Upcoming</span>';
+  const chip = m.status === "super" ? '<span class="chip live">SUPER OVER</span>' : m.status === "live" ? '<span class="chip live">LIVE</span>' : m.status === "done" ? '<span class="chip done">Result</span>' : m.status === "abandoned" ? '<span class="chip ab">Abandoned</span>' : '<span class="chip">Upcoming</span>';
   const res = (m.status === "done" || m.status === "abandoned") ? resultOf(m) : null;
   return `<div class="mrow" data-open="${esc(m.id)}" role="link" tabindex="0">
     <div class="teams"><div class="tline"><span>${esc(teamName(m.a))}</span><span class="sc">${matchScoreLine(m, m.a)}</span></div>
@@ -841,7 +859,7 @@ document.addEventListener("click", (ev) => { const r = ev.target.closest("[data-
 document.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { const r = ev.target.closest && ev.target.closest("[data-open]"); if (r) go("m-" + r.dataset.open); } });
 
 function renderMatchList() {
-  const all = matches(); const live = all.filter((m) => m.status === "live"), up = all.filter((m) => !m.status || m.status === "scheduled"), done = all.filter((m) => m.status === "done" || m.status === "abandoned").reverse();
+  const all = matches(); const live = all.filter((m) => m.status === "live" || m.status === "super"), up = all.filter((m) => !m.status || m.status === "scheduled"), done = all.filter((m) => m.status === "done" || m.status === "abandoned").reverse();
   $("match-list").innerHTML = all.length ? [["Live", live], ["Upcoming", up], ["Results", done]].filter(([, l]) => l.length)
     .map(([t, l]) => `<div class="group-title">${t}</div>` + l.map(matchRow).join("")).join("")
     : `<div class="empty">No matches yet.${Store.can("score") ? " Use <b>+ New match</b> once teams are added." : ""}</div>`;
@@ -888,11 +906,11 @@ $("match-form").addEventListener("submit", async (ev) => {
 /* ----- league settings ----- */
 let lgDirty = false;
 $("league-form").addEventListener("input", () => { lgDirty = true; });
-function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); { const k = koOf(lg); $("lg-koOvers").value = k.overs || ""; $("lg-koBpo").value = k.bpo || ""; for (const [st, id] of Object.entries(KO_IDS)) $(id).checked = k.stages.includes(st); } $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
+function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); { const so = soOf(lg); $("lg-soOvers").value = so.overs; $("lg-soBpo").value = so.bpo || ""; $("lg-soWk").value = so.wk; for (const [st, id] of Object.entries(SO_IDS)) $(id).checked = so.stages.includes(st); } { const k = koOf(lg); $("lg-koOvers").value = k.overs || ""; $("lg-koBpo").value = k.bpo || ""; for (const [st, id] of Object.entries(KO_IDS)) $(id).checked = k.stages.includes(st); } $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
 $("league-cancel").onclick = () => { fillLeagueForm(); notice("Changes discarded.", "ok"); };
 $("league-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), ko: { overs: Math.max(0, Math.min(50, +$("lg-koOvers").value || 0)), bpo: +$("lg-koBpo").value ? Math.max(4, Math.min(10, +$("lg-koBpo").value)) : 0, stages: Object.entries(KO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
+  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), so: { overs: Math.max(1, Math.min(5, +$("lg-soOvers").value || 1)), bpo: +$("lg-soBpo").value ? Math.max(4, Math.min(10, +$("lg-soBpo").value)) : 0, wk: Math.max(1, Math.min(10, +$("lg-soWk").value || 2)), stages: Object.entries(SO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, ko: { overs: Math.max(0, Math.min(50, +$("lg-koOvers").value || 0)), bpo: +$("lg-koBpo").value ? Math.max(4, Math.min(10, +$("lg-koBpo").value)) : 0, stages: Object.entries(KO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
 });
 
 /* ============================ match view ============================ */
@@ -935,7 +953,7 @@ function renderMatch() {
   }
   if (res) head += `<div class="res">${esc(res.text)}</div>`;
   head += `</div>`;
-  $("match-head").innerHTML = head;
+  $("match-head").innerHTML = head + soSummaryHtml(m);
   const scorerOn = ed && m.status !== "done" && m.status !== "abandoned";
   $("scorer").hidden = !scorerOn; if (scorerOn) renderScorer(m); else if (ed && m.status === "done") renderDoneTools(m);
   renderXiPanel(m, ed);
@@ -944,7 +962,7 @@ function renderMatch() {
 function renderDoneTools(m) {
   $("scorer").hidden = false;
   $("scorer").innerHTML = `<div class="panel" style="margin-top:14px"><div class="btns"><span class="muted">Scoring finished.</span><button class="btn small" type="button" id="sc-undo-done">Undo last ball and reopen</button></div></div>`;
-  $("sc-undo-done").onclick = () => undoBall(m);
+  $("sc-undo-done").onclick = () => (m.so && m.so.some((x) => x.length) ? undoBall(soView(m, m.so.length - 1)) : undoBall(m));
 }
 function dismissalText(bt, m, fieldTeam) {
   if (!bt.out) return "not out";
@@ -989,21 +1007,63 @@ async function reassignMatch(m, name) {
 }
 // toss form: tick the non-reserves first, up to players-per-side
 function xiDefault(m, tid) { const xi = m.xi || 11, sq = squad(tid); return [...sq.filter((p) => !p.reserve), ...sq.filter((p) => p.reserve)].slice(0, xi).map((p) => p.id); }
-async function saveMatch(m, patch) { const { id, ...rest } = m; return Store.put("cr_matches", id, { ...rest, ...patch }); }
+async function saveMatch(m, patch) {
+  if (m.__so !== undefined) return soSave(m, patch);
+  const { id, ...rest } = m; return Store.put("cr_matches", id, { ...rest, ...patch });
+}
+/* ----- Super Over: each round is stored in m.so[r] = [innings, innings]; the scoring screens run on a "view" of the match ----- */
+function soView(m, r) {
+  const so = soOf(settings());
+  return { ...m, __so: r, overs: so.overs, bpo: so.bpo || bpoOf(m), xi: so.wk + 1, mob: 0, mxb: 0, inns: (m.so && m.so[r]) || [], status: "live", toss: null, soWinner: null };
+}
+// the team that batted second bats first in the (next) Super Over
+function soFirstBat(m, r) { if (r === 0) return m.inns[1].bat; const prev = m.so[r - 1]; return prev[1].bat; }
+async function soSave(view, patch) {
+  const real = Store.get("cr_matches", view.id); if (!real) return false;
+  const r = view.__so, so = (real.so || []).map((x) => [...x]);
+  const { id, ...rest } = real;
+  if (patch.status === "scheduled") { // undo went back past the start of this round
+    so.splice(r);
+    if (r === 0) { const back = { ...real, so: [], status: "live", soWinner: null, resultText: "" }; return undoBall(back); }
+    await Store.put("cr_matches", id, { ...rest, so, status: "super", soWinner: null, resultText: "" });
+    return undoBall(soView({ ...real, so }, r - 1));
+  }
+  if (patch.inns) so[r] = patch.inns;
+  let status = "super", soWinner = null, resultText = "Match tied · Super Over";
+  if (patch.status === "done" && so[r].length === 2) {
+    const v = { ...view, inns: so[r] }, a = replay(v, 0).runs, b = replay(v, 1).runs;
+    if (a !== b) { soWinner = a > b ? so[r][0].bat : so[r][1].bat; status = "done"; resultText = `Match tied · ${teamName(soWinner)} won the Super Over`; }
+    else { so.push([]); resultText = "Super Over tied · another Super Over"; notice("Super Over tied. Play another Super Over.", "warn"); }
+  }
+  return Store.put("cr_matches", id, { ...rest, so, status, soWinner, resultText });
+}
+function soSummaryHtml(m) {
+  const rounds = (m.so || []).filter((x) => x.length); if (!rounds.length) return "";
+  return `<div class="panel" style="margin-top:10px"><h2>Super Over${rounds.length > 1 ? "s" : ""}</h2>${rounds.map((inns, r) => { const v = soView(m, r);
+    return `<div class="sub" style="color:var(--ink)"><b>${rounds.length > 1 ? `Round ${r + 1}: ` : ""}</b>${inns.map((inn, i) => { const st = replay(v, i); return `${esc(teamShort(inn.bat))} ${st.runs}/${st.wk} (${oversStr(st.legal, st.bpo)})`; }).join(" · ")}</div>`; }).join("")}
+    ${m.soWinner ? `<div style="margin-top:4px"><b>${esc(teamName(m.soWinner))} won the Super Over</b></div>` : ""}</div>`;
+}
 function renderScorer(m) {
+  if (m.status === "super" && m.__so === undefined) {
+    const r = Math.max(0, (m.so || [[]]).length - 1), v = soView(m, r), so = soOf(settings());
+    renderScorer(v);
+    $("scorer").insertAdjacentHTML("afterbegin", `<div class="notice" style="margin-top:14px">Scores level · <b>Super Over${r ? " " + (r + 1) : ""}</b>: ${so.overs} over${so.overs > 1 ? "s" : ""} of ${v.bpo} balls, innings ends at ${so.wk} wicket${so.wk > 1 ? "s" : ""}. ${esc(teamName(soFirstBat(m, r)))} bat first.</div>`);
+    return;
+  }
   const box = $("scorer"), inns = m.inns || [], ci = inns.length - 1;
   const cur = ci >= 0 ? replay(m, ci) : null;
   // 1) toss + first innings setup
   if (ci < 0 || (ci === 0 && inningsDone(m, 0, cur) && inns.length === 1)) {
-    const second = ci === 0;
-    const batT = second ? inns[0].bowl : null, bowlT = second ? inns[0].bat : null;
+    const second = ci === 0, soFirst = !second && m.__so !== undefined;
+    const soBat = soFirst ? soFirstBat(Store.get("cr_matches", m.id) || m, m.__so) : null;
+    const batT = second ? inns[0].bowl : soFirst ? soBat : null, bowlT = second ? inns[0].bat : soFirst ? (soBat === m.a ? m.b : m.a) : null;
     if (squad(m.a).length < 2 || squad(m.b).length < 2) { box.innerHTML = `<div class="panel" style="margin-top:14px"><div class="empty">Add at least two players to each team (Teams tab) before scoring.</div></div>`; return; }
-    box.innerHTML = `<div class="panel" style="margin-top:14px"><h2>${second ? "Start 2nd innings" : "Toss and start"} <small>${second ? `target ${cur.runs + 1}` : "who bats first, the opening batters and bowler"}</small></h2>
+    box.innerHTML = `<div class="panel" style="margin-top:14px"><h2>${m.__so !== undefined ? (second ? "Super Over · 2nd innings" : "Super Over · 1st innings") : second ? "Start 2nd innings" : "Toss and start"} <small>${second ? `target ${cur.runs + 1}` : soFirst ? "choose the batters and bowler" : "who bats first, the opening batters and bowler"}</small></h2>
       <form id="start-form">
-        ${second ? `<div class="sub">${esc(teamName(batT))} bat · ${esc(teamName(bowlT))} bowl</div>` : `<div class="row2">
+        ${second || soFirst ? `<div class="sub">${esc(teamName(batT))} bat · ${esc(teamName(bowlT))} bowl</div>` : `<div class="row2">
           <label>Toss won by<select id="sf-toss" required><option value="">Choose…</option><option value="${esc(m.a)}">${esc(teamName(m.a))}</option><option value="${esc(m.b)}">${esc(teamName(m.b))}</option></select></label>
           <label>Chose to<select id="sf-chose"><option value="bat">Bat</option><option value="bowl">Bowl</option></select></label></div>`}
-        ${second ? "" : `<div class="row2" style="margin-top:6px">${[m.a, m.b].map((tid) => `<div><div class="sub" style="font-weight:700;color:var(--ink)">${esc(teamName(tid))} · playing team <span id="sf-cnt-${esc(tid)}"></span></div>
+        ${second || soFirst ? "" : `<div class="row2" style="margin-top:6px">${[m.a, m.b].map((tid) => `<div><div class="sub" style="font-weight:700;color:var(--ink)">${esc(teamName(tid))} · playing team <span id="sf-cnt-${esc(tid)}"></span></div>
           <div class="xi-list">${squad(tid).map((p) => `<label class="xi"><input type="checkbox" data-xi="${esc(tid)}" value="${esc(p.id)}" ${xiDefault(m, tid).includes(p.id) ? "checked" : ""}> ${esc(p.name)}${p.reserve ? ' <span class="sub">(R)</span>' : ""}</label>`).join("")}</div></div>`).join("")}</div>`}
         <div class="row3">
           <label>Striker<select id="sf-s" required></select></label>
@@ -1014,17 +1074,17 @@ function renderScorer(m) {
       </form></div>`;
     const fill = () => {
       let bt = batT, bwT = bowlT;
-      if (!second) { const tw = $("sf-toss").value, ch = $("sf-chose").value; if (!tw) { bt = bwT = null; } else { bt = ch === "bat" ? tw : (tw === m.a ? m.b : m.a); bwT = bt === m.a ? m.b : m.a; } }
+      if (!second && !soFirst) { const tw = $("sf-toss").value, ch = $("sf-chose").value; if (!tw) { bt = bwT = null; } else { bt = ch === "bat" ? tw : (tw === m.a ? m.b : m.a); bwT = bt === m.a ? m.b : m.a; } }
       const keep = (id) => $(id).value;
       const s = keep("sf-s"), ns = keep("sf-ns"), b = keep("sf-b");
-      const pick = (tid) => !tid ? [] : second ? playingOf(m, tid) : squad(tid).filter((p) => ticked(tid).includes(p.id));
-      if (!second) for (const tid of [m.a, m.b]) { const n = ticked(tid).length; $("sf-cnt-" + tid).textContent = `(${n}/${m.xi || 11})`; $("sf-cnt-" + tid).style.color = n > (m.xi || 11) || n < 2 ? "var(--bad)" : ""; }
+      const pick = (tid) => !tid ? [] : second || soFirst ? playingOf(m, tid) : squad(tid).filter((p) => ticked(tid).includes(p.id));
+      if (!second && !soFirst) for (const tid of [m.a, m.b]) { const n = ticked(tid).length; $("sf-cnt-" + tid).textContent = `(${n}/${m.xi || 11})`; $("sf-cnt-" + tid).style.color = n > (m.xi || 11) || n < 2 ? "var(--bad)" : ""; }
       $("sf-s").innerHTML = playerOptions(pick(bt), s); $("sf-ns").innerHTML = playerOptions(pick(bt), ns); $("sf-b").innerHTML = playerOptions(pick(bwT), b);
       return [bt, bwT];
     };
     const ticked = (tid) => [...box.querySelectorAll(`[data-xi="${tid}"]:checked`)].map((c) => c.value);
     fill();
-    if (!second) { $("sf-toss").onchange = fill; $("sf-chose").onchange = fill; box.querySelectorAll("[data-xi]").forEach((c) => c.onchange = fill); }
+    if (!second && !soFirst) { $("sf-toss").onchange = fill; $("sf-chose").onchange = fill; box.querySelectorAll("[data-xi]").forEach((c) => c.onchange = fill); }
     if (second) $("sf-undo").onclick = () => undoBall(m);
     $("start-form").onsubmit = async (ev) => {
       ev.preventDefault();
@@ -1032,11 +1092,11 @@ function renderScorer(m) {
       if (!bt || !s || !ns || !b) { notice("Choose the toss result, both openers and the bowler.", "bad"); return; }
       if (s === ns) { notice("Striker and non-striker must be different players.", "bad"); return; }
       const patch = { inns: [...inns, { bat: bt, bowl: bwT, open: [s, ns], openBowler: b, ev: [] }], status: "live" };
-      if (!second) {
+      if (!second && !soFirst) {
         for (const tid of [m.a, m.b]) { const n = ticked(tid).length; if (n < 2 || n > (m.xi || 11)) { notice(`${teamName(tid)}: pick between 2 and ${m.xi || 11} players for the playing team (now ${n}).`, "bad"); return; } }
         patch.playing = { [m.a]: ticked(m.a), [m.b]: ticked(m.b) };
       }
-      if (!second) patch.toss = { winner: $("sf-toss").value, chose: $("sf-chose").value };
+      if (!second && !soFirst) patch.toss = { winner: $("sf-toss").value, chose: $("sf-chose").value };
       await saveMatch(m, patch);
     };
     return;
@@ -1064,7 +1124,9 @@ function renderScorer(m) {
     box.innerHTML = `<div class="panel" style="margin-top:14px"><div class="btns"><span class="muted">${ci === 0 ? "1st innings complete." : "Match complete."}</span>
       ${ci === 1 ? `<button class="btn primary" type="button" id="fin-go">Confirm result</button>` : ""}<button class="btn" type="button" id="fin-undo">Undo last ball</button>
       ${!inn.closed ? "" : `<button class="btn" type="button" id="fin-reopen">Reopen innings</button>`}</div></div>`;
-    if (ci === 1) $("fin-go").onclick = async () => { const res = resultOf(m); await saveMatch(m, { status: "done", resultText: res ? res.text : "" }); notice(res ? res.text : "Saved.", "ok"); };
+    if (ci === 1) $("fin-go").onclick = async () => { const res = resultOf(m);
+      if (m.__so === undefined && res && res.tie && soApplies(m)) { await saveMatch(m, { status: "super", so: [[]], resultText: "Match tied · Super Over" }); notice("Scores level: play a Super Over.", "warn"); return; }
+      await saveMatch(m, { status: "done", resultText: res ? res.text : "" }); if (m.__so === undefined) notice(res ? res.text : "Saved.", "ok"); };
     $("fin-undo").onclick = () => undoBall(m);
     const ro = $("fin-reopen"); if (ro) ro.onclick = async () => { const ii = [...inns]; ii[ci] = { ...inn, closed: false }; await saveMatch(m, { inns: ii }); };
     return;
@@ -1139,7 +1201,10 @@ async function addBall(m, e) {
   sheet = null;
   const next = { ...m, inns };
   const patch = { inns };
-  if (ci === 1 && inningsDone(next, 1)) { const res = resultOf(next); patch.status = "done"; patch.resultText = res ? res.text : ""; }
+  if (ci === 1 && inningsDone(next, 1) && m.__so === undefined) { const res = resultOf(next);
+    if (res && res.tie && soApplies(m)) { patch.status = "super"; patch.so = [[]]; patch.resultText = "Match tied · Super Over"; notice("Scores level: play a Super Over.", "warn"); }
+    else { patch.status = "done"; patch.resultText = res ? res.text : ""; } }
+  else if (ci === 1 && inningsDone(next, 1)) patch.status = "done";
   if (await saveMatch(m, patch)) { if (!replay(next, ci).b) nextBowler = null; if (patch.status === "done") notice(patch.resultText, "ok"); }
 }
 async function undoBall(m) {
