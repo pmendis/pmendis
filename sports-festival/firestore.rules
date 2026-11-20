@@ -60,10 +60,13 @@ service cloud.firestore {
           && request.auth.token.firebase.sign_in_provider == 'password'
           && request.auth.token.email.lower().matches('.*@cricket[.]local$');
     }
-    match /cr_settings/{d} { allow read: if true; allow write: if isScorer(); }
-    match /cr_teams/{d}    { allow read: if true; allow write: if isScorer(); }
-    match /cr_players/{d}  { allow read: if true; allow write: if isScorer(); }
-    match /cr_matches/{d}  { allow read: if true; allow write: if isScorer(); }
+    // The owner (email above) may sign in to the cricket app to delete test data, but not score.
+    match /cr_settings/{d} { allow read: if true; allow write: if isScorer(); allow delete: if isOwner(); }
+    match /cr_teams/{d}    { allow read: if true; allow write: if isScorer(); allow delete: if isOwner(); }
+    match /cr_players/{d}  { allow read: if true; allow write: if isScorer(); allow delete: if isOwner(); }
+    match /cr_matches/{d}  { allow read: if true; allow write: if isScorer(); allow delete: if isOwner(); }
+    // The app reads this (empty) document to find out whether the signed-in person is the owner.
+    match /cr_owner/{d}    { allow read: if isOwner(); }
 
     match /proposals/{id} {
       allow create: if request.auth != null && validProposal();
