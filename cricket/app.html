@@ -227,7 +227,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label>Venue<input id="mf-venue" maxlength="60"></label>
         </div>
         <div class="row3">
-          <label>Stage<select id="mf-stage"><option>League</option><option>Quarter-final</option><option>Semi-final</option><option>Final</option><option>Friendly</option></select></label>
+          <label>Stage <span class="sub" id="mf-ko-note" hidden style="text-transform:none;letter-spacing:0">· knockout defaults applied</span><select id="mf-stage"><option>League</option><option>Quarter-final</option><option>Semi-final</option><option>Final</option><option>Friendly</option></select></label>
           <label>Overs<input id="mf-overs" type="number" min="1" max="50" value="10"></label>
           <label>Players per side<input id="mf-xi" type="number" min="2" max="11" value="11"></label>
         </div>
@@ -289,6 +289,16 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
         </div>
         <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbw" style="width:auto"> Wides count as a ball (not re-bowled)</label>
         <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbn" style="width:auto"> No-balls count as a ball (not re-bowled)</label>
+        <h3 class="fs">Knockout defaults <small>used instead of the match defaults when a match is created for these stages</small></h3>
+        <div class="row2">
+          <label>Overs per innings <span style="text-transform:none;letter-spacing:0;font-weight:400">(blank = same as above)</span><input id="lg-koOvers" type="number" min="1" max="50" placeholder="same"></label>
+          <label>Balls per over <span style="text-transform:none;letter-spacing:0;font-weight:400">(blank = same as above)</span><input id="lg-koBpo" type="number" min="4" max="10" placeholder="same"></label>
+        </div>
+        <div class="btns" style="gap:14px">
+          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-ko-qf" style="width:auto"> Quarter-final</label>
+          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-ko-sf" style="width:auto"> Semi-final</label>
+          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-ko-f" style="width:auto"> Final</label>
+        </div>
         <h3 class="fs">Public viewing <small>for heavy traffic</small></h3>
         <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-public" style="width:auto"> Allow viewing without signing in (public live page and this app)</label>
         <p class="muted" style="margin:4px 0 0;font-size:12.5px">When off, visitors see "Live scores are paused" and stop reading the database. Scorers and the owner can still sign in and work. Public live page: <a id="lg-public-link" href="live/" target="_blank" rel="noopener">cricket/live/</a></p>
@@ -377,6 +387,9 @@ const penOf = (m, k) => { const v = m && m[k]; return v === undefined || v === n
 const xbOf = (m, k) => { const v = m && m["xb" + k]; return v === undefined ? !!(m && m.xb) : !!v; };
 // bowling limits per innings (0 = no limit)
 const limOf = (m, k) => Math.max(0, Math.floor(+(m && m[k]) || 0));
+// knockout defaults: { overs, bpo, stages: [...] }; stages default to semi-final + final
+const koOf = (lg) => { const k = (lg && lg.ko) || {}; return { overs: +k.overs || 0, bpo: +k.bpo || 0, stages: Array.isArray(k.stages) ? k.stages : ["Semi-final", "Final"] }; };
+const KO_IDS = { "Quarter-final": "lg-ko-qf", "Semi-final": "lg-ko-sf", "Final": "lg-ko-f" };
 const bpoOf = (m) => Math.max(1, +(m && m.bpo) || 6);
 const oversStr = (balls, bpo = 6) => `${Math.floor(balls / bpo)}.${balls % bpo}`;
 // whole overs (possibly from matches with different balls per over) shown as "overs.balls"
@@ -836,14 +849,24 @@ function renderMatchList() {
 
 /* ----- match form ----- */
 function fillTeamSelects(sel, val) { sel.innerHTML = `<option value="">Choose…</option>` + teams().map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join(""); sel.value = val || ""; }
+function applyStageDefaults() {
+  const id = $("mf-id").value, m = id ? Store.get("cr_matches", id) : null;
+  if (m && m.inns && m.inns.length) return; // scoring started: leave as is
+  const lg = settings(), k = koOf(lg), ko = k.stages.includes($("mf-stage").value);
+  $("mf-overs").value = ko && k.overs ? k.overs : lg.overs || 10;
+  $("mf-bpo").value = ko && k.bpo ? k.bpo : bpoOf(lg);
+  $("mf-ko-note").hidden = !(ko && (k.overs || k.bpo));
+}
+$("mf-stage").addEventListener("change", applyStageDefaults);
 $("match-add").onclick = () => {
   if (teams().length < 2) { notice("Add at least two teams first (Teams tab).", "bad"); return; }
   const lg = settings(); $("match-form").reset(); $("mf-id").value = ""; fillTeamSelects($("mf-a")); fillTeamSelects($("mf-b"));
   $("mf-overs").value = lg.overs || 10; $("mf-xi").value = lg.xi || 11; $("mf-bpo").value = bpoOf(lg); $("mf-mob").value = limOf(lg, "mob"); $("mf-mxb").value = limOf(lg, "mxb"); $("mf-wdp").value = penOf(lg, "wdp"); $("mf-nbp").value = penOf(lg, "nbp"); $("mf-xbw").checked = xbOf(lg, "w"); $("mf-xbn").checked = xbOf(lg, "n"); $("mf-title").textContent = "New match"; $("mf-save").textContent = "Create match";
-  $("match-form-panel").hidden = false; $("mf-a").focus();
+  $("mf-ko-note").hidden = true; $("match-form-panel").hidden = false; $("mf-a").focus();
 };
 $("mf-cancel").onclick = () => { $("match-form-panel").hidden = true; };
 function editMatchSetup(m) {
+  $("mf-ko-note").hidden = true;
   go("matches"); fillTeamSelects($("mf-a"), m.a); fillTeamSelects($("mf-b"), m.b);
   $("mf-id").value = m.id; $("mf-when").value = m.when || ""; $("mf-venue").value = m.venue || ""; $("mf-stage").value = m.stage || "League";
   $("mf-overs").value = m.overs || 10; $("mf-xi").value = m.xi || 11; $("mf-bpo").value = bpoOf(m); $("mf-mob").value = limOf(m, "mob"); $("mf-mxb").value = limOf(m, "mxb"); $("mf-wdp").value = penOf(m, "wdp"); $("mf-nbp").value = penOf(m, "nbp"); $("mf-xbw").checked = xbOf(m, "w"); $("mf-xbn").checked = xbOf(m, "n"); $("mf-title").textContent = "Edit match"; $("mf-save").textContent = "Save changes";
@@ -865,11 +888,11 @@ $("match-form").addEventListener("submit", async (ev) => {
 /* ----- league settings ----- */
 let lgDirty = false;
 $("league-form").addEventListener("input", () => { lgDirty = true; });
-function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
+function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); { const k = koOf(lg); $("lg-koOvers").value = k.overs || ""; $("lg-koBpo").value = k.bpo || ""; for (const [st, id] of Object.entries(KO_IDS)) $(id).checked = k.stages.includes(st); } $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
 $("league-cancel").onclick = () => { fillLeagueForm(); notice("Changes discarded.", "ok"); };
 $("league-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
+  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), ko: { overs: Math.max(0, Math.min(50, +$("lg-koOvers").value || 0)), bpo: +$("lg-koBpo").value ? Math.max(4, Math.min(10, +$("lg-koBpo").value)) : 0, stages: Object.entries(KO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
 });
 
 /* ============================ match view ============================ */
