@@ -92,21 +92,30 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 button.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
 
 /* match list */
-.mrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 9px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.mrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .mrow:hover { background: var(--bg); }
-.mrow .teams { display: grid; gap: 2px; }
+.mrow .teams { display: grid; gap: 0; line-height: 1.35; }
 .mrow .tline { display: flex; justify-content: space-between; gap: 10px; font-weight: 600; }
 .mrow .tline .sc { font-variant-numeric: tabular-nums; }
 .mrow .meta { font-size: 12px; color: var(--muted); }
 .group-title { font: 700 13px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 12px 0 2px; }
 
 /* scoreboard */
-.board { background: var(--pitch); color: var(--pitch-ink); border-radius: var(--r); padding: 12px 14px; }
-.board .big { font: 800 40px/1 var(--font-display); font-variant-numeric: tabular-nums; }
-.board .big small { font-size: 20px; opacity: .85; margin-left: 6px; }
-.board .line { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; opacity: .92; margin-top: 4px; }
-.board .bat { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; margin-top: 8px; font-variant-numeric: tabular-nums; }
-.board .bat .on::after { content: " *"; color: #fbbf24; }
+.board { background: var(--pitch); color: var(--pitch-ink); border-radius: var(--r); padding: 8px 12px; display: grid; gap: 4px; }
+.board .top { display: flex; flex-wrap: wrap; gap: 0 10px; align-items: baseline; }
+.board .top b { font: 700 16px var(--font-display); text-transform: uppercase; letter-spacing: .02em; }
+.board .top .meta { font-size: 12px; opacity: .8; }
+.board .scorerow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.board .tm { font: 700 14px var(--font-display); opacity: .85; }
+.board .big { font: 800 30px/1.05 var(--font-display); font-variant-numeric: tabular-nums; }
+.board .ov { font: 700 15px var(--font-display); opacity: .85; }
+.board .line { display: inline-flex; flex-wrap: wrap; gap: 0 10px; font-size: 12.5px; opacity: .92; margin-left: 4px; }
+.board .who { display: flex; flex-wrap: wrap; gap: 0 14px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.board .who .on::after { content: " *"; color: #fbbf24; }
+.board .who .bw { opacity: .8; }
+.board .res { font-weight: 700; }
+.board .over { margin-top: 0; }
+.board .ball { min-width: 24px; height: 24px; font-size: 11px; }
 .over { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .ball { min-width: 28px; height: 28px; padding: 0 5px; border-radius: 99px; display: inline-grid; place-items: center; font: 700 12px var(--font-body); background: rgba(255,255,255,.14); color: inherit; }
 .ball.b4 { background: var(--four); color: #fff; } .ball.b6 { background: var(--six); color: #fff; } .ball.bw { background: var(--bad); color: #fff; } .ball.bx { background: #fbbf24; color: #1a1300; }
@@ -607,29 +616,27 @@ function renderMatch() {
   }
   // head: board with current/last innings
   const ci = (m.inns || []).length - 1, res = (m.status === "done" || m.status === "abandoned") ? resultOf(m) : null;
-  let head = `<div class="board"><div class="sub" style="color:inherit;opacity:.85">${[m.stage, `${m.overs} overs`, `${m.xi} a side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ")}</div>
-    <div style="font:700 18px var(--font-display);text-transform:uppercase;margin-top:2px">${esc(teamName(m.a))} <span style="opacity:.6">v</span> ${esc(teamName(m.b))}</div>`;
-  if (m.toss && m.toss.winner) head += `<div class="line">${esc(teamName(m.toss.winner))} won the toss and chose to ${esc(m.toss.chose)}</div>`;
+  const meta = [m.stage, `${m.overs} ov`, `${m.xi}-a-side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ");
+  const toss = m.toss && m.toss.winner ? ` · Toss: ${esc(teamShort(m.toss.winner))}, ${esc(m.toss.chose)}` : "";
+  let head = `<div class="board"><div class="top"><b>${esc(teamName(m.a))} <span style="opacity:.6">v</span> ${esc(teamName(m.b))}</b><span class="meta">${meta}${toss}</span></div>`;
   if (ci >= 0) {
     const st = replay(m, ci), inn = m.inns[ci];
-    head += `<div style="margin-top:8px">${esc(teamName(inn.bat))}</div><div class="big">${scoreStr(st)}<small>${oversStr(st.legal)} / ${m.overs} ov</small></div>`;
     const crr = st.legal ? (st.runs * 6 / st.legal).toFixed(2) : "0.00";
     let line = `<span>CRR ${crr}</span>`;
     if (ci === 1) {
       const target = replay(m, 0).runs + 1, need = target - st.runs, left = m.overs * 6 - st.legal;
-      line += `<span>Target ${target}</span>` + (!res && need > 0 ? `<span><b>Need ${need} from ${left} ball${left === 1 ? "" : "s"}</b></span><span>RRR ${left ? (need * 6 / left).toFixed(2) : "–"}</span>` : "");
+      line += `<span>Target ${target}</span>` + (!res && need > 0 ? `<span><b>Need ${need} off ${left}</b></span><span>RRR ${left ? (need * 6 / left).toFixed(2) : "–"}</span>` : "");
     } else if (m.inns[1] === undefined && inningsDone(m, 0, st) && !res) line += `<span><b>Innings break · target ${st.runs + 1}</b></span>`;
-    head += `<div class="line">${line}</div>`;
+    head += `<div class="scorerow"><span class="tm">${esc(teamShort(inn.bat))}</span><span class="big">${scoreStr(st)}</span><span class="ov">${oversStr(st.legal)}/${m.overs} ov</span><span class="line">${line}</span></div>`;
     if (!res && !inningsDone(m, ci, st) && st.s) {
       const bs = st.bat[st.s], bn = st.ns && st.bat[st.ns], bw = st.b ? st.bowl[st.b] : st.lastOverBowler ? st.bowl[st.lastOverBowler] : null;
-      head += `<div class="bat"><span class="on">${esc(pname(st.s))}</span><span>${bs.r} (${bs.b})</span>`
-        + (bn ? `<span>${esc(pname(st.ns))}</span><span>${bn.r} (${bn.b})</span>` : "")
-        + (bw ? `<span style="opacity:.85">${esc(pname(bw.pid))} <small>(bowling)</small></span><span style="opacity:.85">${oversStr(bw.balls)}-${bw.m}-${bw.r}-${bw.w}</span>` : "") + `</div>`;
+      head += `<div class="who"><span><b class="on">${esc(pname(st.s))}</b> ${bs.r} (${bs.b})</span>${bn ? `<span>${esc(pname(st.ns))} ${bn.r} (${bn.b})</span>` : ""}`
+        + (bw ? `<span class="bw">${esc(pname(bw.pid))} ${oversStr(bw.balls)}-${bw.m}-${bw.r}-${bw.w}</span>` : "") + `</div>`;
     }
     const lastOver = st.overs[st.overs.length - 1] || [];
     if (lastOver.length) head += `<div class="over">${lastOver.map((b) => `<span class="ball ${b.cls}">${esc(b.sym)}</span>`).join("")}</div>`;
   }
-  if (res) head += `<div style="margin-top:8px;font-weight:700">${esc(res.text)}</div>`;
+  if (res) head += `<div class="res">${esc(res.text)}</div>`;
   head += `</div>`;
   $("match-head").innerHTML = head;
   const scorerOn = ed && m.status !== "done" && m.status !== "abandoned";
