@@ -171,6 +171,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
     <button role="tab" data-tab="matches">Matches</button>
     <button role="tab" data-tab="stats">Stats</button>
     <button role="tab" data-tab="teams">Teams</button>
+    <button role="tab" data-tab="settings" id="tab-settings" hidden>Settings</button>
   </div>
 </nav>
 
@@ -191,48 +192,10 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
   <!-- STANDINGS -->
   <section data-view="standings" hidden>
     <div class="panel">
-      <div class="panel-head"><h2>Points table <small><span id="pts-note">Win 2 · Tie 1 · No result 1 · Loss 0</span> · ranked by points, then net run rate<span id="nrr-note"></span></small></h2>
-        <button class="btn primary small" type="button" id="league-edit" hidden>League settings</button></div>
+      <div class="panel-head"><h2>Points table <small><span id="pts-note">Win 2 · Tie 1 · No result 1 · Loss 0</span> · ranked by points, then net run rate<span id="nrr-note"></span></small></h2></div>
       <div class="table-wrap" id="standings"></div>
     </div>
     <div class="panel" id="live-panel" hidden><h2>Live now</h2><div id="live-list"></div></div>
-    <div class="panel" id="league-panel" hidden>
-      <h2>League settings</h2>
-      <form id="league-form">
-        <label>League name<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
-        <h3 class="fs">Match defaults <small>filled in for each new match; can be changed per match</small></h3>
-        <div class="row2">
-          <label>Overs per innings<input id="lg-overs" type="number" min="1" max="50" value="10"></label>
-          <label>Players per side<input id="lg-xi" type="number" min="2" max="11" value="11"></label>
-        </div>
-        <div class="row3">
-          <label>Balls per over<input id="lg-bpo" type="number" min="4" max="10" value="6"></label>
-          <label>Runs for a wide<input id="lg-wdp" type="number" min="0" max="10" value="1"></label>
-          <label>Runs for a no-ball<input id="lg-nbp" type="number" min="0" max="10" value="1"></label>
-        </div>
-        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbw" style="width:auto"> Wides count as a ball (not re-bowled)</label>
-        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbn" style="width:auto"> No-balls count as a ball (not re-bowled)</label>
-        <h3 class="fs">Points table <small>applies to all league matches, including finished ones</small></h3>
-        <div class="row2">
-          <label>Points for a win<input id="lg-ptW" type="number" min="0" max="10" step="0.5" value="2"></label>
-          <label>Points for a tie<input id="lg-ptT" type="number" min="0" max="10" step="0.5" value="1"></label>
-        </div>
-        <div class="row2">
-          <label>Points for no result<input id="lg-ptNR" type="number" min="0" max="10" step="0.5" value="1"></label>
-          <label>Points for a loss<input id="lg-ptL" type="number" min="-5" max="10" step="0.5" value="0"></label>
-        </div>
-        <div class="row3">
-          <label>Bonus: win a chase with overs to spare<input id="lg-bonC" type="number" min="0" max="5" step="0.5" value="0"></label>
-          <label>Bonus: bowl the other side out with overs to spare<input id="lg-bonB" type="number" min="0" max="5" step="0.5" value="0"></label>
-          <label>Overs to spare (at least)<input id="lg-bonO" type="number" min="0" max="20" step="0.5" value="1"></label>
-        </div>
-        <label>Net run rate method<select id="lg-nrr">
-          <option value="icc">Standard (ICC): runs per over, all-out side counts its full overs</option>
-          <option value="balls">Simple: total runs ÷ total balls faced (actual balls)</option>
-        </select></label>
-        <div class="btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="league-cancel">Cancel</button></div>
-      </form>
-    </div>
   </section>
 
   <!-- MATCHES -->
@@ -283,6 +246,48 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
       <div class="panel"><h2>Best fielders <small>catches, run-outs, stumpings</small></h2><div class="table-wrap" id="st-field"></div></div>
       <div class="panel"><h2>Player of the tournament <small>1 point per run · 20 per wicket · 10 per catch, run-out or stumping</small></h2><div class="table-wrap" id="st-mvp"></div></div>
     </div>
+  </section>
+
+  <!-- SETTINGS (scorers only) -->
+  <section data-view="settings" hidden>
+    <div class="panel" id="league-panel">
+      <h2>League settings <small>only scorers can see and change these</small></h2>
+      <form id="league-form">
+        <label>League name<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
+        <h3 class="fs">Match defaults <small>filled in for each new match; can be changed per match</small></h3>
+        <div class="row2">
+          <label>Overs per innings<input id="lg-overs" type="number" min="1" max="50" value="10"></label>
+          <label>Players per side<input id="lg-xi" type="number" min="2" max="11" value="11"></label>
+        </div>
+        <div class="row3">
+          <label>Balls per over<input id="lg-bpo" type="number" min="4" max="10" value="6"></label>
+          <label>Runs for a wide<input id="lg-wdp" type="number" min="0" max="10" value="1"></label>
+          <label>Runs for a no-ball<input id="lg-nbp" type="number" min="0" max="10" value="1"></label>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbw" style="width:auto"> Wides count as a ball (not re-bowled)</label>
+        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbn" style="width:auto"> No-balls count as a ball (not re-bowled)</label>
+        <h3 class="fs">Points table <small>applies to all league matches, including finished ones</small></h3>
+        <div class="row2">
+          <label>Points for a win<input id="lg-ptW" type="number" min="0" max="10" step="0.5" value="2"></label>
+          <label>Points for a tie<input id="lg-ptT" type="number" min="0" max="10" step="0.5" value="1"></label>
+        </div>
+        <div class="row2">
+          <label>Points for no result<input id="lg-ptNR" type="number" min="0" max="10" step="0.5" value="1"></label>
+          <label>Points for a loss<input id="lg-ptL" type="number" min="-5" max="10" step="0.5" value="0"></label>
+        </div>
+        <div class="row3">
+          <label>Bonus: win a chase with overs to spare<input id="lg-bonC" type="number" min="0" max="5" step="0.5" value="0"></label>
+          <label>Bonus: bowl the other side out with overs to spare<input id="lg-bonB" type="number" min="0" max="5" step="0.5" value="0"></label>
+          <label>Overs to spare (at least)<input id="lg-bonO" type="number" min="0" max="20" step="0.5" value="1"></label>
+        </div>
+        <label>Net run rate method<select id="lg-nrr">
+          <option value="icc">Standard (ICC): runs per over, all-out side counts its full overs</option>
+          <option value="balls">Simple: total runs ÷ total balls faced (actual balls)</option>
+        </select></label>
+        <div class="btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="league-cancel">Discard changes</button></div>
+      </form>
+    </div>
+    <div class="panel" id="settings-locked" hidden><div class="empty">Sign in as a scorer to change the league settings.</div></div>
   </section>
 
   <!-- TEAMS -->
@@ -573,13 +578,14 @@ async function onDelete(col, id) {
 }
 
 /* routing: #standings #matches #stats #teams #m-<id> */
-const TABS = ["standings", "matches", "stats", "teams"];
+const TABS = ["standings", "matches", "stats", "teams", "settings"];
 let currentMatch = null;
 function go(h) { location.hash = h; route(); }
 function route() {
   const h = location.hash.slice(1);
   let view = TABS.includes(h) ? h : "standings";
   currentMatch = null;
+  if (view === "settings") fillLeagueForm(); // load saved values each time the tab opens
   if (h.startsWith("m-")) { currentMatch = h.slice(2); view = "match"; }
   document.querySelectorAll("[data-view]").forEach((s) => { s.hidden = s.dataset.view !== view; });
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === view || (view === "match" && b.dataset.tab === "matches"))));
@@ -644,12 +650,14 @@ function render() {
   const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
   m.textContent = Store.mode === "wait" ? "Connecting…" : Store.mode === "local" ? "Saved in this browser" : Store.owner && !ed ? "Owner" : ed ? "Scorer" + (Store.user ? " · " + (Store.user.email || "").replace("@cricket.local", "") : "") : "View only";
   const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase"; ab.textContent = Store.user ? "Sign out" : "Scorer sign in";
-  ["match-add", "team-add", "league-edit"].forEach((id) => { $(id).hidden = !ed; });
-  if (!ed) ["match-form-panel", "team-form-panel", "league-panel"].forEach((id) => { $(id).hidden = true; });
+  ["match-add", "team-add", "tab-settings"].forEach((id) => { $(id).hidden = !ed; });
+  $("league-panel").hidden = !ed; $("settings-locked").hidden = ed;
+  if (!ed) ["match-form-panel", "team-form-panel"].forEach((id) => { $(id).hidden = true; });
   const lg = settings();
   $("lg-title").innerHTML = lg.name ? esc(lg.name) : "Festival <span>Cricket</span>";
   { const P = ptsOf(lg); $("pts-note").textContent = `Win ${P.w} · Tie ${P.t} · No result ${P.nr} · Loss ${P.l}` + (P.bc || P.bb ? ` · Bonus (${P.bo}+ overs to spare): chase ${P.bc}, bowl out ${P.bb}` : ""); }
   $("nrr-note").textContent = lg.nrr === "balls" ? " (runs per ball)" : "";
+  if (!$("league-panel").closest("section").hidden && !lgDirty) fillLeagueForm(); // show saved values until someone edits
   renderStandings(); renderMatchList(); renderStats(); renderTeams(); renderWipe();
   if (currentMatch) renderMatch();
 }
@@ -716,11 +724,13 @@ $("match-form").addEventListener("submit", async (ev) => {
 });
 
 /* ----- league settings ----- */
-$("league-edit").onclick = () => { const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } $("league-panel").hidden = false; };
-$("league-cancel").onclick = () => { $("league-panel").hidden = true; };
+let lgDirty = false;
+$("league-form").addEventListener("input", () => { lgDirty = true; });
+function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
+$("league-cancel").onclick = () => { fillLeagueForm(); notice("Changes discarded.", "ok"); };
 $("league-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { $("league-panel").hidden = true; notice("Saved.", "ok"); }
+  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
 });
 
 /* ============================ match view ============================ */
