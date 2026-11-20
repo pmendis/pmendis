@@ -201,7 +201,10 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label>League name<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
           <label>Default overs per innings<input id="lg-overs" type="number" min="1" max="50" value="10"></label>
         </div>
-        <label>Default players per side<input id="lg-xi" type="number" min="2" max="11" value="11"></label>
+        <div class="row2">
+          <label>Default players per side<input id="lg-xi" type="number" min="2" max="11" value="11"></label>
+          <label>Default balls per over<input id="lg-bpo" type="number" min="4" max="10" value="6"></label>
+        </div>
         <div class="btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="league-cancel">Cancel</button></div>
       </form>
     </div>
@@ -226,6 +229,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label>Overs<input id="mf-overs" type="number" min="1" max="50" value="10"></label>
           <label>Players per side<input id="mf-xi" type="number" min="2" max="11" value="11"></label>
         </div>
+        <div class="row3"><label>Balls per over<input id="mf-bpo" type="number" min="4" max="10" value="6"></label></div>
         <div class="btns"><button class="btn primary" type="submit" id="mf-save">Create match</button><button class="btn" type="button" id="mf-cancel">Cancel</button></div>
       </form>
     </div>
@@ -295,11 +299,14 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
    ===================================================================== */
 const DISMISSALS = ["bowled", "caught", "lbw", "run out", "stumped", "hit wicket"];
 const BOWLER_CREDIT = new Set(["bowled", "caught", "lbw", "stumped", "hit wicket"]);
-const oversStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
+const bpoOf = (m) => Math.max(1, +(m && m.bpo) || 6);
+const oversStr = (balls, bpo = 6) => `${Math.floor(balls / bpo)}.${balls % bpo}`;
+// whole overs (possibly from matches with different balls per over) shown as "overs.balls"
+const ovStr = (ov, bpo = 6) => { const w = Math.floor(ov + 1e-9); return `${w}.${Math.round((ov - w) * bpo)}`; };
 function replay(m, i) {
   const inn = m.inns && m.inns[i];
   const st = { runs: 0, wk: 0, legal: 0, ex: { wd: 0, nb: 0, b: 0, lb: 0 }, bat: {}, bowl: {}, order: [], bowlOrder: [], fow: [],
-    overs: [[]], s: null, ns: null, b: null, lastOverBowler: null, overRuns: 0, started: !!inn };
+    overs: [[]], s: null, ns: null, b: null, lastOverBowler: null, overRuns: 0, started: !!inn, bpo: bpoOf(m) };
   if (!inn) return st;
   const B = (pid) => { if (!pid) return null; if (!st.bat[pid]) { st.bat[pid] = { pid, r: 0, b: 0, f4: 0, f6: 0, out: false, how: "", bw: null, fd: null }; st.order.push(pid); } return st.bat[pid]; };
   const W = (pid) => { if (!st.bowl[pid]) { st.bowl[pid] = { pid, balls: 0, r: 0, w: 0, m: 0, wd: 0, nb: 0 }; st.bowlOrder.push(pid); } return st.bowl[pid]; };
@@ -320,13 +327,13 @@ function replay(m, i) {
     if (e.w) {
       st.wk++; const ob = B(e.w.out); ob.out = true; ob.how = e.w.k; ob.fd = e.w.f || null;
       ob.bw = BOWLER_CREDIT.has(e.w.k) ? e.b : null; if (ob.bw) bw.w++;
-      st.fow.push({ wk: st.wk, runs: st.runs, pid: e.w.out, over: oversStr(st.legal) });
+      st.fow.push({ wk: st.wk, runs: st.runs, pid: e.w.out, over: oversStr(st.legal, st.bpo) });
       sym = "W" + (ran ? "+" + ran : ""); cls = "bw";
       const nb = e.nb || null; if (nb) B(nb);
       if (s === e.w.out) s = nb; else if (ns === e.w.out) ns = nb;
     }
     st.overs[st.overs.length - 1].push({ sym, cls });
-    if (legal && st.legal % 6 === 0) {
+    if (legal && st.legal % st.bpo === 0) {
       if (st.overRuns === 0) bw.m++;
       st.overRuns = 0; [s, ns] = [ns, s]; st.lastOverBowler = e.b; st.b = null; st.overs.push([]);
     } else st.b = e.b;
@@ -340,7 +347,7 @@ function inningsDone(m, i, st) {
   st = st || replay(m, i);
   const inn = m.inns && m.inns[i]; if (!inn) return false;
   if (inn.closed) return true;
-  if (st.legal >= (m.overs || 0) * 6) return true;
+  if (st.legal >= (m.overs || 0) * bpoOf(m)) return true;
   if (st.wk >= (m.xi || 11) - 1) return true;
   if (i === 1) { const t = replay(m, 0).runs + 1; if (st.runs >= t) return true; }
   return false;
@@ -368,12 +375,12 @@ function standings() {
     else { const lo = res.winner === m.a ? m.b : m.a; rows[res.winner].w++; rows[res.winner].pts += 2; rows[lo].l++; }
     for (let i = 0; i < 2; i++) {
       const inn = m.inns[i], st = replay(m, i), allOut = st.wk >= (m.xi || 11) - 1;
-      const balls = allOut ? (m.overs || 0) * 6 : st.legal;
+      const balls = (allOut ? (m.overs || 0) * st.bpo : st.legal) / st.bpo; // overs faced
       if (rows[inn.bat]) { rows[inn.bat].rf += st.runs; rows[inn.bat].bf += balls; }
       if (rows[inn.bowl]) { rows[inn.bowl].ra += st.runs; rows[inn.bowl].bb += balls; }
     }
   }
-  const list = Object.values(rows).map((r) => ({ ...r, nrr: (r.bf ? r.rf / (r.bf / 6) : 0) - (r.bb ? r.ra / (r.bb / 6) : 0) }));
+  const list = Object.values(rows).map((r) => ({ ...r, nrr: (r.bf ? r.rf / r.bf : 0) - (r.bb ? r.ra / r.bb : 0) }));
   return list.sort((x, y) => y.pts - x.pts || y.nrr - x.nrr || y.w - x.w || teamName(x.id).localeCompare(teamName(y.id)));
 }
 /* Player stats across every match with scoring (live included) */
@@ -390,7 +397,7 @@ function playerStats() {
         if (bt.out && bt.fd) { const f = P(bt.fd); if (bt.how === "caught") f.ct++; else if (bt.how === "run out") f.ro++; else if (bt.how === "stumped") f.stp++; }
       }
       for (const bw of Object.values(st.bowl)) {
-        const p = P(bw.pid); p.oi++; p.balls += bw.balls; p.rc += bw.r; p.w += bw.w;
+        const p = P(bw.pid); p.oi++; p.balls += bw.balls; p.ov = (p.ov || 0) + bw.balls / st.bpo; p.rc += bw.r; p.w += bw.w;
         if (!p.best || bw.w > p.best.w || (bw.w === p.best.w && bw.r < p.best.r)) p.best = { w: bw.w, r: bw.r };
       }
     });
@@ -497,7 +504,7 @@ const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(
 const nrrFmt = (n) => (n >= 0 ? "+" : "") + n.toFixed(3);
 const scoreStr = (st) => `${st.runs}/${st.wk}`;
 const sr = (r, b) => b ? (r * 100 / b).toFixed(1) : "–";
-const econ = (r, balls) => balls ? (r * 6 / balls).toFixed(2) : "–";
+const econ = (r, ov) => ov ? (r / ov).toFixed(2) : "–"; // runs per over
 
 /* delete confirmation dialog (in-page, since the viewer blocks confirm()) */
 const delDlg = document.createElement("dialog"); delDlg.className = "confirm-dlg";
@@ -608,7 +615,7 @@ function render() {
 function renderStandings() {
   const rows = standings();
   $("standings").innerHTML = rows.length ? `<table><thead><tr><th>#</th><th>Team</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">NR</th><th class="num">Pts</th><th class="num">NRR</th></tr></thead><tbody>${rows.map((r, i) =>
-    `<tr><td class="num">${i + 1}</td><td><b>${esc(teamName(r.id))}</b><div class="sub">For ${r.rf}/${oversStr(r.bf)} · Against ${r.ra}/${oversStr(r.bb)}</div></td><td class="num">${r.p}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.t}</td><td class="num">${r.nr}</td><td class="num"><b>${r.pts}</b></td><td class="num">${r.bf || r.bb ? nrrFmt(r.nrr) : "–"}</td></tr>`).join("")}</tbody></table>`
+    `<tr><td class="num">${i + 1}</td><td><b>${esc(teamName(r.id))}</b><div class="sub">For ${r.rf}/${ovStr(r.bf, bpoOf(settings()))} · Against ${r.ra}/${ovStr(r.bb, bpoOf(settings()))}</div></td><td class="num">${r.p}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.t}</td><td class="num">${r.nr}</td><td class="num"><b>${r.pts}</b></td><td class="num">${r.bf || r.bb ? nrrFmt(r.nrr) : "–"}</td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">No teams yet.${Store.canEdit() ? " Add them in <b>Teams</b>." : ""}</div>`;
   const live = matches().filter((x) => x.status === "live");
   $("live-panel").hidden = !live.length;
@@ -642,14 +649,14 @@ function fillTeamSelects(sel, val) { sel.innerHTML = `<option value="">Choose…
 $("match-add").onclick = () => {
   if (teams().length < 2) { notice("Add at least two teams first (Teams tab).", "bad"); return; }
   const lg = settings(); $("match-form").reset(); $("mf-id").value = ""; fillTeamSelects($("mf-a")); fillTeamSelects($("mf-b"));
-  $("mf-overs").value = lg.overs || 10; $("mf-xi").value = lg.xi || 11; $("mf-title").textContent = "New match"; $("mf-save").textContent = "Create match";
+  $("mf-overs").value = lg.overs || 10; $("mf-xi").value = lg.xi || 11; $("mf-bpo").value = bpoOf(lg); $("mf-title").textContent = "New match"; $("mf-save").textContent = "Create match";
   $("match-form-panel").hidden = false; $("mf-a").focus();
 };
 $("mf-cancel").onclick = () => { $("match-form-panel").hidden = true; };
 function editMatchSetup(m) {
   go("matches"); fillTeamSelects($("mf-a"), m.a); fillTeamSelects($("mf-b"), m.b);
   $("mf-id").value = m.id; $("mf-when").value = m.when || ""; $("mf-venue").value = m.venue || ""; $("mf-stage").value = m.stage || "League";
-  $("mf-overs").value = m.overs || 10; $("mf-xi").value = m.xi || 11; $("mf-title").textContent = "Edit match"; $("mf-save").textContent = "Save changes";
+  $("mf-overs").value = m.overs || 10; $("mf-xi").value = m.xi || 11; $("mf-bpo").value = bpoOf(m); $("mf-title").textContent = "Edit match"; $("mf-save").textContent = "Save changes";
   $("match-form-panel").hidden = false; window.scrollTo({ top: 0, behavior: "smooth" });
 }
 $("match-form").addEventListener("submit", async (ev) => {
@@ -660,17 +667,17 @@ $("match-form").addEventListener("submit", async (ev) => {
   if (old && old.inns && old.inns.length && (old.a !== a || old.b !== b)) { notice("Scoring has started; teams can't be changed. Undo all balls first.", "bad"); return; }
   const { id: _, ...rest } = old || {};
   const m = { ...rest, a, b, when: $("mf-when").value, venue: $("mf-venue").value.trim(), stage: $("mf-stage").value,
-    overs: Math.max(1, Math.min(50, +$("mf-overs").value || 10)), xi: Math.max(2, Math.min(11, +$("mf-xi").value || 11)),
+    overs: Math.max(1, Math.min(50, +$("mf-overs").value || 10)), xi: Math.max(2, Math.min(11, +$("mf-xi").value || 11)), bpo: Math.max(4, Math.min(10, +$("mf-bpo").value || 6)),
     status: old ? old.status : "scheduled", inns: old ? old.inns || [] : [], createdAt: old ? old.createdAt : new Date().toISOString() };
   if (await Store.put("cr_matches", id, m)) { $("match-form-panel").hidden = true; notice(old ? "Match updated." : "Match created.", "ok"); }
 });
 
 /* ----- league settings ----- */
-$("league-edit").onclick = () => { const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("league-panel").hidden = false; };
+$("league-edit").onclick = () => { const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); $("league-panel").hidden = false; };
 $("league-cancel").onclick = () => { $("league-panel").hidden = true; };
 $("league-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11 })) { $("league-panel").hidden = true; notice("Saved.", "ok"); }
+  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)) })) { $("league-panel").hidden = true; notice("Saved.", "ok"); }
 });
 
 /* ============================ match view ============================ */
@@ -687,22 +694,22 @@ function renderMatch() {
   }
   // head: board with current/last innings
   const ci = (m.inns || []).length - 1, res = (m.status === "done" || m.status === "abandoned") ? resultOf(m) : null;
-  const meta = [m.stage, `${m.overs} ov`, `${m.xi}-a-side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ");
+  const meta = [m.stage, `${m.overs} ov`, bpoOf(m) !== 6 ? `${bpoOf(m)}-ball overs` : "", `${m.xi}-a-side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ");
   const toss = m.toss && m.toss.winner ? ` · Toss: ${esc(teamShort(m.toss.winner))}, ${esc(m.toss.chose)}` : "";
   let head = `<div class="board"><div class="top"><b>${esc(teamName(m.a))} <span style="opacity:.6">v</span> ${esc(teamName(m.b))}</b><span class="meta">${meta}${toss}</span></div>`;
   if (ci >= 0) {
     const st = replay(m, ci), inn = m.inns[ci];
-    const crr = st.legal ? (st.runs * 6 / st.legal).toFixed(2) : "0.00";
+    const crr = st.legal ? (st.runs * st.bpo / st.legal).toFixed(2) : "0.00";
     let line = `<span>CRR ${crr}</span>`;
     if (ci === 1) {
-      const target = replay(m, 0).runs + 1, need = target - st.runs, left = m.overs * 6 - st.legal;
-      line += `<span>Target ${target}</span>` + (!res && need > 0 ? `<span><b>Need ${need} off ${left}</b></span><span>RRR ${left ? (need * 6 / left).toFixed(2) : "–"}</span>` : "");
+      const target = replay(m, 0).runs + 1, need = target - st.runs, left = m.overs * st.bpo - st.legal;
+      line += `<span>Target ${target}</span>` + (!res && need > 0 ? `<span><b>Need ${need} off ${left}</b></span><span>RRR ${left ? (need * st.bpo / left).toFixed(2) : "–"}</span>` : "");
     } else if (m.inns[1] === undefined && inningsDone(m, 0, st) && !res) line += `<span><b>Innings break · target ${st.runs + 1}</b></span>`;
-    head += `<div class="scorerow"><span class="tm">${esc(teamShort(inn.bat))}</span><span class="big">${scoreStr(st)}</span><span class="ov">${oversStr(st.legal)}/${m.overs} ov</span><span class="line">${line}</span></div>`;
+    head += `<div class="scorerow"><span class="tm">${esc(teamShort(inn.bat))}</span><span class="big">${scoreStr(st)}</span><span class="ov">${oversStr(st.legal, st.bpo)}/${m.overs} ov</span><span class="line">${line}</span></div>`;
     if (!res && !inningsDone(m, ci, st) && st.s) {
       const bs = st.bat[st.s], bn = st.ns && st.bat[st.ns], bw = st.b ? st.bowl[st.b] : st.lastOverBowler ? st.bowl[st.lastOverBowler] : null;
       head += `<div class="who"><span><b class="on">${esc(pname(st.s))}</b> ${bs.r} (${bs.b})</span>${bn ? `<span>${esc(pname(st.ns))} ${bn.r} (${bn.b})</span>` : ""}`
-        + (bw ? `<span class="bw">${esc(pname(bw.pid))} ${oversStr(bw.balls)}-${bw.m}-${bw.r}-${bw.w}</span>` : "") + `</div>`;
+        + (bw ? `<span class="bw">${esc(pname(bw.pid))} ${oversStr(bw.balls, st.bpo)}-${bw.m}-${bw.r}-${bw.w}</span>` : "") + `</div>`;
     }
     const lastOver = st.overs[st.overs.length - 1] || [];
     if (lastOver.length) head += `<div class="over">${lastOver.map((b) => `<span class="ball ${b.cls}">${esc(b.sym)}</span>`).join("")}</div>`;
@@ -732,17 +739,17 @@ function scorecardHtml(m, i) {
   const inn = m.inns[i], st = replay(m, i), ex = st.ex, exT = ex.wd + ex.nb + ex.b + ex.lb;
   const yetToBat = squad(inn.bat).filter((p) => !st.bat[p.id]);
   return `<div class="panel" style="margin-top:14px"><div class="panel-head"><h2>${esc(teamName(inn.bat))} innings <small>${i === 0 ? "1st" : "2nd"} innings</small></h2>
-    <div style="font:800 22px var(--font-display)">${scoreStr(st)} <span class="muted" style="font-size:15px">(${oversStr(st.legal)} ov)</span></div></div>
+    <div style="font:800 22px var(--font-display)">${scoreStr(st)} <span class="muted" style="font-size:15px">(${oversStr(st.legal, st.bpo)} ov)</span></div></div>
     <div class="table-wrap"><table><thead><tr><th>Batter</th><th></th><th class="num">R</th><th class="num">B</th><th class="num">4s</th><th class="num">6s</th><th class="num">SR</th></tr></thead><tbody>
     ${st.order.map((pid) => { const b = st.bat[pid]; const on = !b.out && (pid === st.s || pid === st.ns) && !inningsDone(m, i, st);
       return `<tr><td><b>${esc(pname(pid))}</b>${on && pid === st.s ? " *" : ""}</td><td class="sub">${b.out ? esc(dismissalText(b)) : on ? "batting" : "not out"}</td><td class="num"><b>${b.r}</b></td><td class="num">${b.b}</td><td class="num">${b.f4}</td><td class="num">${b.f6}</td><td class="num">${sr(b.r, b.b)}</td></tr>`; }).join("")}
     <tr><td>Extras</td><td class="sub">wd ${ex.wd}, nb ${ex.nb}, b ${ex.b}, lb ${ex.lb}</td><td class="num"><b>${exT}</b></td><td colspan="4"></td></tr>
-    <tr><td><b>Total</b></td><td class="sub">${st.wk} wkt${st.wk === 1 ? "" : "s"}, ${oversStr(st.legal)} overs</td><td class="num"><b>${st.runs}</b></td><td colspan="4" class="sub">RR ${st.legal ? (st.runs * 6 / st.legal).toFixed(2) : "–"}</td></tr>
+    <tr><td><b>Total</b></td><td class="sub">${st.wk} wkt${st.wk === 1 ? "" : "s"}, ${oversStr(st.legal, st.bpo)} overs</td><td class="num"><b>${st.runs}</b></td><td colspan="4" class="sub">RR ${st.legal ? (st.runs * st.bpo / st.legal).toFixed(2) : "–"}</td></tr>
     </tbody></table></div>
     ${yetToBat.length && !inningsDone(m, i, st) ? `<div class="sub" style="margin-top:6px">Yet to bat: ${yetToBat.map((p) => esc(p.name)).join(", ")}</div>` : ""}
     ${st.fow.length ? `<div class="sub" style="margin-top:6px"><b>Fall of wickets:</b> ${st.fow.map((f) => `${f.runs}-${f.wk} (${esc(pname(f.pid))}, ${f.over})`).join(" · ")}</div>` : ""}
     <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Bowler</th><th class="num">O</th><th class="num">M</th><th class="num">R</th><th class="num">W</th><th class="num">Econ</th><th class="num">Wd</th><th class="num">Nb</th></tr></thead><tbody>
-    ${st.bowlOrder.map((pid) => { const b = st.bowl[pid]; return `<tr><td><b>${esc(pname(pid))}</b></td><td class="num">${oversStr(b.balls)}</td><td class="num">${b.m}</td><td class="num">${b.r}</td><td class="num"><b>${b.w}</b></td><td class="num">${econ(b.r, b.balls)}</td><td class="num">${b.wd}</td><td class="num">${b.nb}</td></tr>`; }).join("") || `<tr><td colspan="8" class="muted">No balls bowled yet.</td></tr>`}
+    ${st.bowlOrder.map((pid) => { const b = st.bowl[pid]; return `<tr><td><b>${esc(pname(pid))}</b></td><td class="num">${oversStr(b.balls, st.bpo)}</td><td class="num">${b.m}</td><td class="num">${b.r}</td><td class="num"><b>${b.w}</b></td><td class="num">${econ(b.r, b.balls / st.bpo)}</td><td class="num">${b.wd}</td><td class="num">${b.nb}</td></tr>`; }).join("") || `<tr><td colspan="8" class="muted">No balls bowled yet.</td></tr>`}
     </tbody></table></div>
     ${st.overs.some((o) => o.length) ? `<div class="sub" style="margin-top:8px"><b>Overs</b></div>${st.overs.map((o, k) => o.length ? `<div class="over" style="align-items:center"><span class="sub" style="width:44px">Ov ${k + 1}</span>${o.map((b) => `<span class="ball ${b.cls}">${esc(b.sym)}</span>`).join("")}</div>` : "").join("")}` : ""}
   </div>`;
@@ -799,7 +806,7 @@ function renderScorer(m) {
   // 2) need a bowler for the new over
   if (!done && !st.b) {
     const opts = squad(inn.bowl).filter((p) => p.id !== st.lastOverBowler);
-    box.innerHTML = `<div class="panel" style="margin-top:14px"><h2>Over ${Math.floor(st.legal / 6) + 1} <small>choose the bowler (not ${esc(pname(st.lastOverBowler))}, who bowled the last over)</small></h2>
+    box.innerHTML = `<div class="panel" style="margin-top:14px"><h2>Over ${Math.floor(st.legal / st.bpo) + 1} <small>choose the bowler (not ${esc(pname(st.lastOverBowler))}, who bowled the last over)</small></h2>
       <div class="btns"><select id="nb-bowler" style="max-width:260px">${playerOptions(opts, "")}</select><button class="btn primary" type="button" id="nb-go">Start over</button><button class="btn" type="button" id="nb-undo">Undo last ball</button></div></div>`;
     $("nb-go").onclick = () => { const v = $("nb-bowler").value; if (!v) { notice("Choose a bowler.", "bad"); return; } nextBowler = v; renderMatch(); };
     $("nb-undo").onclick = () => undoBall(m);
@@ -824,7 +831,7 @@ function renderScorer(m) {
       <button type="button" class="undo" id="pad-swap">⇄ Swap strike</button>
       <button type="button" class="undo" id="pad-close">End innings</button>
     </div>`;
-  box.innerHTML = `<div class="panel" style="margin-top:14px"><div class="panel-head"><h2>Score <small>${esc(pname(st.s))} on strike · ${esc(pname(bowler))} bowling · over ${Math.floor(st.legal / 6) + 1}, ball ${st.legal % 6 + 1}</small></h2></div>${pad}<div id="sheet"></div></div>`;
+  box.innerHTML = `<div class="panel" style="margin-top:14px"><div class="panel-head"><h2>Score <small>${esc(pname(st.s))} on strike · ${esc(pname(bowler))} bowling · over ${Math.floor(st.legal / st.bpo) + 1}, ball ${st.legal % st.bpo + 1}</small></h2></div>${pad}<div id="sheet"></div></div>`;
   box.querySelectorAll("[data-run]").forEach((b) => b.onclick = () => addBall(m, { r: +b.dataset.run }));
   box.querySelectorAll("[data-sheet]").forEach((b) => b.onclick = () => { sheet = sheet && sheet.k === b.dataset.sheet ? null : { k: b.dataset.sheet }; drawSheet(m, st, inn); });
   $("pad-undo").onclick = () => undoBall(m);
@@ -903,9 +910,9 @@ function renderStats() {
   const bat = top(S.filter((p) => p.inns).sort((a, b) => b.r - a.r || (b.r / Math.max(1, b.b)) - (a.r / Math.max(1, a.b))));
   $("st-bat").innerHTML = bat.length ? `<table class="lead"><thead><tr><th></th><th>Player</th><th class="num">Runs</th><th class="num">Inn</th><th class="num">HS</th><th class="num">Avg</th><th class="num">SR</th><th class="num">4s/6s</th></tr></thead><tbody>${bat.map((p, i) => {
     const outs = p.inns - p.no; return `<tr><td>${i + 1}</td><td><b>${esc(pname(p.pid))}</b> ${tag(p.pid)}</td><td class="num hl">${p.r}</td><td class="num">${p.inns}</td><td class="num">${p.hs}${p.hsNo ? "*" : ""}</td><td class="num">${outs ? (p.r / outs).toFixed(1) : "–"}</td><td class="num">${sr(p.r, p.b)}</td><td class="num">${p.f4}/${p.f6}</td></tr>`; }).join("")}</tbody></table>` : `<div class="empty">No batting yet.</div>`;
-  const bowl = top(S.filter((p) => p.balls).sort((a, b) => b.w - a.w || (a.rc / a.balls) - (b.rc / b.balls)));
+  const bowl = top(S.filter((p) => p.balls).sort((a, b) => b.w - a.w || (a.rc / a.ov) - (b.rc / b.ov)));
   $("st-bowl").innerHTML = bowl.length ? `<table class="lead"><thead><tr><th></th><th>Player</th><th class="num">Wkts</th><th class="num">Overs</th><th class="num">Runs</th><th class="num">Econ</th><th class="num">Best</th></tr></thead><tbody>${bowl.map((p, i) =>
-    `<tr><td>${i + 1}</td><td><b>${esc(pname(p.pid))}</b> ${tag(p.pid)}</td><td class="num hl">${p.w}</td><td class="num">${oversStr(p.balls)}</td><td class="num">${p.rc}</td><td class="num">${econ(p.rc, p.balls)}</td><td class="num">${p.best ? p.best.w + "/" + p.best.r : "–"}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No bowling yet.</div>`;
+    `<tr><td>${i + 1}</td><td><b>${esc(pname(p.pid))}</b> ${tag(p.pid)}</td><td class="num hl">${p.w}</td><td class="num">${ovStr(p.ov, bpoOf(settings()))}</td><td class="num">${p.rc}</td><td class="num">${econ(p.rc, p.ov)}</td><td class="num">${p.best ? p.best.w + "/" + p.best.r : "–"}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No bowling yet.</div>`;
   const fld = top(S.filter((p) => p.ct + p.ro + p.stp).sort((a, b) => (b.ct + b.ro + b.stp) - (a.ct + a.ro + a.stp) || b.ct - a.ct));
   $("st-field").innerHTML = fld.length ? `<table class="lead"><thead><tr><th></th><th>Player</th><th class="num">Total</th><th class="num">Ct</th><th class="num">RO</th><th class="num">St</th></tr></thead><tbody>${fld.map((p, i) =>
     `<tr><td>${i + 1}</td><td><b>${esc(pname(p.pid))}</b> ${tag(p.pid)}</td><td class="num hl">${p.ct + p.ro + p.stp}</td><td class="num">${p.ct}</td><td class="num">${p.ro}</td><td class="num">${p.stp}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No catches, run-outs or stumpings yet.</div>`;
