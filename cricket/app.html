@@ -172,6 +172,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
     <button role="tab" data-tab="stats">Stats</button>
     <button role="tab" data-tab="teams">Teams</button>
     <button role="tab" data-tab="settings" id="tab-settings" hidden>Settings</button>
+    <button role="tab" data-tab="access" id="tab-access" hidden>Access</button>
   </div>
 </nav>
 
@@ -253,6 +254,8 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
     <div class="panel" id="league-panel">
       <h2>League settings <small>only scorers can see and change these</small></h2>
       <form id="league-form">
+        <p class="muted" id="lg-ro" hidden style="margin:0 0 8px">View only: ask the owner for "Edit settings" to change these.</p>
+        <fieldset id="lg-fs" style="border:0;padding:0;margin:0;min-width:0">
         <label>League name<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
         <h3 class="fs">Match defaults <small>filled in for each new match; can be changed per match</small></h3>
         <div class="row2">
@@ -284,10 +287,24 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <option value="icc">Standard (ICC): runs per over, all-out side counts its full overs</option>
           <option value="balls">Simple: total runs ÷ total balls faced (actual balls)</option>
         </select></label>
-        <div class="btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="league-cancel">Discard changes</button></div>
+        </fieldset>
+        <div class="btns" id="lg-btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="league-cancel">Discard changes</button></div>
       </form>
     </div>
     <div class="panel" id="settings-locked" hidden><div class="empty">Sign in as a scorer to change the league settings.</div></div>
+  </section>
+
+  <!-- ACCESS (owner only) -->
+  <section data-view="access" hidden>
+    <div class="panel">
+      <h2>Access <small>owner only · what each scorer account may do; changes apply straight away</small></h2>
+      <p class="muted" style="margin:0 0 10px">Create the username and password in Firebase Authentication first (e.g. scorer3@cricket.local), then add the username here. Accounts not listed get the starting set: Score matches and Manage teams.</p>
+      <form id="acc-form" class="btns" style="align-items:flex-end;margin-bottom:12px">
+        <label style="max-width:220px">Username<input id="acc-user" placeholder="e.g. scorer3" autocomplete="off" required></label>
+        <button class="btn primary" type="submit">Add user</button>
+      </form>
+      <div class="table-wrap" id="acc-list"></div>
+    </div>
   </section>
 
   <!-- TEAMS -->
@@ -450,6 +467,15 @@ function playerStats() {
 }
 
 /* =========================== app shell =========================== */
+const PERMS = [
+  { k: "score", label: "Score matches", hint: "create matches and score their own" },
+  { k: "teams", label: "Manage teams", hint: "add and edit teams and squads" },
+  { k: "viewSettings", label: "View settings", hint: "see the Settings tab" },
+  { k: "editSettings", label: "Edit settings", hint: "change league settings" },
+  { k: "allMatches", label: "Manage all matches", hint: "edit, score or delete any match" },
+];
+const NO_PERMS = { score: false, teams: false, viewSettings: false, editSettings: false, allMatches: false };
+const DEFAULT_PERMS = { ...NO_PERMS, score: true, teams: true }; // scorers without an access record
 const COLS = ["cr_settings", "cr_teams", "cr_players", "cr_matches"];
 const LS_KEY = "festcricket.v1";
 const $ = (id) => document.getElementById(id);
@@ -488,6 +514,12 @@ const Store = {
       this.user = u && !u.isAnonymous ? u : null; this.owner = false;
       // owner = the email listed in the Firestore rules; only it may read cr_owner
       if (this.user && !this.isScorer()) { try { await this.fb.collection("cr_owner").doc("check").get(); this.owner = true; } catch (e) { this.owner = false; } }
+      // a scorer's permissions live in cr_access/<email>; no document = the starting set (score + teams)
+      if (this.unsubPerm) { this.unsubPerm(); this.unsubPerm = null; } this.perms = null;
+      if (this.user && this.isScorer()) this.unsubPerm = this.fb.collection("cr_access").doc(this.me()).onSnapshot((d) => { this.perms = d.exists ? { ...NO_PERMS, ...d.data() } : { ...DEFAULT_PERMS }; render(); }, () => { this.perms = { ...DEFAULT_PERMS }; render(); });
+      // the owner manages everyone's permissions on the Access tab
+      if (this.unsubAccess) { this.unsubAccess(); this.unsubAccess = null; } this.access = {};
+      if (this.owner) this.unsubAccess = this.fb.collection("cr_access").onSnapshot((snap) => { const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.access = n; render(); }, () => {});
       render();
     });
     const ok = new Set(), timer = setTimeout(() => { if (ok.size < COLS.length) notice("Still waiting for the shared database. Check your internet connection.", "warn", "sync"); }, 12000);
@@ -509,9 +541,16 @@ const Store = {
   },
   me() { return this.user ? String(this.user.email || "").toLowerCase() : ""; },
   // a match can be edited, scored or deleted only by the scorer who created it (older matches without a creator stay open to all scorers)
-  canEditMatch(m) { if (!this.canEdit()) return false; if (this.mode !== "firebase") return true; return !m.createdBy || m.createdBy === this.me(); },
+  can(p) { // p: score | teams | viewSettings | editSettings | allMatches
+    if (this.mode === "local" || this.mode === "cloud") return true;
+    if (this.mode !== "firebase") return false;
+    if (this.owner) return p === "viewSettings" || p === "editSettings";
+    if (!this.isScorer()) return false;
+    return !!(this.perms || DEFAULT_PERMS)[p];
+  },
+  canEditMatch(m) { if (this.can("allMatches")) return true; if (!this.can("score")) return false; if (this.mode !== "firebase") return true; return !m.createdBy || m.createdBy === this.me(); },
   isScorer() { return !!this.user && /@cricket\.local$/i.test(this.user.email || ""); },
-  canEdit() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && this.isScorer()); },
+  canEdit() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && (this.isScorer() || !!this.owner)); },
   persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) { notice("This browser blocked saving.", "bad"); } },
   async put(col, id, obj) {
     if (!this.canEdit()) { notice("Sign in as a scorer (top right) to make changes.", "bad"); return false; }
@@ -582,7 +621,7 @@ async function onDelete(col, id) {
 }
 
 /* routing: #standings #matches #stats #teams #m-<id> */
-const TABS = ["standings", "matches", "stats", "teams", "settings"];
+const TABS = ["standings", "matches", "stats", "teams", "settings", "access"];
 let currentMatch = null;
 function go(h) { location.hash = h; route(); }
 function route() {
@@ -600,6 +639,35 @@ setTabsH(); addEventListener("resize", setTabsH);
 document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
 window.addEventListener("hashchange", route);
 $("back-matches").onclick = () => go("matches");
+
+/* ----- owner: access (permissions per scorer account) ----- */
+const accKey = (name) => { let v = String(name || "").trim().toLowerCase(); if (v && !v.includes("@")) v += "@cricket.local"; return v; };
+function renderAccess() {
+  if ($("tab-access").hidden) return;
+  const acc = Store.access || {};
+  const users = [...new Set([...Object.keys(acc), ...matches().map((m) => m.createdBy).filter(Boolean)])].sort();
+  $("acc-list").innerHTML = users.length ? `<table><thead><tr><th>User</th>${PERMS.map((p) => `<th class="num" title="${esc(p.hint)}">${esc(p.label)}</th>`).join("")}<th></th></tr></thead><tbody>${users.map((u) => {
+    const rec = acc[u], P = rec ? { ...NO_PERMS, ...rec } : DEFAULT_PERMS;
+    return `<tr><td><b>${esc(scorerName(u))}</b>${rec ? "" : ' <span class="sub">(starting set)</span>'}</td>${PERMS.map((p) => `<td class="num"><input type="checkbox" style="width:auto" data-acc="${esc(u)}" data-perm="${p.k}" ${P[p.k] ? "checked" : ""} aria-label="${esc(p.label)} for ${esc(scorerName(u))}"></td>`).join("")}<td><button class="btn small" type="button" data-accnone="${esc(u)}">No access</button></td></tr>`; }).join("")}</tbody></table>`
+    : `<div class="empty">No scorer accounts yet. Add a username above.</div>`;
+}
+async function saveAccess(u, P) {
+  if (!/@cricket\.local$/.test(u)) { notice("Usernames are scorer accounts ending in @cricket.local.", "bad"); return false; }
+  try { await Store.fb.collection("cr_access").doc(u).set({ ...NO_PERMS, ...P, updatedAt: new Date().toISOString() }); notice(`Access for ${scorerName(u)} saved.`, "ok"); return true; }
+  catch (e) { notice("Couldn't save access (" + (e && e.code || "error") + "). Check the Firestore rules are published.", "bad"); return false; }
+}
+$("acc-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault(); const u = accKey($("acc-user").value); if (!u) return;
+  if ((Store.access || {})[u]) { notice(`${scorerName(u)} is already listed.`, "warn"); return; }
+  if (await saveAccess(u, DEFAULT_PERMS)) $("acc-user").value = "";
+});
+$("acc-list").addEventListener("change", (ev) => {
+  const c = ev.target.closest("[data-acc]"); if (!c) return;
+  const u = c.dataset.acc, rec = (Store.access || {})[u], P = rec ? { ...NO_PERMS, ...rec } : { ...DEFAULT_PERMS };
+  P[c.dataset.perm] = c.checked; if (c.dataset.perm === "editSettings" && c.checked) P.viewSettings = true;
+  saveAccess(u, P);
+});
+$("acc-list").addEventListener("click", (ev) => { const b = ev.target.closest("[data-accnone]"); if (b) saveAccess(b.dataset.accnone, NO_PERMS); });
 
 /* ----- owner: delete test data by type ----- */
 const wipeSel = new Set();
@@ -652,17 +720,21 @@ $("auth-form").addEventListener("submit", async (ev) => {
 function render() {
   const ed = Store.canEdit();
   const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
-  m.textContent = Store.mode === "wait" ? "Connecting…" : Store.mode === "local" ? "Saved in this browser" : Store.owner && !ed ? "Owner" : ed ? "Scorer" + (Store.user ? " · " + (Store.user.email || "").replace("@cricket.local", "") : "") : "View only";
+  m.textContent = Store.mode === "wait" ? "Connecting…" : Store.mode === "local" ? "Saved in this browser" : Store.owner ? "Owner" : ed ? "Scorer" + (Store.user ? " · " + (Store.user.email || "").replace("@cricket.local", "") : "") : "View only";
   const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase"; ab.textContent = Store.user ? "Sign out" : "Scorer sign in";
-  ["match-add", "team-add", "tab-settings"].forEach((id) => { $(id).hidden = !ed; });
-  $("league-panel").hidden = !ed; $("settings-locked").hidden = ed;
-  if (!ed) ["match-form-panel", "team-form-panel"].forEach((id) => { $(id).hidden = true; });
+  const canSet = Store.can("viewSettings") || Store.can("editSettings"), editSet = Store.can("editSettings");
+  $("match-add").hidden = !Store.can("score"); $("team-add").hidden = !Store.can("teams");
+  $("tab-settings").hidden = !canSet; $("tab-access").hidden = !(Store.mode === "firebase" && Store.owner);
+  $("league-panel").hidden = !canSet; $("settings-locked").hidden = canSet;
+  $("lg-fs").disabled = !editSet; $("lg-btns").hidden = !editSet; $("lg-ro").hidden = editSet;
+  if (!Store.can("score")) $("match-form-panel").hidden = true;
+  if (!Store.can("teams")) $("team-form-panel").hidden = true;
   const lg = settings();
   $("lg-title").innerHTML = lg.name ? esc(lg.name) : "Festival <span>Cricket</span>";
   { const P = ptsOf(lg); $("pts-note").textContent = `Win ${P.w} · Tie ${P.t} · No result ${P.nr} · Loss ${P.l}` + (P.bc || P.bb ? ` · Bonus (${P.bo}+ overs to spare): chase ${P.bc}, bowl out ${P.bb}` : ""); }
   $("nrr-note").textContent = lg.nrr === "balls" ? " (runs per ball)" : "";
   if (!$("league-panel").closest("section").hidden && !lgDirty) fillLeagueForm(); // show saved values until someone edits
-  renderStandings(); renderMatchList(); renderStats(); renderTeams(); renderWipe();
+  renderStandings(); renderMatchList(); renderStats(); renderTeams(); renderWipe(); renderAccess();
   if (currentMatch) renderMatch();
 }
 
@@ -671,7 +743,7 @@ function renderStandings() {
   const rows = standings();
   $("standings").innerHTML = rows.length ? `<table><thead><tr><th>#</th><th>Team</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">NR</th>${bpOn ? '<th class="num">BP</th>' : ""}<th class="num">Pts</th><th class="num">NRR</th></tr></thead><tbody>${rows.map((r, i) =>
     `<tr><td class="num">${i + 1}</td><td><b>${esc(teamName(r.id))}</b><div class="sub">For ${r.rf}/${settings().nrr === "balls" ? r.bf + " b" : ovStr(r.bf, bpoOf(settings()))} · Against ${r.ra}/${settings().nrr === "balls" ? r.bb + " b" : ovStr(r.bb, bpoOf(settings()))}</div></td><td class="num">${r.p}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.t}</td><td class="num">${r.nr}</td>${bpOn ? `<td class="num">${r.bp}</td>` : ""}<td class="num"><b>${r.pts}</b></td><td class="num">${r.bf || r.bb ? nrrFmt(r.nrr) : "–"}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="empty">No teams yet.${Store.canEdit() ? " Add them in <b>Teams</b>." : ""}</div>`;
+    : `<div class="empty">No teams yet.${Store.can("teams") ? " Add them in <b>Teams</b>." : ""}</div>`;
   const live = matches().filter((x) => x.status === "live");
   $("live-panel").hidden = !live.length;
   $("live-list").innerHTML = live.map(matchRow).join("");
@@ -696,7 +768,7 @@ function renderMatchList() {
   const all = matches(); const live = all.filter((m) => m.status === "live"), up = all.filter((m) => !m.status || m.status === "scheduled"), done = all.filter((m) => m.status === "done" || m.status === "abandoned").reverse();
   $("match-list").innerHTML = all.length ? [["Live", live], ["Upcoming", up], ["Results", done]].filter(([, l]) => l.length)
     .map(([t, l]) => `<div class="group-title">${t}</div>` + l.map(matchRow).join("")).join("")
-    : `<div class="empty">No matches yet.${Store.canEdit() ? " Use <b>+ New match</b> once teams are added." : ""}</div>`;
+    : `<div class="empty">No matches yet.${Store.can("score") ? " Use <b>+ New match</b> once teams are added." : ""}</div>`;
 }
 
 /* ----- match form ----- */
@@ -742,7 +814,7 @@ function renderMatch() {
   const m = Store.get("cr_matches", currentMatch);
   if (!m) { $("match-head").innerHTML = `<div class="panel empty">This match no longer exists.</div>`; $("scorecard").innerHTML = ""; $("scorer").hidden = true; $("match-tools").innerHTML = ""; return; }
   const ed = Store.canEditMatch(m);
-  const lockNote = Store.canEdit() && !ed ? `<span class="muted" style="font-size:13px">Only ${esc(scorerName(m.createdBy))}, who created this match, can edit or score it.</span>` : "";
+  const lockNote = Store.can("score") && !ed ? `<span class="muted" style="font-size:13px">Only ${esc(scorerName(m.createdBy))}, who created this match, can edit or score it.</span>` : "";
   const ownerTools = Store.mode === "firebase" && Store.owner ? `<span class="btns" style="gap:6px;align-items:center"><input id="mt-to" list="mt-scorers" placeholder="scorer username" style="max-width:150px;padding:5px 8px" autocomplete="off"><datalist id="mt-scorers">${[...new Set(matches().map((x) => x.createdBy).filter(Boolean))].map((e) => `<option value="${esc(scorerName(e))}">`).join("")}</datalist><button class="btn small" type="button" id="mt-reassign">Reassign scorer</button></span>` : "";
   $("match-tools").innerHTML = ownerTools || (!ed ? lockNote : 
      `<button class="btn small" type="button" id="mt-edit">Edit match</button>
@@ -993,7 +1065,7 @@ function renderStats() {
 
 /* ============================== teams ============================== */
 function renderTeams() {
-  const ed = Store.canEdit(), T = teams();
+  const ed = Store.can("teams"), T = teams();
   $("team-list").innerHTML = T.length ? T.map((t) => { const sq = squad(t.id);
     return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="panel-head" style="margin:0"><div><b style="font-size:15px">${esc(t.name)}</b> <span class="chip">${esc(teamShort(t.id))}</span> <span class="sub">${sq.length} player${sq.length === 1 ? "" : "s"}</span></div>
       ${ed ? `<div class="btns"><button class="btn small" type="button" data-tedit="${esc(t.id)}">Edit</button><button class="btn small danger" type="button" data-del="cr_teams:${esc(t.id)}">Delete</button></div>` : ""}</div>
