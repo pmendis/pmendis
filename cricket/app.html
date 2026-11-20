@@ -272,6 +272,14 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
       <div class="panel-head"><h2>Teams &amp; squads</h2><button class="btn primary small" type="button" id="team-add" hidden>+ Add team</button></div>
       <div id="team-list"></div>
     </div>
+    <div class="panel" id="wipe-panel" hidden>
+      <h2>Delete test data <small style="font:400 12px var(--font-body);text-transform:none;letter-spacing:0;color:var(--muted)">owner only · permanently removes the ticked data for everyone; anything not ticked is kept</small></h2>
+      <div id="wipe-list" style="display:grid;gap:6px;margin:8px 0"></div>
+      <div class="btns" style="align-items:flex-end">
+        <label style="max-width:220px">Type DELETE to confirm<input id="wipe-confirm" autocomplete="off" spellcheck="false"></label>
+        <button class="btn solid-bad" type="button" id="wipe-go" disabled>Delete selected</button>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -425,7 +433,12 @@ const Store = {
       firebase.initializeApp(cfg); this.fb = firebase.firestore();
     } catch (e) { notice("Couldn't load the shared database. Showing data saved in this browser instead.", "warn"); return false; }
     this.mode = "firebase";
-    firebase.auth().onAuthStateChanged((u) => { this.user = u && !u.isAnonymous ? u : null; render(); });
+    firebase.auth().onAuthStateChanged(async (u) => {
+      this.user = u && !u.isAnonymous ? u : null; this.owner = false;
+      // owner = the email listed in the Firestore rules; only it may read cr_owner
+      if (this.user && !this.isScorer()) { try { await this.fb.collection("cr_owner").doc("check").get(); this.owner = true; } catch (e) { this.owner = false; } }
+      render();
+    });
     const ok = new Set(), timer = setTimeout(() => { if (ok.size < COLS.length) notice("Still waiting for the shared database. Check your internet connection.", "warn", "sync"); }, 12000);
     for (const c of COLS) this.fb.collection(c).onSnapshot({ includeMetadataChanges: true }, (snap) => {
       const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.data[c] = n;
@@ -433,6 +446,15 @@ const Store = {
       render();
     }, (err) => { clearTimeout(timer); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page.", "bad"); });
     render(); return true;
+  },
+  isOwner() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && !!this.owner); },
+  async bulkDelete(col, ids) {
+    try {
+      if (this.mode === "firebase") { for (let i = 0; i < ids.length; i += 400) { const b = this.fb.batch(); ids.slice(i, i + 400).forEach((id) => b.delete(this.fb.collection(col).doc(id))); await b.commit(); } }
+      else if (this.mode === "cloud") { for (const id of ids) await this.db.collection(col).doc(id).delete(); }
+      else { const n = { ...this.data[col] }; ids.forEach((id) => delete n[id]); this.data[col] = n; this.persist(); render(); }
+      return true;
+    } catch (e) { notice("Couldn't finish deleting (" + (e && e.code || "error") + ").", "bad"); return false; }
   },
   isScorer() { return !!this.user && /@cricket\.local$/i.test(this.user.email || ""); },
   canEdit() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && this.isScorer()); },
@@ -522,6 +544,34 @@ document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("
 window.addEventListener("hashchange", route);
 $("back-matches").onclick = () => go("matches");
 
+/* ----- owner: delete test data by type ----- */
+const wipeSel = new Set();
+const WIPE = [
+  { key: "matches", col: "cr_matches", label: "Matches (fixtures, ball-by-ball scoring, results)" },
+  { key: "players", col: "cr_players", label: "Players (also deletes matches, since scoring refers to players)", needs: ["matches"] },
+  { key: "teams", col: "cr_teams", label: "Teams (also deletes their players and all matches)", needs: ["players", "matches"] },
+  { key: "settings", col: "cr_settings", label: "League details (name, points)" },
+];
+function wipeForced() { const f = new Set(); for (const w of WIPE) if (wipeSel.has(w.key)) (w.needs || []).forEach((k) => f.add(k)); return f; }
+function renderWipe() {
+  const p = $("wipe-panel"); p.hidden = !Store.isOwner(); if (p.hidden) return;
+  const forced = wipeForced();
+  $("wipe-list").innerHTML = WIPE.map((w) => { const n = Store.list(w.col).length, on = wipeSel.has(w.key) || forced.has(w.key);
+    return `<label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font:400 14px var(--font-body);color:var(--ink)"><input type="checkbox" value="${w.key}" ${on ? "checked" : ""} ${forced.has(w.key) || !n ? "disabled" : ""} style="width:auto"> ${esc(w.label)} <b style="margin-left:auto">${n}</b></label>`; }).join("");
+  $("wipe-go").disabled = !(wipeSel.size || forced.size) || $("wipe-confirm").value.trim() !== "DELETE";
+}
+$("wipe-list").addEventListener("change", (ev) => { ev.target.checked ? wipeSel.add(ev.target.value) : wipeSel.delete(ev.target.value); renderWipe(); });
+$("wipe-confirm").addEventListener("input", renderWipe);
+$("wipe-go").onclick = async () => {
+  if ($("wipe-confirm").value.trim() !== "DELETE" || !Store.isOwner()) return;
+  const sel = new Set([...wipeSel, ...wipeForced()]); if (!sel.size) return;
+  $("wipe-go").disabled = true; let n = 0, ok = true;
+  for (const w of WIPE) { if (!sel.has(w.key)) continue; const ids = Store.list(w.col).map((x) => x.id); if (!ids.length) continue; if (!(ok = await Store.bulkDelete(w.col, ids))) break; n += ids.length; }
+  wipeSel.clear(); $("wipe-confirm").value = "";
+  if (ok) { notice(`Deleted ${n} record${n === 1 ? "" : "s"}.`, "ok"); if (sel.has("matches") && currentMatch) go("matches"); }
+  render();
+};
+
 /* ----- sign in (Firebase email/password; a bare username becomes <name>@cricket.local) ----- */
 $("auth-btn").onclick = async () => {
   if (Store.mode !== "firebase") return;
@@ -535,6 +585,7 @@ $("auth-form").addEventListener("submit", async (ev) => {
   try {
     await firebase.auth().signInWithEmailAndPassword(u, $("auth-pass").value); $("auth-panel").hidden = true; $("auth-pass").value = "";
     if (Store.isScorer()) notice("Signed in. You can score now.", "ok");
+    else if (await (async () => { try { await Store.fb.collection("cr_owner").doc("check").get(); return true; } catch (e) { return false; } })()) notice("Signed in as owner. Delete test data is at the bottom of Teams.", "ok");
     else { await firebase.auth().signOut(); notice("This account isn't a cricket scorer. Ask the organiser for a scorer username.", "bad"); }
   }
   catch (e) { notice("Sign-in failed: wrong username or password.", "bad"); }
@@ -544,13 +595,13 @@ $("auth-form").addEventListener("submit", async (ev) => {
 function render() {
   const ed = Store.canEdit();
   const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
-  m.textContent = Store.mode === "wait" ? "Connecting…" : Store.mode === "local" ? "Saved in this browser" : ed ? "Scorer" + (Store.user ? " · " + (Store.user.email || "").replace("@cricket.local", "") : "") : "View only";
+  m.textContent = Store.mode === "wait" ? "Connecting…" : Store.mode === "local" ? "Saved in this browser" : Store.owner && !ed ? "Owner" : ed ? "Scorer" + (Store.user ? " · " + (Store.user.email || "").replace("@cricket.local", "") : "") : "View only";
   const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase"; ab.textContent = Store.user ? "Sign out" : "Scorer sign in";
   ["match-add", "team-add", "league-edit"].forEach((id) => { $(id).hidden = !ed; });
   if (!ed) ["match-form-panel", "team-form-panel", "league-panel"].forEach((id) => { $(id).hidden = true; });
   const lg = settings();
   $("lg-title").innerHTML = lg.name ? esc(lg.name) : "Festival <span>Cricket</span>";
-  renderStandings(); renderMatchList(); renderStats(); renderTeams();
+  renderStandings(); renderMatchList(); renderStats(); renderTeams(); renderWipe();
   if (currentMatch) renderMatch();
 }
 
