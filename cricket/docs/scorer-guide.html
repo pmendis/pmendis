@@ -7,6 +7,7 @@ body { font: 10.5pt/1.4 "Helvetica Neue", Arial, sans-serif; color: #142019; mar
 h1 { font-size: 20pt; margin: 0; color: #14532d; }
 .sub { color: #5a675f; margin: 2px 0 10px; }
 h2 { font-size: 12.5pt; margin: 12px 0 4px; color: #14532d; display: flex; gap: 8px; align-items: center; }
+h2 .n.wide { width: auto; padding: 0 6px; border-radius: 11px; }
 h2 .n { background: #c2410c; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-grid; place-items: center; font-size: 10.5pt; flex: none; }
 p, ul { margin: 3px 0; } ul { padding-left: 18px; } li { margin: 2px 0; }
 .row { display: grid; grid-template-columns: 1fr 64mm; gap: 12px; align-items: start; }
@@ -18,16 +19,48 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 </style></head><body>
 <div class="page">
 <h1>Festival Cricket · Scorer Guide</h1>
-<div class="sub">How to score a match, ball by ball, on your phone. Everyone watching sees the score update live.</div>
-
-<h2><span class="n">1</span>Sign in</h2>
+<div class="sub">Part A: setting up the league, teams and matches. Part B: scoring a match ball by ball. Everyone watching sees changes live.</div>
+<h2 style="font-size:14pt;margin-top:6px">Part A · Setup <span style="font-weight:400;font-size:10pt;color:#5a675f">(once, before the festival)</span></h2>
+<h2><span class="n wide">A1</span>Sign in</h2>
 <ul>
 <li>Open the cricket app link and tap <b>Scorer sign in</b> (top right).</li>
 <li>Enter the <b>username</b> and <b>password</b> the organiser gave you (e.g. <i>scorer1</i>). The badge changes to <b>Scorer</b>.</li>
 <li>Can't sign in? Check the spelling, then ask the organiser to reset your password.</li>
 </ul>
 
-<h2><span class="n">2</span>Open the match and start</h2>
+
+<h2><span class="n wide">A2</span>League settings</h2>
+<div class="row"><div>
+<ul>
+<li>Open <b>Standings</b> and tap <b>League settings</b>.</li>
+<li>Set the <b>league name</b> and the defaults for every new match: <b>overs per innings</b>, <b>players per side</b> and <b>balls per over</b>.</li>
+<li>Tap <b>Save</b>. Changing these later only affects matches created afterwards.</li>
+</ul></div><img src="s-standings.png" alt=""></div>
+
+<h2><span class="n wide">A3</span>Add teams and players</h2>
+<div class="row"><div>
+<ul>
+<li>Open <b>Teams</b> and tap <b>+ Add team</b>.</li>
+<li>Enter the <b>team name</b> and a <b>short name</b> (up to 5 letters, shown on the scoreboard).</li>
+<li>Type the <b>players, one per line</b>, and tap <b>Add team</b>.</li>
+<li>To change a squad later, tap <b>Edit</b> on the team: add or remove names. Players who have already played keep their stats.</li>
+<li>A team can only be deleted after its matches are deleted.</li>
+</ul></div><img src="s-teams.png" alt=""></div>
+
+<h2><span class="n wide">A4</span>Create matches</h2>
+<div class="row"><div>
+<ul>
+<li>Open <b>Matches</b> and tap <b>+ New match</b>.</li>
+<li>Choose <b>Team A</b> and <b>Team B</b>, the <b>date &amp; time</b> and <b>venue</b>.</li>
+<li><b>Stage:</b> only <b>League</b> matches count in the points table and net run rate. Use Quarter-final, Semi-final, Final or Friendly for the others.</li>
+<li>Overs, players per side and balls per over are filled from the league settings; change them for this match if needed.</li>
+<li>Tap <b>Create match</b>. Use <b>Edit match</b> to fix details; teams can't be changed once scoring starts.</li>
+</ul></div><img src="s-matches.png" alt=""></div>
+</div>
+
+<div class="page">
+<h2 style="font-size:14pt;margin-top:0">Part B · Scoring a match</h2>
+<h2><span class="n">1</span>Open the match and start</h2>
 <div class="row"><div>
 <ul>
 <li>Go to <b>Matches</b> and tap your match.</li>
@@ -36,14 +69,14 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 <li>Overs, players per side and balls per over come from the match settings. Fix them with <b>Edit match</b> before the first ball if needed.</li>
 </ul></div><img src="g-start.png" alt=""></div>
 
-<h2><span class="n">3</span>Score every ball</h2>
+<h2><span class="n">2</span>Score every ball</h2>
 <div class="row"><div>
 <table>
 <tr><td><span class="key">0</span>–<span class="key">6</span></td><td>Runs off the bat. Strike changes automatically on odd runs.</td></tr>
 <tr><td><span class="key">Wd</span></td><td>Wide. 1 run is added automatically; pick any extra runs run or a boundary.</td></tr>
 <tr><td><span class="key">Nb</span></td><td>No-ball. 1 run is added automatically; pick the runs scored off the bat.</td></tr>
 <tr><td><span class="key">Bye</span> <span class="key">LB</span></td><td>Byes / leg-byes: pick how many runs.</td></tr>
-<tr><td><span class="key">Wicket</span></td><td>See step 4.</td></tr>
+<tr><td><span class="key">Wicket</span></td><td>See step 3.</td></tr>
 <tr><td><span class="key">↶ Undo</span></td><td>Removes the last ball. Use it for any mistake, then score again.</td></tr>
 <tr><td><span class="key">⇄ Swap strike</span></td><td>Only if the wrong batter is on strike.</td></tr>
 <tr><td><span class="key">End innings</span></td><td>Only for a declaration or rain. Tap twice to confirm. (Overs and all-out end the innings by themselves.)</td></tr>
@@ -53,7 +86,7 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 </div>
 
 <div class="page">
-<h2><span class="n">4</span>Record a wicket</h2>
+<h2><span class="n">3</span>Record a wicket</h2>
 <div class="row" style="grid-template-columns:1fr 50mm"><div>
 <ul>
 <li>Tap <b>Wicket</b> and choose how: bowled, caught, lbw, run out, stumped or hit wicket.</li>
@@ -63,7 +96,7 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 <li>On the last wicket, the innings ends by itself.</li>
 </ul></div><img src="g-wicket.png" alt=""></div>
 
-<h2><span class="n">5</span>New over</h2>
+<h2><span class="n">4</span>New over</h2>
 <div class="row"><div>
 <ul>
 <li>When an over ends, the app asks for the <b>next bowler</b>. The bowler of the last over can't bowl again straight away.</li>
@@ -71,14 +104,14 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 <li>Last ball wrong? Tap <b>Undo last ball</b> here.</li>
 </ul></div><img src="g-over.png" alt=""></div>
 
-<h2><span class="n">6</span>Innings break and finish</h2>
+<h2><span class="n">5</span>Innings break and finish</h2>
 <ul>
 <li>After the 1st innings the app shows the <b>target</b>. Choose the openers and bowler for the 2nd innings and tap <b>Start innings</b>.</li>
 <li>When the chase ends (target reached, overs used up or all out), check the scorecard, then tap <b>Confirm result</b>. The points table, net run rate and player awards update automatically.</li>
 <li>Match called off? Use <b>Mark abandoned</b> (1 point to each team).</li>
 </ul>
 
-<h2><span class="n">7</span>Good habits</h2>
+<h2><span class="n">6</span>Good habits</h2>
 <ul>
 <li>Score <b>as each ball happens</b>; don't wait until the end of the over.</li>
 <li>Keep a <b>paper note</b> of the score each over as a backup.</li>
