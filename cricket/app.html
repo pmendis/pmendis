@@ -88,6 +88,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .btn.small { padding: 4px 10px; font-size: 12px; }
 .btn.danger { color: var(--bad); }
 .btn.danger.armed { background: var(--bad); color: #fff; border-color: var(--bad); }
+.fs { font: 700 14px var(--font-display); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.fs small { font: 400 12px var(--font-body); text-transform: none; letter-spacing: 0; color: var(--muted); margin-left: 6px; }
 .btn.solid-bad { background: var(--bad); color: #fff; border-color: var(--bad); }
 .confirm-dlg { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); padding: 18px; max-width: min(380px, calc(100vw - 32px)); }
 .confirm-dlg::backdrop { background: rgba(0,0,0,.45); }
@@ -197,18 +199,20 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
     <div class="panel" id="league-panel" hidden>
       <h2>League settings</h2>
       <form id="league-form">
+        <label>League name<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
+        <h3 class="fs">Match defaults <small>filled in for each new match; can be changed per match</small></h3>
         <div class="row2">
-          <label>League name<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
-          <label>Default overs per innings<input id="lg-overs" type="number" min="1" max="50" value="10"></label>
+          <label>Overs per innings<input id="lg-overs" type="number" min="1" max="50" value="10"></label>
+          <label>Players per side<input id="lg-xi" type="number" min="2" max="11" value="11"></label>
         </div>
-        <div class="row2">
-          <label>Default players per side<input id="lg-xi" type="number" min="2" max="11" value="11"></label>
-          <label>Default balls per over<input id="lg-bpo" type="number" min="4" max="10" value="6"></label>
-        </div>
-        <div class="row2">
+        <div class="row3">
+          <label>Balls per over<input id="lg-bpo" type="number" min="4" max="10" value="6"></label>
           <label>Runs for a wide<input id="lg-wdp" type="number" min="0" max="10" value="1"></label>
           <label>Runs for a no-ball<input id="lg-nbp" type="number" min="0" max="10" value="1"></label>
         </div>
+        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbw" style="width:auto"> Wides count as a ball (not re-bowled)</label>
+        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xbn" style="width:auto"> No-balls count as a ball (not re-bowled)</label>
+        <h3 class="fs">Points table <small>applies to all league matches, including finished ones</small></h3>
         <div class="row2">
           <label>Points for a win<input id="lg-ptW" type="number" min="0" max="10" step="0.5" value="2"></label>
           <label>Points for a tie<input id="lg-ptT" type="number" min="0" max="10" step="0.5" value="1"></label>
@@ -217,11 +221,15 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label>Points for no result<input id="lg-ptNR" type="number" min="0" max="10" step="0.5" value="1"></label>
           <label>Points for a loss<input id="lg-ptL" type="number" min="-5" max="10" step="0.5" value="0"></label>
         </div>
+        <div class="row3">
+          <label>Bonus: win a chase with overs to spare<input id="lg-bonC" type="number" min="0" max="5" step="0.5" value="0"></label>
+          <label>Bonus: bowl the other side out with overs to spare<input id="lg-bonB" type="number" min="0" max="5" step="0.5" value="0"></label>
+          <label>Overs to spare (at least)<input id="lg-bonO" type="number" min="0" max="20" step="0.5" value="1"></label>
+        </div>
         <label>Net run rate method<select id="lg-nrr">
           <option value="icc">Standard (ICC): runs per over, all-out side counts its full overs</option>
           <option value="balls">Simple: total runs ÷ total balls faced (actual balls)</option>
         </select></label>
-        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-xb" style="width:auto"> Wides and no-balls count as a ball (not re-bowled)</label>
         <div class="btns"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="league-cancel">Cancel</button></div>
       </form>
     </div>
@@ -247,7 +255,8 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label>Players per side<input id="mf-xi" type="number" min="2" max="11" value="11"></label>
         </div>
         <div class="row3"><label>Balls per over<input id="mf-bpo" type="number" min="4" max="10" value="6"></label><label>Runs for a wide<input id="mf-wdp" type="number" min="0" max="10" value="1"></label><label>Runs for a no-ball<input id="mf-nbp" type="number" min="0" max="10" value="1"></label></div>
-        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="mf-xb" style="width:auto"> Wides and no-balls count as a ball (not re-bowled)</label>
+        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="mf-xbw" style="width:auto"> Wides count as a ball</label>
+        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="mf-xbn" style="width:auto"> No-balls count as a ball</label>
         <div class="btns"><button class="btn primary" type="submit" id="mf-save">Create match</button><button class="btn" type="button" id="mf-cancel">Cancel</button></div>
       </form>
     </div>
@@ -319,6 +328,8 @@ const DISMISSALS = ["bowled", "caught", "lbw", "run out", "stumped", "hit wicket
 const BOWLER_CREDIT = new Set(["bowled", "caught", "lbw", "stumped", "hit wicket"]);
 // runs automatically added for a wide / no-ball (1 in normal cricket; this festival may use more)
 const penOf = (m, k) => { const v = m && m[k]; return v === undefined || v === null || v === "" ? 1 : Math.max(0, +v || 0); };
+// does a wide ("w") / no-ball ("n") use up a ball of the over? older records have one shared "xb" flag
+const xbOf = (m, k) => { const v = m && m["xb" + k]; return v === undefined ? !!(m && m.xb) : !!v; };
 const bpoOf = (m) => Math.max(1, +(m && m.bpo) || 6);
 const oversStr = (balls, bpo = 6) => `${Math.floor(balls / bpo)}.${balls % bpo}`;
 // whole overs (possibly from matches with different balls per over) shown as "overs.balls"
@@ -326,7 +337,7 @@ const ovStr = (ov, bpo = 6) => { const w = Math.floor(ov + 1e-9); return `${w}.$
 function replay(m, i) {
   const inn = m.inns && m.inns[i];
   const st = { runs: 0, wk: 0, legal: 0, ex: { wd: 0, nb: 0, b: 0, lb: 0 }, bat: {}, bowl: {}, order: [], bowlOrder: [], fow: [],
-    overs: [[]], s: null, ns: null, b: null, lastOverBowler: null, overRuns: 0, started: !!inn, bpo: bpoOf(m), wdp: penOf(m, "wdp"), nbp: penOf(m, "nbp"), xb: !!(m && m.xb) };
+    overs: [[]], s: null, ns: null, b: null, lastOverBowler: null, overRuns: 0, started: !!inn, bpo: bpoOf(m), wdp: penOf(m, "wdp"), nbp: penOf(m, "nbp"), xbw: xbOf(m, "w"), xbn: xbOf(m, "n") };
   if (!inn) return st;
   const B = (pid) => { if (!pid) return null; if (!st.bat[pid]) { st.bat[pid] = { pid, r: 0, b: 0, f4: 0, f6: 0, out: false, how: "", bw: null, fd: null }; st.order.push(pid); } return st.bat[pid]; };
   const W = (pid) => { if (!st.bowl[pid]) { st.bowl[pid] = { pid, balls: 0, r: 0, w: 0, m: 0, wd: 0, nb: 0 }; st.bowlOrder.push(pid); } return st.bowl[pid]; };
@@ -335,8 +346,8 @@ function replay(m, i) {
     const bw = W(e.b), x = e.x, r = e.r || 0;
     B(e.s); B(e.ns);
     let legal = true, ran = 0, total = 0, charged = 0, sym = "";
-    if (x && x.k === "wd") { legal = st.xb; total = st.wdp + (x.r || 0); charged = total; st.ex.wd += total; bw.wd += 1; ran = x.r || 0; sym = (total > 1 ? total : "") + "wd"; }
-    else if (x && x.k === "nb") { legal = st.xb; total = st.nbp + r; charged = total; st.ex.nb += st.nbp; bw.nb += 1; const sb = B(e.s); sb.r += r; sb.b += 1; if (r === 4) sb.f4++; if (r === 6) sb.f6++; ran = r; sym = (r ? r : "") + "nb"; }
+    if (x && x.k === "wd") { legal = st.xbw; total = st.wdp + (x.r || 0); charged = total; st.ex.wd += total; bw.wd += 1; ran = x.r || 0; sym = (total > 1 ? total : "") + "wd"; }
+    else if (x && x.k === "nb") { legal = st.xbn; total = st.nbp + r; charged = total; st.ex.nb += st.nbp; bw.nb += 1; const sb = B(e.s); sb.r += r; sb.b += 1; if (r === 4) sb.f4++; if (r === 6) sb.f6++; ran = r; sym = (r ? r : "") + "nb"; }
     else if (x && (x.k === "b" || x.k === "lb")) { total = x.r || 0; st.ex[x.k] += total; B(e.s).b += 1; ran = total; sym = total + x.k; }
     else { total = r; charged = r; const sb = B(e.s); sb.r += r; sb.b += 1; if (r === 4) sb.f4++; if (r === 6) sb.f6++; ran = r; sym = r === 0 ? "•" : String(r); }
     st.runs += total; bw.r += charged; st.overRuns += charged;
@@ -385,7 +396,7 @@ function standings() {
   const P = ptsOf(settings());
   const byBalls = settings().nrr === "balls";
   const rows = {};
-  for (const t of teams()) rows[t.id] = { id: t.id, p: 0, w: 0, l: 0, t: 0, nr: 0, pts: 0, rf: 0, bf: 0, ra: 0, bb: 0 };
+  for (const t of teams()) rows[t.id] = { id: t.id, p: 0, w: 0, l: 0, t: 0, nr: 0, bp: 0, pts: 0, rf: 0, bf: 0, ra: 0, bb: 0 };
   for (const m of matches()) {
     if (m.stage && m.stage !== "League") continue;
     if (!rows[m.a] || !rows[m.b]) continue;
@@ -395,8 +406,13 @@ function standings() {
     for (const id of [m.a, m.b]) rows[id].p++;
     if (res.tie) for (const id of [m.a, m.b]) { rows[id].t++; rows[id].pts += P.t; }
     else { const lo = res.winner === m.a ? m.b : m.a; rows[res.winner].w++; rows[res.winner].pts += P.w; rows[lo].l++; rows[lo].pts += P.l; }
+    // bonus points: overs to spare = balls left in the innings (wides/no-balls use a ball only if the match says so)
+    const spare = (st) => (m.overs || 0) * st.bpo - st.legal >= P.bo * st.bpo;
+    const st2 = replay(m, 1);
+    if (P.bc && !res.tie && res.winner === m.inns[1].bat && spare(st2) && rows[res.winner]) { rows[res.winner].bp += P.bc; rows[res.winner].pts += P.bc; }
     for (let i = 0; i < 2; i++) {
       const inn = m.inns[i], st = replay(m, i), allOut = st.wk >= (m.xi || 11) - 1;
+      if (P.bb && allOut && spare(st) && rows[inn.bowl]) { rows[inn.bowl].bp += P.bb; rows[inn.bowl].pts += P.bb; }
       const balls = byBalls ? st.legal // actual balls faced
         : (allOut ? (m.overs || 0) * st.bpo : st.legal) / st.bpo; // ICC: overs faced, full quota if all out
       if (rows[inn.bat]) { rows[inn.bat].rf += st.runs; rows[inn.bat].bf += balls; }
@@ -524,7 +540,7 @@ const pname = (id) => (player(id) || {}).name || "?";
 const squad = (tid) => Store.list("cr_players").filter((p) => p.team === tid).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 const matches = () => Store.list("cr_matches").sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.createdAt || "").localeCompare(b.createdAt || ""));
 const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
-const ptsOf = (lg) => { const g = (k, d) => (lg[k] === undefined || lg[k] === "" || isNaN(+lg[k]) ? d : +lg[k]); return { w: g("ptW", 2), t: g("ptT", 1), nr: g("ptNR", 1), l: g("ptL", 0) }; };
+const ptsOf = (lg) => { const g = (k, d) => (lg[k] === undefined || lg[k] === "" || isNaN(+lg[k]) ? d : +lg[k]); return { w: g("ptW", 2), t: g("ptT", 1), nr: g("ptNR", 1), l: g("ptL", 0), bc: g("bpC", 0), bb: g("bpB", 0), bo: g("bpO", 1) }; };
 const nrrFmt = (n) => (n >= 0 ? "+" : "") + n.toFixed(3);
 const scoreStr = (st) => `${st.runs}/${st.wk}`;
 const sr = (r, b) => b ? (r * 100 / b).toFixed(1) : "–";
@@ -632,16 +648,17 @@ function render() {
   if (!ed) ["match-form-panel", "team-form-panel", "league-panel"].forEach((id) => { $(id).hidden = true; });
   const lg = settings();
   $("lg-title").innerHTML = lg.name ? esc(lg.name) : "Festival <span>Cricket</span>";
-  { const P = ptsOf(lg); $("pts-note").textContent = `Win ${P.w} · Tie ${P.t} · No result ${P.nr} · Loss ${P.l}`; }
+  { const P = ptsOf(lg); $("pts-note").textContent = `Win ${P.w} · Tie ${P.t} · No result ${P.nr} · Loss ${P.l}` + (P.bc || P.bb ? ` · Bonus (${P.bo}+ overs to spare): chase ${P.bc}, bowl out ${P.bb}` : ""); }
   $("nrr-note").textContent = lg.nrr === "balls" ? " (runs per ball)" : "";
   renderStandings(); renderMatchList(); renderStats(); renderTeams(); renderWipe();
   if (currentMatch) renderMatch();
 }
 
 function renderStandings() {
+  const bpOn = (() => { const P = ptsOf(settings()); return !!(P.bc || P.bb); })();
   const rows = standings();
-  $("standings").innerHTML = rows.length ? `<table><thead><tr><th>#</th><th>Team</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">NR</th><th class="num">Pts</th><th class="num">NRR</th></tr></thead><tbody>${rows.map((r, i) =>
-    `<tr><td class="num">${i + 1}</td><td><b>${esc(teamName(r.id))}</b><div class="sub">For ${r.rf}/${settings().nrr === "balls" ? r.bf + " b" : ovStr(r.bf, bpoOf(settings()))} · Against ${r.ra}/${settings().nrr === "balls" ? r.bb + " b" : ovStr(r.bb, bpoOf(settings()))}</div></td><td class="num">${r.p}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.t}</td><td class="num">${r.nr}</td><td class="num"><b>${r.pts}</b></td><td class="num">${r.bf || r.bb ? nrrFmt(r.nrr) : "–"}</td></tr>`).join("")}</tbody></table>`
+  $("standings").innerHTML = rows.length ? `<table><thead><tr><th>#</th><th>Team</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">T</th><th class="num">NR</th>${bpOn ? '<th class="num">BP</th>' : ""}<th class="num">Pts</th><th class="num">NRR</th></tr></thead><tbody>${rows.map((r, i) =>
+    `<tr><td class="num">${i + 1}</td><td><b>${esc(teamName(r.id))}</b><div class="sub">For ${r.rf}/${settings().nrr === "balls" ? r.bf + " b" : ovStr(r.bf, bpoOf(settings()))} · Against ${r.ra}/${settings().nrr === "balls" ? r.bb + " b" : ovStr(r.bb, bpoOf(settings()))}</div></td><td class="num">${r.p}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${r.t}</td><td class="num">${r.nr}</td>${bpOn ? `<td class="num">${r.bp}</td>` : ""}<td class="num"><b>${r.pts}</b></td><td class="num">${r.bf || r.bb ? nrrFmt(r.nrr) : "–"}</td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">No teams yet.${Store.canEdit() ? " Add them in <b>Teams</b>." : ""}</div>`;
   const live = matches().filter((x) => x.status === "live");
   $("live-panel").hidden = !live.length;
@@ -675,14 +692,14 @@ function fillTeamSelects(sel, val) { sel.innerHTML = `<option value="">Choose…
 $("match-add").onclick = () => {
   if (teams().length < 2) { notice("Add at least two teams first (Teams tab).", "bad"); return; }
   const lg = settings(); $("match-form").reset(); $("mf-id").value = ""; fillTeamSelects($("mf-a")); fillTeamSelects($("mf-b"));
-  $("mf-overs").value = lg.overs || 10; $("mf-xi").value = lg.xi || 11; $("mf-bpo").value = bpoOf(lg); $("mf-wdp").value = penOf(lg, "wdp"); $("mf-nbp").value = penOf(lg, "nbp"); $("mf-xb").checked = !!lg.xb; $("mf-title").textContent = "New match"; $("mf-save").textContent = "Create match";
+  $("mf-overs").value = lg.overs || 10; $("mf-xi").value = lg.xi || 11; $("mf-bpo").value = bpoOf(lg); $("mf-wdp").value = penOf(lg, "wdp"); $("mf-nbp").value = penOf(lg, "nbp"); $("mf-xbw").checked = xbOf(lg, "w"); $("mf-xbn").checked = xbOf(lg, "n"); $("mf-title").textContent = "New match"; $("mf-save").textContent = "Create match";
   $("match-form-panel").hidden = false; $("mf-a").focus();
 };
 $("mf-cancel").onclick = () => { $("match-form-panel").hidden = true; };
 function editMatchSetup(m) {
   go("matches"); fillTeamSelects($("mf-a"), m.a); fillTeamSelects($("mf-b"), m.b);
   $("mf-id").value = m.id; $("mf-when").value = m.when || ""; $("mf-venue").value = m.venue || ""; $("mf-stage").value = m.stage || "League";
-  $("mf-overs").value = m.overs || 10; $("mf-xi").value = m.xi || 11; $("mf-bpo").value = bpoOf(m); $("mf-wdp").value = penOf(m, "wdp"); $("mf-nbp").value = penOf(m, "nbp"); $("mf-xb").checked = !!m.xb; $("mf-title").textContent = "Edit match"; $("mf-save").textContent = "Save changes";
+  $("mf-overs").value = m.overs || 10; $("mf-xi").value = m.xi || 11; $("mf-bpo").value = bpoOf(m); $("mf-wdp").value = penOf(m, "wdp"); $("mf-nbp").value = penOf(m, "nbp"); $("mf-xbw").checked = xbOf(m, "w"); $("mf-xbn").checked = xbOf(m, "n"); $("mf-title").textContent = "Edit match"; $("mf-save").textContent = "Save changes";
   $("match-form-panel").hidden = false; window.scrollTo({ top: 0, behavior: "smooth" });
 }
 $("match-form").addEventListener("submit", async (ev) => {
@@ -693,17 +710,17 @@ $("match-form").addEventListener("submit", async (ev) => {
   if (old && old.inns && old.inns.length && (old.a !== a || old.b !== b)) { notice("Scoring has started; teams can't be changed. Undo all balls first.", "bad"); return; }
   const { id: _, ...rest } = old || {};
   const m = { ...rest, a, b, when: $("mf-when").value, venue: $("mf-venue").value.trim(), stage: $("mf-stage").value,
-    overs: Math.max(1, Math.min(50, +$("mf-overs").value || 10)), xi: Math.max(2, Math.min(11, +$("mf-xi").value || 11)), bpo: Math.max(4, Math.min(10, +$("mf-bpo").value || 6)), wdp: penOf({ v: $("mf-wdp").value }, "v"), nbp: penOf({ v: $("mf-nbp").value }, "v"), xb: $("mf-xb").checked,
+    overs: Math.max(1, Math.min(50, +$("mf-overs").value || 10)), xi: Math.max(2, Math.min(11, +$("mf-xi").value || 11)), bpo: Math.max(4, Math.min(10, +$("mf-bpo").value || 6)), wdp: penOf({ v: $("mf-wdp").value }, "v"), nbp: penOf({ v: $("mf-nbp").value }, "v"), xbw: $("mf-xbw").checked, xbn: $("mf-xbn").checked,
     status: old ? old.status : "scheduled", inns: old ? old.inns || [] : [], createdAt: old ? old.createdAt : new Date().toISOString() };
   if (await Store.put("cr_matches", id, m)) { $("match-form-panel").hidden = true; notice(old ? "Match updated." : "Match created.", "ok"); }
 });
 
 /* ----- league settings ----- */
-$("league-edit").onclick = () => { const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xb").checked = !!lg.xb; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } $("league-panel").hidden = false; };
+$("league-edit").onclick = () => { const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } $("league-panel").hidden = false; };
 $("league-cancel").onclick = () => { $("league-panel").hidden = true; };
 $("league-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xb: $("lg-xb").checked, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { $("league-panel").hidden = true; notice("Saved.", "ok"); }
+  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { $("league-panel").hidden = true; notice("Saved.", "ok"); }
 });
 
 /* ============================ match view ============================ */
@@ -720,7 +737,7 @@ function renderMatch() {
   }
   // head: board with current/last innings
   const ci = (m.inns || []).length - 1, res = (m.status === "done" || m.status === "abandoned") ? resultOf(m) : null;
-  const meta = [m.stage, `${m.overs} ov`, bpoOf(m) !== 6 ? `${bpoOf(m)}-ball overs` : "", penOf(m, "wdp") !== 1 || penOf(m, "nbp") !== 1 ? `Wd ${penOf(m, "wdp")} · Nb ${penOf(m, "nbp")}` : "", m.xb ? "Wd/Nb count as a ball" : "", `${m.xi}-a-side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ");
+  const meta = [m.stage, `${m.overs} ov`, bpoOf(m) !== 6 ? `${bpoOf(m)}-ball overs` : "", penOf(m, "wdp") !== 1 || penOf(m, "nbp") !== 1 ? `Wd ${penOf(m, "wdp")} · Nb ${penOf(m, "nbp")}` : "", xbOf(m, "w") && xbOf(m, "n") ? "Wd/Nb count as a ball" : xbOf(m, "w") ? "Wides count as a ball" : xbOf(m, "n") ? "No-balls count as a ball" : "", `${m.xi}-a-side`, fmtWhen(m.when), m.venue].filter(Boolean).map(esc).join(" · ");
   const toss = m.toss && m.toss.winner ? ` · Toss: ${esc(teamShort(m.toss.winner))}, ${esc(m.toss.chose)}` : "";
   let head = `<div class="board"><div class="top"><b>${esc(teamName(m.a))} <span style="opacity:.6">v</span> ${esc(teamName(m.b))}</b><span class="meta">${meta}${toss}</span></div>`;
   if (ci >= 0) {
