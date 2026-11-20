@@ -60,6 +60,21 @@
   .page { display: block; }
   .fit { display: flex; flex-direction: column; overflow: hidden; }
   .fit > footer { margin-top: auto; }
+  /* one page per language: screenshots in one row, steps, tips */
+  .shots.row3 { margin: 5mm 15mm 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; align-items: start; }
+  .shots.row3 figure { margin: 0; }
+  .shots.row3 img { width: 100%; max-height: 92mm; object-fit: contain; object-position: top; display: block; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 8px rgba(20,27,43,.12); background: #fff; }
+  .shots.row3 figcaption { margin-top: 2mm; font-size: 10.5pt; line-height: 1.3; text-align: center; font-weight: 600; }
+  .page ol { margin-top: 5mm; gap: 3mm; }
+  .page > .fit > .tips, .page > .tips { margin: 5mm 15mm 0; }
+  /* one-pager: compact header so steps and screenshots get the room */
+  .page header { padding: 7mm 15mm 5mm; }
+  .page header h1 { font-size: 20pt; margin: 1.5mm 0 1mm; padding-right: 28mm; }
+  .en.page header h1 { font-size: 27pt; }
+  .page header p { font-size: 11pt; }
+  .page header .eyebrow { font-size: 8.5pt; }
+  .page .link { margin-top: 4mm; padding: 3mm 5mm; }
+  .page .tips { padding: 4mm 5mm; }
 </style>
 </head>
 <body>
@@ -75,6 +90,7 @@
     <div><div class="lbl">මෙම සබැඳිය විවෘත කරන්න</div><div class="url">pmendis.github.io/pmendis</div></div>
     <div class="no">ලොග් වීම අවශ්‍ය නැත</div>
   </div>
+  <div class="shots row3"><figure><img src="shot-1-epf-si.png" alt=""><figcaption>පියවර 2 · EPF අංකය ඇතුළත් කළ විට විස්තර පිරවේ</figcaption></figure><figure><img src="shot-2-sports-si.png" alt=""><figcaption>පියවර 4–5 · ක්‍රීඩා ටික් කර යවන්න</figcaption></figure><figure><img src="shot-3-mine-si.png" alt=""><figcaption>පියවර 6 · ඔබේ යෝජනා</figcaption></figure></div>
   <ol>
     <li><div>ඔබේ දුරකථනයෙන් ඉහත සබැඳිය විවෘත කරන්න. <span class="tag">Propose</span> පිටුව මුලින්ම විවෘත වේ. පෝරමයේ ඉහළින් ඇති <span class="tag">සිංහල</span> බොත්තම ඔබා භාෂාව තෝරන්න.</div></li>
     <li><div>පළමුවෙන්ම ඔබේ <b>EPF අංකය</b> ඇතුළත් කරන්න. ඔබ දැනටමත් ලැයිස්තුවේ සිටී නම්, ඔබේ විස්තර ස්වයංක්‍රීයව පිරවේ. වෙනස් කළ යුතු දේ පමණක් වෙනස් කරන්න.</div></li>
@@ -85,10 +101,6 @@
     <li><div>ඔබේ යෝජනාව <span class="tag">ඔබේ යෝජනා</span> යටතේ පෙනේ. සංවිධායකවරයා සලකා බලන තුරු <b>සංස්කරණය</b> මගින් වෙනස් කිරීමට හෝ <b>මකන්න</b> මගින් ඉවත් කිරීමට ඔබට හැකිය.</div></li>
     <li><div>සංවිධායකවරයා පිළිගත් පසු ඔබේ නම කණ්ඩායම් ලැයිස්තුවට <b>Proposed</b> ලෙස එක් වේ. අවසාන කණ්ඩායමට තෝරාගත් විට <b>Confirmed</b> ලෙස සලකුණු වේ.</div></li>
   </ol>
-  <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
-</section>
-<section class="page si shots-page"><header class="mini"><span class="lang">සිංහල</span><div class="eyebrow">Inter-Department Sports Festival</div><h1>ක්‍රීඩා සඳහා ඔබේ නම යෝජනා කරන ආකාරය</h1></header>
-  <div class="shots big"><figure><img src="shot-1-epf-si.png" alt=""><figcaption>පියවර 2 · EPF අංකය ඇතුළත් කළ විට විස්තර පිරවේ</figcaption></figure><figure><img src="shot-2-sports-si.png" alt=""><figcaption>පියවර 4–5 · ක්‍රීඩා ටික් කර යවන්න</figcaption></figure><figure><img src="shot-3-mine-si.png" alt=""><figcaption>පියවර 6 · ඔබේ යෝජනා</figcaption></figure>
   <div class="tips">
     <h2>සැලකිය යුතුයි</h2>
     <ul>
@@ -96,7 +108,7 @@
       <li>එකම EPF අංකයෙන් නැවත යෝජනා කිරීමට අවශ්‍ය නැත. EPF අංකය ඇතුළත් කළ විට ඔබේ පෙර යෝජනාව විවෘත වේ.</li>
       <li>ගැටලුවක් ඇත්නම් ඔබේ දෙපාර්තමේන්තුවේ ක්‍රීඩා සංවිධායකවරයා අමතන්න.</li>
     </ul>
-  </div></div>
+  </div>
   <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
 </section>
 </div>
@@ -112,6 +124,7 @@
     <div><div class="lbl">இந்த இணைப்பைத் திறக்கவும்</div><div class="url">pmendis.github.io/pmendis</div></div>
     <div class="no">உள்நுழைவு தேவையில்லை</div>
   </div>
+  <div class="shots row3"><figure><img src="shot-1-epf-ta.png" alt=""><figcaption>படி 2 · EPF உள்ளிட்டதும் விவரங்கள் நிரம்பும்</figcaption></figure><figure><img src="shot-2-sports-ta.png" alt=""><figcaption>படி 4–5 · விளையாட்டுகளைத் தெரிவு செய்து அனுப்பவும்</figcaption></figure><figure><img src="shot-3-mine-ta.png" alt=""><figcaption>படி 6 · உங்கள் முன்மொழிவுகள்</figcaption></figure></div>
   <ol>
     <li><div>உங்கள் கைபேசியில் மேலே உள்ள இணைப்பைத் திறக்கவும். <span class="tag">Propose</span> பக்கம் முதலில் திறக்கும். படிவத்தின் மேலே உள்ள <span class="tag">தமிழ்</span> பொத்தானை அழுத்தி மொழியைத் தெரிவு செய்யவும்.</div></li>
     <li><div>முதலில் உங்கள் <b>EPF எண்ணை</b> உள்ளிடவும். நீங்கள் ஏற்கனவே பட்டியலில் இருந்தால், உங்கள் விவரங்கள் தானாக நிரப்பப்படும். மாற்ற வேண்டியவற்றை மட்டும் மாற்றவும்.</div></li>
@@ -122,10 +135,6 @@
     <li><div>உங்கள் முன்மொழிவு <span class="tag">உங்கள் முன்மொழிவுகள்</span> என்பதன் கீழ் தெரியும். ஏற்பாட்டாளர் பரிசீலிக்கும் வரை <b>திருத்து</b> மூலம் மாற்றலாம் அல்லது <b>நீக்கு</b> மூலம் நீக்கலாம்.</div></li>
     <li><div>ஏற்பாட்டாளர் ஏற்றுக்கொண்டதும் உங்கள் பெயர் அணிப் பட்டியலில் <b>Proposed</b> எனச் சேர்க்கப்படும். இறுதி அணிக்குத் தெரிவானால் <b>Confirmed</b> எனக் குறிக்கப்படும்.</div></li>
   </ol>
-  <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
-</section>
-<section class="page ta shots-page"><header class="mini"><span class="lang">தமிழ்</span><div class="eyebrow">Inter-Department Sports Festival</div><h1>விளையாட்டுகளுக்கு உங்கள் பெயரை முன்மொழிவது எப்படி</h1></header>
-  <div class="shots big"><figure><img src="shot-1-epf-ta.png" alt=""><figcaption>படி 2 · EPF உள்ளிட்டதும் விவரங்கள் நிரம்பும்</figcaption></figure><figure><img src="shot-2-sports-ta.png" alt=""><figcaption>படி 4–5 · விளையாட்டுகளைத் தெரிவு செய்து அனுப்பவும்</figcaption></figure><figure><img src="shot-3-mine-ta.png" alt=""><figcaption>படி 6 · உங்கள் முன்மொழிவுகள்</figcaption></figure>
   <div class="tips">
     <h2>கவனிக்க வேண்டியவை</h2>
     <ul>
@@ -133,7 +142,7 @@
       <li>ஒரே EPF எண்ணுக்கு மீண்டும் முன்மொழியத் தேவையில்லை. EPF எண்ணை உள்ளிட்டதும் உங்கள் முந்தைய முன்மொழிவு திறக்கும்.</li>
       <li>ஏதேனும் சிக்கல் இருந்தால் உங்கள் திணைக்கள விளையாட்டு ஏற்பாட்டாளரைத் தொடர்புகொள்ளவும்.</li>
     </ul>
-  </div></div>
+  </div>
   <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
 </section>
 </div>
@@ -149,6 +158,7 @@
     <div><div class="lbl">Open this link</div><div class="url">pmendis.github.io/pmendis</div></div>
     <div class="no">No login needed</div>
   </div>
+  <div class="shots row3"><figure><img src="shot-1-epf-en.png" alt=""><figcaption>Step 2 · enter EPF, your details load</figcaption></figure><figure><img src="shot-2-sports-en.png" alt=""><figcaption>Steps 4–5 · tick sports and send</figcaption></figure><figure><img src="shot-3-mine-en.png" alt=""><figcaption>Step 6 · your proposals</figcaption></figure></div>
   <ol>
     <li><div>Open the link above on your phone. The <span class="tag">Propose</span> page opens first. To read it in Sinhala or Tamil, tap <span class="tag">සිංහල</span> or <span class="tag">தமிழ்</span> at the top of the form.</div></li>
     <li><div>Enter your <b>EPF number</b> first. If you are already on the list, your details fill in automatically. Change only what needs changing.</div></li>
@@ -159,10 +169,6 @@
     <li><div>Your proposal appears under <span class="tag">Your proposals</span>. Until the organiser reviews it, you can change it with <b>Edit</b> or remove it with <b>Delete</b>.</div></li>
     <li><div>Once the organiser accepts it, your name joins the squad list as <b>Proposed</b>. If you are selected for the final squad, it is marked <b>Confirmed</b>.</div></li>
   </ol>
-  <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
-</section>
-<section class="page en shots-page"><header class="mini"><span class="lang">ENGLISH</span><div class="eyebrow">Inter-Department Sports Festival</div><h1>How to propose yourself for sports</h1></header>
-  <div class="shots big"><figure><img src="shot-1-epf-en.png" alt=""><figcaption>Step 2 · enter EPF, your details load</figcaption></figure><figure><img src="shot-2-sports-en.png" alt=""><figcaption>Steps 4–5 · tick sports and send</figcaption></figure><figure><img src="shot-3-mine-en.png" alt=""><figcaption>Step 6 · your proposals</figcaption></figure>
   <div class="tips">
     <h2>Good to know</h2>
     <ul>
@@ -170,7 +176,7 @@
       <li>No need to propose the same EPF number twice. Entering it again opens your earlier proposal.</li>
       <li>If something doesn't work, contact your department's sports organiser.</li>
     </ul>
-  </div></div>
+  </div>
   <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
 </section>
 </div>
@@ -185,7 +191,7 @@ window.__fitted = (async function fitPages() {
     while (page.firstChild) inner.appendChild(page.firstChild);
     page.appendChild(inner);
     const heightAt = (z) => { inner.style.zoom = z; inner.style.width = (W / z) + "px"; inner.style.minHeight = "0"; return inner.getBoundingClientRect().height; };
-    let lo = 0.6, hi = 2.0;
+    let lo = 0.4, hi = 2.0;
     for (let k = 0; k < 18; k++) { const mid = (lo + hi) / 2; if (heightAt(mid) <= H - 2) lo = mid; else hi = mid; }
     heightAt(lo); inner.style.minHeight = (H / lo) + "px"; page.dataset.zoom = lo.toFixed(3);
   }
