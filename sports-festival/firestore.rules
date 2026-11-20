@@ -67,6 +67,11 @@ service cloud.firestore {
       return isScorer() && (exists(accessDoc()) ? get(accessDoc()).data.get(p, false) == true
                                                 : p in ['score', 'teams']);
     }
+    // Public viewing switch (Settings → Public viewing). When off, only signed-in scorers and the owner can read
+    // teams, players and matches, so visitors stop using database reads. League settings stay readable.
+    function leagueDoc() { return /databases/$(database)/documents/cr_settings/league; }
+    function publicOpen() { return !exists(leagueDoc()) || get(leagueDoc()).data.get('public', true) != false; }
+    function canView() { return publicOpen() || isScorer() || isOwner(); }
     match /cr_access/{key} {
       allow get: if request.auth != null && key == myKey();
       allow read, delete: if isOwner();
@@ -77,8 +82,8 @@ service cloud.firestore {
     // The owner (email above) may sign in to the cricket app to manage access, change settings,
     // reassign matches and delete test data, but not score.
     match /cr_settings/{d} { allow read: if true; allow write: if can('editSettings') || isOwner(); }
-    match /cr_teams/{d}    { allow read: if true; allow write: if can('teams'); allow delete: if isOwner(); }
-    match /cr_players/{d}  { allow read: if true; allow write: if can('teams'); allow delete: if isOwner(); }
+    match /cr_teams/{d}    { allow read: if canView(); allow write: if can('teams'); allow delete: if isOwner(); }
+    match /cr_players/{d}  { allow read: if canView(); allow write: if can('teams'); allow delete: if isOwner(); }
     // The app reads this (empty) document to find out whether the signed-in person is the owner.
     match /cr_owner/{d}    { allow read: if isOwner(); }
 
@@ -88,7 +93,7 @@ service cloud.firestore {
     function mine() { return resource.data.get('createdBy', '') in ['', request.auth.token.email.lower()]; }
     function sameCreator() { return request.resource.data.get('createdBy', '') == resource.data.get('createdBy', ''); }
     match /cr_matches/{d} {
-      allow read: if true;
+      allow read: if canView();
       allow create: if (can('score') || can('allMatches')) && request.resource.data.createdBy == request.auth.token.email.lower();
       allow update: if ((can('score') && mine()) || can('allMatches')) && sameCreator();
       // The owner can hand a match to another scorer: only createdBy may change, and only to a scorer account.

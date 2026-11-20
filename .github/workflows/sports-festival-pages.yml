@@ -57,6 +57,17 @@ jobs:
             cat cricket/app.html
             echo '</body></html>'
           } > _site/cricket/index.html
+          # Public live page (read-only, no sign-in): same app with CRICKET_PUBLIC set; can be paused in Settings
+          mkdir -p _site/cricket/live
+          {
+            echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            echo '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+            echo '<meta http-equiv="Cache-Control" content="no-cache">'
+            echo '<script>window.CRICKET_PUBLIC = true;</script>'
+            echo "<script src=\"../../firebase-config.js?v=$VERSION\"></script></head><body>"
+            cat cricket/app.html
+            echo '</body></html>'
+          } > _site/cricket/live/index.html
         env:
           FIREBASE_CONFIG: ${{ vars.FIREBASE_CONFIG }}
       - uses: actions/configure-pages@v5
