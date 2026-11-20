@@ -182,7 +182,11 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
   <div class="panel" id="paused" hidden style="text-align:center;padding:28px 16px">
     <h2 style="margin:0 0 6px">Live scores are paused</h2>
     <p class="muted" style="margin:0">Public viewing is switched off for now because of heavy traffic. Please check back a little later.</p>
-    <p class="muted" id="paused-signin" style="margin:8px 0 0">Scorers can still sign in (top right) to keep scoring.</p>
+  </div>
+  <div class="panel" id="gate" hidden style="text-align:center;padding:28px 16px">
+    <h2 style="margin:0 0 6px">Scorers only</h2>
+    <p class="muted" style="margin:0 0 14px">This page is for scorers and organisers. To follow the matches, open the live scores page.</p>
+    <div class="btns" style="justify-content:center"><a class="btn primary" href="live/" style="text-decoration:none">View live scores</a><button class="btn" type="button" id="gate-signin">Scorer sign in</button></div>
   </div>
 
   <div class="panel" id="auth-panel" hidden style="margin-bottom:14px">
@@ -553,7 +557,7 @@ const Store = {
   },
   // public viewing can be switched off by the organisers when traffic is too high; signed-in scorers and the owner always see data
   publicOpen() { return settings().public !== false; },
-  viewAllowed() { return this.mode !== "firebase" || this.publicOpen() || (!!this.user && !PUBLIC_PAGE); },
+  viewAllowed() { if (this.mode !== "firebase") return true; return PUBLIC_PAGE ? this.publicOpen() : !!this.user; },
   syncData() {
     if (this.mode !== "firebase" || !this.authKnown || !this.settingsKnown) return;
     const want = this.viewAllowed();
@@ -737,6 +741,7 @@ $("auth-btn").onclick = async () => {
   if (Store.user) { await firebase.auth().signOut(); notice("Signed out.", "ok"); return; }
   $("auth-panel").hidden = false; $("auth-user").focus();
 };
+$("gate-signin").onclick = () => $("auth-btn").click();
 $("auth-cancel").onclick = () => { $("auth-panel").hidden = true; };
 $("auth-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -756,8 +761,11 @@ function render() {
   const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
   m.textContent = Store.mode === "wait" ? "Connecting…" : Store.mode === "local" ? "Saved in this browser" : Store.owner ? "Owner" : ed ? "Scorer" + (Store.user ? " · " + (Store.user.email || "").replace("@cricket.local", "") : "") : "View only";
   const paused = Store.mode === "firebase" && Store.authKnown && Store.settingsKnown && !Store.viewAllowed();
-  $("paused").hidden = !paused; document.querySelector("main").classList.toggle("is-paused", paused);
-  $("paused-signin").hidden = PUBLIC_PAGE;
+  // main app without sign-in: only a sign-in prompt and a link to the public live page
+  const gated = !PUBLIC_PAGE && Store.mode === "firebase" && Store.authKnown && !Store.user;
+  $("paused").hidden = !(paused && PUBLIC_PAGE); $("gate").hidden = !gated;
+  document.querySelector("main").classList.toggle("is-paused", paused || gated);
+  document.querySelector("nav.tabs").hidden = gated;
   if (PUBLIC_PAGE) { m.className = "mode " + (paused ? "view" : "ed"); m.textContent = paused ? "Paused" : "Live scores"; }
   const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase" || PUBLIC_PAGE; ab.textContent = Store.user ? "Sign out" : "Scorer sign in";
   const canSet = Store.can("viewSettings") || Store.can("editSettings"), editSet = Store.can("editSettings");
