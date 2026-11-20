@@ -57,6 +57,9 @@
   .ta .shots.big { gap: 5mm 7mm; margin-top: 5mm; }
   .ta .shots.big .tips { font-size: 11pt; padding: 4mm 5mm; }
   .ta .shots.big figcaption { font-size: 11.5pt; }
+  .page { display: block; }
+  .fit { display: flex; flex-direction: column; overflow: hidden; }
+  .fit > footer { margin-top: auto; }
 </style>
 </head>
 <body>
@@ -171,5 +174,23 @@
   <footer><span>House Sports Desk</span><span>pmendis.github.io/pmendis</span></footer>
 </section>
 </div>
+<script>
+/* Scale each A4 page's content up (or down) so it fills the sheet exactly. */
+window.__fitted = (async function fitPages() {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((i) => i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; })));
+  const MM = 96 / 25.4, W = 210 * MM, H = 297 * MM;
+  for (const page of document.querySelectorAll(".page")) {
+    const inner = document.createElement("div"); inner.className = "fit";
+    while (page.firstChild) inner.appendChild(page.firstChild);
+    page.appendChild(inner);
+    const heightAt = (z) => { inner.style.zoom = z; inner.style.width = (W / z) + "px"; inner.style.minHeight = "0"; return inner.getBoundingClientRect().height; };
+    let lo = 0.6, hi = 2.0;
+    for (let k = 0; k < 18; k++) { const mid = (lo + hi) / 2; if (heightAt(mid) <= H - 2) lo = mid; else hi = mid; }
+    heightAt(lo); inner.style.minHeight = (H / lo) + "px"; page.dataset.zoom = lo.toFixed(3);
+  }
+  return true;
+})();
+</script>
 </body>
 </html>
