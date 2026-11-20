@@ -313,7 +313,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
       <h2>Access <small>owner only · what each scorer account may do; changes apply straight away</small></h2>
       <p class="muted" style="margin:0 0 10px">Create the username and password in Firebase Authentication first (e.g. scorer3@cricket.local), then add the username here. Accounts not listed get the starting set: Score matches and Manage teams.</p>
       <form id="acc-form" class="btns" style="align-items:flex-end;margin-bottom:12px">
-        <label style="max-width:220px">Username<input id="acc-user" placeholder="e.g. scorer3" autocomplete="off" required></label>
+        <label style="max-width:220px">Scorer account<input id="acc-user" name="acc-scorer-id" type="search" placeholder="e.g. scorer3" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore required></label>
         <button class="btn primary" type="submit">Add user</button>
       </form>
       <div class="table-wrap" id="acc-list"></div>
@@ -861,7 +861,7 @@ function renderMatch() {
   if (!m) { $("match-head").innerHTML = `<div class="panel empty">This match no longer exists.</div>`; $("scorecard").innerHTML = ""; $("scorer").hidden = true; $("match-tools").innerHTML = ""; return; }
   const ed = Store.canEditMatch(m);
   const lockNote = Store.can("score") && !ed ? `<span class="muted" style="font-size:13px">Only ${esc(scorerName(m.createdBy))}, who created this match, can edit or score it.</span>` : "";
-  const ownerTools = Store.mode === "firebase" && Store.owner ? `<span class="btns" style="gap:6px;align-items:center"><input id="mt-to" list="mt-scorers" placeholder="scorer username" style="max-width:150px;padding:5px 8px" autocomplete="off"><datalist id="mt-scorers">${[...new Set(matches().map((x) => x.createdBy).filter(Boolean))].map((e) => `<option value="${esc(scorerName(e))}">`).join("")}</datalist><button class="btn small" type="button" id="mt-reassign">Reassign scorer</button></span>` : "";
+  const ownerTools = Store.mode === "firebase" && Store.owner ? `<span class="btns" style="gap:6px;align-items:center"><input id="mt-to" name="mt-scorer-id" type="search" list="mt-scorers" placeholder="scorer, e.g. scorer2" style="max-width:150px;padding:5px 8px" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore><datalist id="mt-scorers">${[...new Set(matches().map((x) => x.createdBy).filter(Boolean))].map((e) => `<option value="${esc(scorerName(e))}">`).join("")}</datalist><button class="btn small" type="button" id="mt-reassign">Reassign scorer</button></span>` : "";
   $("match-tools").innerHTML = ownerTools || (!ed ? lockNote : 
      `<button class="btn small" type="button" id="mt-edit">Edit match</button>
     ${m.status !== "done" ? `<button class="btn small" type="button" id="mt-abandon">${m.status === "abandoned" ? "Restore match" : "Mark abandoned"}</button>` : ""}
