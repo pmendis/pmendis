@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Blaze Upgrade Guide</title>
+<style>
+@page { size: A4; margin: 13mm 14mm; }
+* { box-sizing: border-box; }
+body { font: 10.5pt/1.45 "Helvetica Neue", Arial, sans-serif; color: #142019; margin: 0; }
+h1 { font-size: 19pt; margin: 0; color: #14532d; }
+.sub { color: #5a675f; margin: 2px 0 10px; }
+h2 { font-size: 12.5pt; margin: 14px 0 4px; color: #14532d; display: flex; gap: 8px; align-items: center; }
+h2 .n { background: #c2410c; color: #fff; border-radius: 11px; min-width: 22px; height: 22px; padding: 0 6px; display: inline-grid; place-items: center; font-size: 10pt; flex: none; }
+ol, ul { margin: 3px 0; padding-left: 20px; } li { margin: 3px 0; }
+.tip { background: #fff7ed; border-left: 4px solid #c2410c; padding: 7px 10px; margin-top: 10px; border-radius: 4px; }
+.ok { background: #ecfdf3; border-left: 4px solid #15803d; padding: 7px 10px; margin-top: 10px; border-radius: 4px; }
+.path { font-family: Menlo, Consolas, monospace; font-size: 9.5pt; background: #f2f5f2; border: 1px solid #d9e1db; border-radius: 4px; padding: 1px 5px; }
+table { border-collapse: collapse; width: 100%; font-size: 9.8pt; margin-top: 4px; } td, th { border-top: 1px solid #e3e9e5; padding: 4px 6px; text-align: left; vertical-align: top; } th { color: #5a675f; font-weight: 600; }
+</style></head><body>
+<h1>Festival Cricket · Blaze Upgrade Guide</h1>
+<div class="sub">How to move the Firebase project to the paid Blaze plan for the match day only, then back to the free Spark plan. For the organiser (owner account).</div>
+
+<div class="ok"><b>Why:</b> the free Spark plan allows 50,000 database reads a day. With hundreds of spectators following live matches, a busy day can use around 400,000. Blaze keeps the same free daily allowance and charges only for usage above it, roughly <b>$0.20–$3 for a busy day</b>. These are estimates; check current prices on the Firebase pricing page.</div>
+
+<h2><span class="n">1</span>The day before: upgrade to Blaze</h2>
+<ol>
+<li>Open <span class="path">console.firebase.google.com</span> and choose the festival project.</li>
+<li>At the bottom of the left menu, next to the plan name <b>Spark</b>, click <b>Upgrade</b>.</li>
+<li>Choose <b>Blaze (pay as you go)</b>.</li>
+<li>Choose a billing account, or <b>create one</b> by entering a card. New Google Cloud billing accounts often include <b>free trial credit</b>, which may cover the whole day.</li>
+<li>When asked, set a <b>budget</b> (e.g. <b>$10</b>) and keep the <b>email alerts</b> on.</li>
+<li>Confirm. The upgrade is immediate; nothing in the apps needs to change.</li>
+</ol>
+
+<h2><span class="n">2</span>On match day: keep an eye on usage</h2>
+<ul>
+<li>Check <span class="path">Firestore Database → Usage</span> during the day to see reads so far.</li>
+<li>Watch your email for <b>budget alerts</b>.</li>
+<li>If usage or costs climb too fast, open the cricket app → <b>Settings</b> → untick <b>Public viewing</b> → <b>Save</b>. Spectators see "Live scores are paused" and stop using reads; <b>scorers carry on normally</b>. Tick it again later to resume.</li>
+</ul>
+
+<h2><span class="n">3</span>After the festival: back to free Spark</h2>
+<ol>
+<li>Firebase console → gear icon → <b>Usage and billing</b> → <b>Details &amp; settings</b>.</li>
+<li>Click <b>Modify plan</b> and choose <b>Spark (free)</b>. Confirm.</li>
+<li>Charges for the time on Blaze appear on the next <b>monthly bill</b> for that billing account.</li>
+</ol>
+<p style="margin:4px 0 0">Downgrading is safe: the sports and cricket apps only use Firestore and sign-in, which both work on Spark. No data is lost.</p>
+
+<h2><span class="n">!</span>Good to know</h2>
+<table>
+<tr><th style="width:34%">Point</th><th>Details</th></tr>
+<tr><td>A budget does not stop spending</td><td>It only sends warning emails. The Public viewing switch is your real brake.</td></tr>
+<tr><td>Charges run until you downgrade</td><td>Not until the end of the event day. Downgrade as soon as the festival is finished.</td></tr>
+<tr><td>Both apps share the project</td><td>The sports app uses the same database, so its (small) usage counts too.</td></tr>
+<tr><td>Menu names can change</td><td>Firebase updates its console from time to time. If a button has moved, look under the gear icon → Usage and billing.</td></tr>
+</table>
+
+<div class="tip"><b>Checklist:</b> &nbsp;☐ Upgrade the day before &nbsp;☐ Budget $10 with alerts &nbsp;☐ Know where the Public viewing switch is &nbsp;☐ Check usage during the day &nbsp;☐ Downgrade to Spark afterwards</div>
+</body></html>
