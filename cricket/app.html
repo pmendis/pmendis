@@ -419,7 +419,8 @@ const Store = {
     }, (err) => { clearTimeout(timer); notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page.", "bad"); });
     render(); return true;
   },
-  canEdit() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && !!this.user); },
+  isScorer() { return !!this.user && /@cricket\.local$/i.test(this.user.email || ""); },
+  canEdit() { return this.mode === "local" || this.mode === "cloud" || (this.mode === "firebase" && this.isScorer()); },
   persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) { notice("This browser blocked saving.", "bad"); } },
   async put(col, id, obj) {
     if (!this.canEdit()) { notice("Sign in as a scorer (top right) to make changes.", "bad"); return false; }
@@ -502,7 +503,11 @@ $("auth-cancel").onclick = () => { $("auth-panel").hidden = true; };
 $("auth-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   let u = $("auth-user").value.trim(); if (u && !u.includes("@")) u += "@cricket.local";
-  try { await firebase.auth().signInWithEmailAndPassword(u, $("auth-pass").value); $("auth-panel").hidden = true; $("auth-pass").value = ""; notice("Signed in. You can score now.", "ok"); }
+  try {
+    await firebase.auth().signInWithEmailAndPassword(u, $("auth-pass").value); $("auth-panel").hidden = true; $("auth-pass").value = "";
+    if (Store.isScorer()) notice("Signed in. You can score now.", "ok");
+    else { await firebase.auth().signOut(); notice("This account isn't a cricket scorer. Ask the organiser for a scorer username.", "bad"); }
+  }
   catch (e) { notice("Sign-in failed: wrong username or password.", "bad"); }
 });
 

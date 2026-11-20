@@ -630,6 +630,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       this._unsubs.forEach((f) => f()); this._unsubs = [];
       this.editor = false; this.pending = false; this.organisers = {}; this.requests = {}; this.data.proposals = {};
       const key = this.emailKey(u); if (!key) return;
+      if (/@cricket\.local$/.test(key)) { notice("This is a cricket scorer account; it can't edit the sports app.", "bad"); return; }
       const mine = this.fb.collection("organisers").doc(key);
       let snap; try { snap = await mine.get(); } catch (e) { snap = null; }
       if (snap && snap.exists) this.editor = true;
