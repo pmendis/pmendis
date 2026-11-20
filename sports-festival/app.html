@@ -92,6 +92,7 @@ legend { font-size: 12px; font-weight: 600; color: var(--muted); text-transform:
 .checks input { width: auto; }
 .checks .q { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .checks label.full { color: var(--muted); }
+.checks-note { font-size: 12px; color: var(--warn); background: var(--warn-bg); border-radius: var(--r); padding: 6px 8px; margin-bottom: 4px; }
 label.tick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 14px; color: var(--ink); }
 label.tick input { width: auto; }
 .checks .group-head { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 6px; }
@@ -453,6 +454,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       ageOnly: "{sport} is for the {age} age category only.",
       genderOnly: "{sport} is a {g} event.",
       limit: "A player can enter at most {max} {label} events ({n} ticked).",
+      noteBoth: "Choose your gender and age category above to see which sports you can enter.", noteGender: "Choose your gender above to see which sports you can enter.", noteAge: "Choose your age category above to see which sports you can enter.",
       hFull: "full", hLimit: "limit reached", hOnly: "{g} only", hSetGender: "set gender", hOtherAge: "other age group", hSetAge: "set age category",
       limits: "Limits per player:", athletics: "Athletics", total: "Total",
       Men: "Men", Women: "Women",
@@ -482,6 +484,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       ageOnly: "{sport} {age} වයස් කාණ්ඩයට පමණි.",
       genderOnly: "{sport} {g} සඳහා පමණි.",
       limit: "එක් ක්‍රීඩකයෙකුට {label} ඉසව් උපරිම {max}ක් පමණි (ඔබ {n}ක් ටික් කර ඇත).",
+      noteBoth: "ඔබට සහභාගී විය හැකි ක්‍රීඩා බැලීමට ඉහතින් ස්ත්‍රී/පුරුෂ භාවය සහ වයස් කාණ්ඩය තෝරන්න.", noteGender: "ඔබට සහභාගී විය හැකි ක්‍රීඩා බැලීමට ඉහතින් ස්ත්‍රී/පුරුෂ භාවය තෝරන්න.", noteAge: "ඔබට සහභාගී විය හැකි ක්‍රීඩා බැලීමට ඉහතින් වයස් කාණ්ඩය තෝරන්න.",
       hFull: "පිරී ඇත", hLimit: "උපරිමයට ළඟා විය", hOnly: "{g} සඳහා පමණි", hSetGender: "ස්ත්‍රී/පුරුෂ භාවය තෝරන්න", hOtherAge: "වෙනත් වයස් කාණ්ඩයක්", hSetAge: "වයස් කාණ්ඩය තෝරන්න",
       limits: "එක් ක්‍රීඩකයෙකුට සීමා:", athletics: "මලල ක්‍රීඩා", total: "මුළු",
       Men: "පිරිමි", Women: "කාන්තා",
@@ -511,6 +514,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       ageOnly: "{sport} {age} வயதுப் பிரிவுக்கு மட்டுமே.",
       genderOnly: "{sport} {g} பிரிவுக்கு மட்டுமே.",
       limit: "ஒருவர் அதிகபட்சம் {max} {label} போட்டிகளில் மட்டுமே பங்கேற்கலாம் (நீங்கள் {n} தெரிவு செய்துள்ளீர்கள்).",
+      noteBoth: "நீங்கள் பங்கேற்கக்கூடிய விளையாட்டுகளைக் காண மேலே பாலினத்தையும் வயதுப் பிரிவையும் தெரிவு செய்யவும்.", noteGender: "நீங்கள் பங்கேற்கக்கூடிய விளையாட்டுகளைக் காண மேலே பாலினத்தைத் தெரிவு செய்யவும்.", noteAge: "நீங்கள் பங்கேற்கக்கூடிய விளையாட்டுகளைக் காண மேலே வயதுப் பிரிவைத் தெரிவு செய்யவும்.",
       hFull: "நிரம்பியது", hLimit: "வரம்பு எட்டப்பட்டது", hOnly: "{g} மட்டும்", hSetGender: "பாலினத்தைத் தெரிவு செய்யவும்", hOtherAge: "வேறு வயதுப் பிரிவு", hSetAge: "வயதுப் பிரிவைத் தெரிவு செய்யவும்",
       limits: "ஒருவருக்கான வரம்புகள்:", athletics: "தடகளம்", total: "மொத்தம்",
       Men: "ஆண்கள்", Women: "பெண்கள்",
@@ -1011,14 +1015,16 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     if (!S.length) { box.innerHTML = `<span class="muted">Add sports first.</span>`; return; }
     const playerAge = $(prefix + "-age").value, playerGender = $(prefix + "-gender").value, L = prefix === "prop" ? lang : "en";
     const used = {}; for (const s of S) { const g = checked.has(s.id) && limitFor(s.type); if (g) used[g.key] = (used[g.key] || 0) + 1; }
-    box.innerHTML = groupSports(S).map((grp) => `<div class="group-head">${esc(grp.name)}</div>` + grp.items.map((s) => {
+    const needG = !playerGender && S.some((s) => s.gender === "Men" || s.gender === "Women"), needA = !playerAge && S.some((s) => !!s.age);
+    const topNote = needG && needA ? t("noteBoth", {}, L) : needG ? t("noteGender", {}, L) : needA ? t("noteAge", {}, L) : "";
+    box.innerHTML = (topNote ? `<div class="checks-note">${esc(topNote)}</div>` : "") + groupSports(S).map((grp) => `<div class="group-head">${esc(grp.name)}</div>` + grp.items.map((s) => {
       const q = +s.squad || 0, n = picked(s.id, pid), full = q && n >= q && !checked.has(s.id);
       const g = limitFor(s.type), capped = g && !checked.has(s.id) && (used[g.key] || 0) >= g.max;
       const wrongAge = !!s.age && s.age !== playerAge && !checked.has(s.id);
       const wrongGender = !genderOk(s, playerGender) && !checked.has(s.id);
       const off = full || capped || wrongAge || wrongGender;
       return `<label class="${off ? "full" : ""}"><input type="checkbox" value="${esc(s.id)}" ${checked.has(s.id) ? "checked" : ""} ${off ? "disabled" : ""}>
-        ${esc(variantLabel(s))}<span class="q">${q ? `${n}/${q}` : n}${full ? " " + t("hFull", {}, L) : capped ? " " + t("hLimit", {}, L) : wrongGender ? " " + (playerGender ? t("hOnly", { g: t(s.gender, {}, L) }, L) : t("hSetGender", {}, L)) : wrongAge ? " " + (playerAge ? t("hOtherAge", {}, L) : t("hSetAge", {}, L)) : ""}</span></label>`; }).join("")).join("") +
+        ${esc(variantLabel(s))}<span class="q">${q ? `${n}/${q}` : n}${full ? " " + t("hFull", {}, L) : capped ? " " + t("hLimit", {}, L) : wrongGender ? (playerGender ? " " + t("hOnly", { g: t(s.gender, {}, L) }, L) : "") : wrongAge ? (playerAge ? " " + t("hOtherAge", {}, L) : "") : ""}</span></label>`; }).join("")).join("") +
       `<div class="muted" style="font-size:12px;margin-top:4px">${t("limits", {}, L)} ${LIMITS.map((g) => `${g.label} ${used[g.key] || 0}/${g.max}`).join(" · ")}
         <br>${t("athletics", {}, L)} ${(used.tf || 0) + (used.relay || 0)}/5 · ${t("total", {}, L)} ${(used.tf || 0) + (used.relay || 0) + (used.games || 0)}/8</div>`;
   }
