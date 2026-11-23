@@ -1096,6 +1096,10 @@ async function soSave(view, patch) {
 }
 function soText(m) {
   const w = teamName(m.soWinner);
+  const sc = m.soScore && Object.keys(m.soScore).length ? ` (Super Over: ${Object.entries(m.soScore).map(([t, x]) => `${teamShort(t)} ${x.r}/${x.w}`).join(" v ")})` : "";
+  return soTextBase(m, w) + sc;
+}
+function soTextBase(m, w) {
   return m.soBy === "coin" ? `Match tied · ${w} won on the coin toss (Super Over and boundaries level)`
     : m.soBy === "boundaries" ? `Match tied · ${w} won the Super Over on boundaries` : `Match tied · ${w} won the Super Over`;
 }
@@ -1363,7 +1367,8 @@ function buildPostForm(id) {
     <label style="max-width:260px">Batted first<select id="pm-first" required><option value="">Choose…</option></select></label>
     <div id="pm-inns"></div>
     <div class="notice" id="pm-result" style="margin-top:10px">Fill in both innings to see the result.</div>
-    <div id="pm-tie" hidden><div class="row2"><label>Tie decided by<select id="pm-tieby"><option value="">Finished as a tie</option><option value="so">Super Over</option><option value="boundaries">Super Over tied · boundaries</option><option value="coin">Super Over tied · coin toss</option></select></label><label>Winner<select id="pm-tiewin"></select></label></div></div>
+    <div id="pm-tie" hidden><div class="row2"><label>Tie decided by<select id="pm-tieby"><option value="">Finished as a tie</option><option value="so">Super Over</option><option value="boundaries">Super Over tied · boundaries</option><option value="coin">Super Over tied · coin toss</option></select></label><label>Winner<select id="pm-tiewin"></select></label></div>
+      <div id="pm-soscore" hidden><p class="muted" style="margin:6px 0 2px;font-size:12.5px">Super Over scores (optional)</p><div class="row2" id="pm-sorows"></div></div></div>
     <div class="btns" style="margin-top:10px"><button class="btn primary" type="submit">Save result</button><button class="btn" type="button" id="pm-cancel">Cancel</button></div>
   </form>`;
   const sides = () => [$("pm-a").value, $("pm-b").value];
@@ -1405,7 +1410,13 @@ function buildPostForm(id) {
     $("pm-result").textContent = res ? res.text : "Fill in both innings to see the result.";
     $("pm-tie").hidden = !tie;
     if (tie) { const cur = $("pm-tiewin").value || (m && m.soWinner) || ""; $("pm-tiewin").innerHTML = `<option value=""></option>` + [d.a, d.b].map((t) => `<option value="${esc(t)}" ${t === cur ? "selected" : ""}>${esc(teamName(t))}</option>`).join("");
-      if (m && m.soBy && !$("pm-tieby").value) $("pm-tieby").value = m.soBy; }
+      if (m && m.soBy && !$("pm-tieby").value) $("pm-tieby").value = m.soBy;
+      const keep = Object.fromEntries([...document.querySelectorAll("#pm-sorows [data-so]")].map((x) => [x.dataset.so, { r: x.querySelector(".so-r").value, w: x.querySelector(".so-w").value }]));
+      const prev = (m && m.soScore) || {}, val = (t, k) => (keep[t] ? keep[t][k] : prev[t] && prev[t][k] !== undefined ? prev[t][k] : "");
+      // the team that batted second in the match bats first in the Super Over
+      const order = [d.inns[1].bat, d.inns[0].bat];
+      $("pm-sorows").innerHTML = order.map((t) => `<div data-so="${esc(t)}"><div class="sub" style="font-weight:700;color:var(--ink)">${esc(teamName(t))}</div><div class="btns" style="gap:6px"><label style="width:90px">Runs<input class="so-r" type="number" min="0" value="${esc(val(t, "r"))}"></label><label style="width:90px">Wickets<input class="so-w" type="number" min="0" max="10" value="${esc(val(t, "w"))}"></label></div></div>`).join("");
+      $("pm-soscore").hidden = !$("pm-tieby").value; }
   };
   drawFirst(); drawInns();
   const f = $("pm");
@@ -1429,8 +1440,10 @@ function buildPostForm(id) {
       if (P.balls > maxB) { notice(`${i ? "2nd" : "1st"} innings: overs are more than the ${d.overs} allowed.`, "bad"); return; }
       if (P.wk > d.xi - 1) { notice(`${i ? "2nd" : "1st"} innings: wickets can't be more than ${d.xi - 1}.`, "bad"); return; }
       if (sumR > P.runs) { notice(`${i ? "2nd" : "1st"} innings: batters' runs (${sumR}) are more than the total (${P.runs}).`, "bad"); return; } }
-    let res = resultOf(d), extra = { soWinner: null, soBy: null };
-    if (res && res.tie && $("pm-tieby").value) { const w = $("pm-tiewin").value; if (!w) { notice("Choose who won the tie-break.", "bad"); return; } extra = { soWinner: w, soBy: $("pm-tieby").value }; }
+    let res = resultOf(d), extra = { soWinner: null, soBy: null, soScore: null };
+    if (res && res.tie && $("pm-tieby").value) { const w = $("pm-tiewin").value; if (!w) { notice("Choose who won the tie-break.", "bad"); return; }
+      const soScore = {}; document.querySelectorAll("#pm-sorows [data-so]").forEach((x) => { const r = x.querySelector(".so-r").value, wk = x.querySelector(".so-w").value; if (r !== "") soScore[x.dataset.so] = { r: +r || 0, w: +wk || 0 }; });
+      extra = { soWinner: w, soBy: $("pm-tieby").value, soScore: Object.keys(soScore).length ? soScore : null }; }
     const { id, ...rest } = d, nid = m ? m.id : uid();
     const doc = { ...rest, ...extra, so: null, when: $("pm-when").value, venue: $("pm-venue").value.trim(), post: true, status: "done", createdBy: m ? m.createdBy || Store.me() : Store.me(), createdAt: m ? m.createdAt : new Date().toISOString() };
     doc.resultText = (resultOf({ ...doc }) || {}).text || "";
