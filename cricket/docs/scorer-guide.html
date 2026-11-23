@@ -30,7 +30,7 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 
 
 <h2><span class="n wide">A2</span>League settings</h2>
-<div class="row" style="grid-template-columns:1fr 45mm"><div>
+<div class="row" style="grid-template-columns:1fr 38mm"><div>
 <ul>
 <li>Open the <b>Settings</b> tab (shown only after you sign in as a scorer).</li>
 <li>Set the <b>league name</b> and the defaults for every new match: <b>overs per innings</b>, <b>players per side</b>, <b>balls per over</b> and the <b>runs for a wide / no-ball</b> (6 at this festival). Tick <b>Wides count as a ball</b> (and <b>No-balls</b>, if that rule applies) when they are not re-bowled. Points, bonus points and the net run rate method are set in the same form.</li>
@@ -38,21 +38,22 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 </ul></div><img src="s-standings.png" alt=""></div>
 
 <h2><span class="n wide">A3</span>Add teams and players</h2>
-<div class="row" style="grid-template-columns:1fr 45mm"><div>
+<div class="row" style="grid-template-columns:1fr 38mm"><div>
 <ul>
 <li>Open <b>Teams</b> and tap <b>+ Add team</b>.</li>
 <li>Enter the <b>team name</b> and a <b>short name</b> (up to 5 letters, shown on the scoreboard).</li>
 <li>Type the <b>players, one per line</b>, and tap <b>Add team</b>. Add <b>(R)</b> after a reserve, e.g. <i>Kamal Perera (R)</i>.</li>
+<li>Enter the team's <b>Group</b> (e.g. A or B). The points table then shows one table per group; the top 2 (by points, then net run rate) are marked <b>Q</b> for the Super 4.</li>
 <li>To change a squad later, tap <b>Edit</b> on the team: add or remove names. Players who have already played keep their stats.</li>
 <li>A team can only be deleted after its matches are deleted.</li>
 </ul></div><img src="s-teams.png" alt=""></div>
 
 <h2><span class="n wide">A4</span>Create matches</h2>
-<div class="row" style="grid-template-columns:1fr 45mm"><div>
+<div class="row" style="grid-template-columns:1fr 38mm"><div>
 <ul>
 <li>Open <b>Matches</b> and tap <b>+ New match</b>.</li>
 <li>Choose <b>Team A</b> and <b>Team B</b>, the <b>date &amp; time</b> and <b>venue</b>.</li>
-<li><b>Stage:</b> only <b>League</b> matches count in the points table and net run rate. Use Quarter-final, Semi-final, Final or Friendly for the others.</li>
+<li><b>Stage:</b> only <b>League</b> matches count in the points table and net run rate. Use <b>Super 4</b>, Semi-final, Final or Friendly for the knockout rounds.</li>
 <li>Overs, players per side and balls per over are filled from the league settings (semi-finals and finals use the <b>Knockout defaults</b>); change them for this match if needed.</li>
 <li>Tap <b>Create match</b>. Use <b>Edit match</b> to fix details; teams can't be changed once scoring starts.</li>
 </ul></div><img src="s-matches.png" alt=""></div>
@@ -74,7 +75,7 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 <div class="row"><div>
 <table>
 <tr><td><span class="key">0</span>–<span class="key">6</span></td><td>Runs off the bat. Strike changes automatically on odd runs.</td></tr>
-<tr><td><span class="key">Wd</span></td><td>Wide. The wide penalty (e.g. 6 runs, from League settings) is added automatically; pick any extra runs run or a boundary.</td></tr>
+<tr><td><span class="key">Wd</span></td><td>Wide. The wide penalty (e.g. 6 runs, from League settings) is added automatically; pick any extra runs run or a boundary. On the <b>last ball of the innings</b> a wide or no-ball is bowled again (the screen reminds you).</td></tr>
 <tr><td><span class="key">Nb</span></td><td>No-ball. The no-ball penalty (e.g. 6 runs) is added automatically; pick the runs scored off the bat.</td></tr>
 <tr><td><span class="key">Bye</span> <span class="key">LB</span></td><td>Byes / leg-byes: pick how many runs.</td></tr>
 <tr><td><span class="key">Wicket</span></td><td>See step 3.</td></tr>
@@ -88,7 +89,7 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 
 <div class="page">
 <h2><span class="n">3</span>Record a wicket</h2>
-<div class="row" style="grid-template-columns:1fr 50mm"><div>
+<div class="row" style="grid-template-columns:1fr 42mm"><div>
 <ul>
 <li>Tap <b>Wicket</b> and choose how: bowled, caught, lbw, run out, stumped or hit wicket.</li>
 <li><b>Caught / stumped / run out:</b> pick the fielder (needed for the best-fielder award).</li>
@@ -98,7 +99,7 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 </ul></div><img src="g-wicket.png" alt=""></div>
 
 <h2><span class="n">4</span>New over</h2>
-<div class="row"><div>
+<div class="row" style="grid-template-columns:1fr 50mm"><div>
 <ul>
 <li>When an over ends, the app asks for the <b>next bowler</b>. The bowler of the last over can't bowl again straight away.</li>
 <li>Choose the bowler and tap <b>Start over</b>. Strike changes automatically.</li>
@@ -109,7 +110,7 @@ table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td { border-
 <ul>
 <li>After the 1st innings the app shows the <b>target</b>. Choose the openers and bowler for the 2nd innings and tap <b>Start innings</b>.</li>
 <li>When the chase ends (target reached, overs used up or all out), check the scorecard, then tap <b>Confirm result</b>. The points table, net run rate and player awards update automatically.</li>
-<li><b>Scores level?</b> Choose <b>Start Super Over</b> or <b>Finish as tie</b>. A Super Over uses the rules in Settings → Super Over (overs, balls per over, wickets allowed). The team that batted second bats first; pick the batters and bowler and score as normal. If the Super Over is also tied, choose <b>Play another Super Over</b> or <b>Finish as tie</b>. Super Over runs don't count in player stats.</li>
+<li><b>Scores level?</b> Choose <b>Start Super Over</b> or <b>Finish as tie</b>. A Super Over uses the rules in Settings → Super Over (overs, balls per over, wickets allowed). The team that batted second bats first; pick the batters and bowler and score as normal. If the Super Over is also tied, the team with <b>more boundaries</b> (4s + 6s) in its Super Over wins; if those are level too, tap the team that won the <b>coin toss</b>. Super Over runs don't count in player stats.</li>
 <li>Match called off? Use <b>Mark abandoned</b> (each team gets the no-result points from League settings).</li>
 </ul>
 
