@@ -664,7 +664,7 @@ const Store = {
     if (PUBLIC_PAGE) return false;
     if (this.mode === "local" || this.mode === "cloud") return true;
     if (this.mode !== "firebase") return false;
-    if (this.owner) return p === "viewSettings" || p === "editSettings";
+    if (this.owner) return p === "viewSettings" || p === "editSettings" || p === "teams";
     if (!this.isScorer()) return false;
     return !!(this.perms || DEFAULT_PERMS)[p];
   },
@@ -798,7 +798,8 @@ $("acc-list").addEventListener("click", (ev) => { const b = ev.target.closest("[
 /* ----- owner: delete test data by type ----- */
 const wipeSel = new Set();
 const WIPE = [
-  { key: "matches", col: "cr_matches", label: "Matches (fixtures, ball-by-ball scoring, results)" },
+  { key: "post", col: "cr_matches", only: (m) => !!m.post, label: "Post-match entries only (results entered on the cricket_post page)" },
+  { key: "matches", col: "cr_matches", label: "All matches (fixtures, ball-by-ball scoring, results, post-match entries)", needs: ["post"] },
   { key: "players", col: "cr_players", label: "Players (also deletes matches, since scoring refers to players)", needs: ["matches"] },
   { key: "teams", col: "cr_teams", label: "Teams (also deletes their players and all matches)", needs: ["players", "matches"] },
   { key: "settings", col: "cr_settings", label: "League details (name, points)" },
@@ -807,7 +808,7 @@ function wipeForced() { const f = new Set(); for (const w of WIPE) if (wipeSel.h
 function renderWipe() {
   const p = $("wipe-panel"); p.hidden = !Store.isOwner(); if (p.hidden) return;
   const forced = wipeForced();
-  $("wipe-list").innerHTML = WIPE.map((w) => { const n = Store.list(w.col).length, on = wipeSel.has(w.key) || forced.has(w.key);
+  $("wipe-list").innerHTML = WIPE.map((w) => { const n = Store.list(w.col).filter(w.only || (() => true)).length, on = wipeSel.has(w.key) || forced.has(w.key);
     return `<label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font:400 14px var(--font-body);color:var(--ink)"><input type="checkbox" value="${w.key}" ${on ? "checked" : ""} ${forced.has(w.key) || !n ? "disabled" : ""} style="width:auto"> ${esc(w.label)} <b style="margin-left:auto">${n}</b></label>`; }).join("");
   $("wipe-go").disabled = !(wipeSel.size || forced.size) || $("wipe-confirm").value.trim() !== "DELETE";
 }
@@ -817,7 +818,7 @@ $("wipe-go").onclick = async () => {
   if ($("wipe-confirm").value.trim() !== "DELETE" || !Store.isOwner()) return;
   const sel = new Set([...wipeSel, ...wipeForced()]); if (!sel.size) return;
   $("wipe-go").disabled = true; let n = 0, ok = true;
-  for (const w of WIPE) { if (!sel.has(w.key)) continue; const ids = Store.list(w.col).map((x) => x.id); if (!ids.length) continue; if (!(ok = await Store.bulkDelete(w.col, ids))) break; n += ids.length; }
+  for (const w of WIPE) { if (!sel.has(w.key)) continue; const ids = Store.list(w.col).filter(w.only || (() => true)).filter((x) => Store.get(w.col, x.id)).map((x) => x.id); if (!ids.length) continue; if (!(ok = await Store.bulkDelete(w.col, ids))) break; n += ids.length; }
   wipeSel.clear(); $("wipe-confirm").value = "";
   if (ok) { notice(`Deleted ${n} record${n === 1 ? "" : "s"}.`, "ok"); if (sel.has("matches") && currentMatch) go("matches"); }
   render();
@@ -865,7 +866,7 @@ function render() {
   if (!Store.can("teams")) $("team-form-panel").hidden = true;
   if (POST_PAGE) {
     $("tab-post").hidden = false; $("gate-live").href = "../cricket/live/";
-    ["matches", "teams"].forEach((t) => { const b = document.querySelector(`nav.tabs [data-tab="${t}"]`); if (b) b.hidden = true; });
+    ["matches"].forEach((t) => { const b = document.querySelector(`nav.tabs [data-tab="${t}"]`); if (b) b.hidden = true; });
     ["tab-settings", "tab-access"].forEach((id) => { $(id).hidden = true; });
   }
   const lg = settings();
