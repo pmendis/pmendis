@@ -664,7 +664,7 @@ const Store = {
     if (PUBLIC_PAGE) return false;
     if (this.mode === "local" || this.mode === "cloud") return true;
     if (this.mode !== "firebase") return false;
-    if (this.owner) return p === "viewSettings" || p === "editSettings";
+    if (this.owner) return p === "viewSettings" || p === "editSettings" || p === "teams";
     if (!this.isScorer()) return false;
     return !!(this.perms || DEFAULT_PERMS)[p];
   },
@@ -866,7 +866,7 @@ function render() {
   if (!Store.can("teams")) $("team-form-panel").hidden = true;
   if (POST_PAGE) {
     $("tab-post").hidden = false; $("gate-live").href = "../cricket/live/";
-    ["matches", "teams"].forEach((t) => { const b = document.querySelector(`nav.tabs [data-tab="${t}"]`); if (b) b.hidden = true; });
+    ["matches"].forEach((t) => { const b = document.querySelector(`nav.tabs [data-tab="${t}"]`); if (b) b.hidden = true; });
     ["tab-settings", "tab-access"].forEach((id) => { $(id).hidden = true; });
   }
   const lg = settings();
