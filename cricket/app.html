@@ -189,6 +189,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 
 <main class="wrap">
   <div id="notice" class="notice" hidden></div>
+  <div class="notice warn" id="update-bar" hidden style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">A newer version of this page is available. <button class="btn small primary" type="button" id="update-go">Load latest version</button></div>
   <div class="panel" id="paused" hidden style="text-align:center;padding:28px 16px">
     <h2 style="margin:0 0 6px">Live scores are paused</h2>
     <p class="muted" style="margin:0">Public viewing is switched off for now because of heavy traffic. Please check back a little later.</p>
@@ -414,6 +415,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
       </div>
     </div>
   </section>
+  <p class="muted" style="text-align:center;font-size:12px;margin:18px 0 8px">Page not updating? <a href="#" id="load-latest">Load latest version</a><span id="ver-tag"></span></p>
 </main>
 
 <script>
@@ -719,7 +721,8 @@ const leagueTitle = (id) => { const d = Store.get("cr_settings", id) || {}; retu
 const leagues = () => { const ids = new Set([DEF_LEAGUE]); for (const d of Store.list("cr_settings")) if (d.id === DEF_LEAGUE || d.id.startsWith("lg_")) ids.add(d.id); return [...ids].map((id) => ({ id, title: leagueTitle(id) })); };
 const settingsOf = (m) => Store.get("cr_settings", (m && m.league) || DEF_LEAGUE) || {};
 const inLeague = (x) => (x.league || DEF_LEAGUE) === LG;
-function setLeague(id) { LG = id; try { localStorage.setItem("cr.league", id); } catch (e) {} lgDirty = false; render(); }
+let pendingLG = null;
+function setLeague(id) { LG = id; pendingLG = id; try { localStorage.setItem("cr.league", id); } catch (e) {} lgDirty = false; render(); }
 const settings = () => Store.get("cr_settings", LG) || (LG !== DEF_LEAGUE ? {} : {});
 const teams = () => Store.list("cr_teams").filter(inLeague).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 const team = (id) => Store.get("cr_teams", id);
@@ -894,7 +897,7 @@ function render() {
   }
   const lg = settings();
   $("lg-title").innerHTML = lg.name ? esc(lg.name) : "Festival <span>Cricket</span>";
-  { const L = leagues(), sel = $("lg-pick"); sel.hidden = L.length < 2; const loaded = Store.mode === "firebase" ? !!Store.settingsKnown : Store.mode === "local" || Store.mode === "cloud"; if (loaded && Object.keys(Store.data.cr_settings || {}).length && !L.some((x) => x.id === LG)) LG = DEF_LEAGUE;
+  { const L = leagues(), sel = $("lg-pick"); sel.hidden = L.length < 2; const loaded = Store.mode === "firebase" ? !!Store.settingsKnown : Store.mode === "local" || Store.mode === "cloud"; if (L.some((x) => x.id === pendingLG)) pendingLG = null; if (loaded && Object.keys(Store.data.cr_settings || {}).length && LG !== pendingLG && !L.some((x) => x.id === LG)) LG = DEF_LEAGUE;
     const html = L.map((x) => `<option value="${esc(x.id)}" ${x.id === LG ? "selected" : ""}>${esc(x.title)}</option>`).join(""); if (sel.innerHTML !== html) sel.innerHTML = html; sel.value = LG; }
   { const P = ptsOf(lg); $("pts-note").textContent = `Win ${P.w} · Tie ${P.t} · No result ${P.nr} · Loss ${P.l}` + (P.bc || P.bb ? ` · Bonus: ${[P.bc ? `win by ${P.br}+ runs or ${P.bo}+ overs to spare ${P.bc}` : "", P.bb ? `bowl out with ${P.bo}+ overs to spare ${P.bb}` : ""].filter(Boolean).join(", ")}` : ""); }
   $("nrr-note").textContent = lg.nrr === "balls" ? " (runs per ball)" : "";
@@ -1378,6 +1381,27 @@ function openXiDialog(m) {
 }
 
 $("lg-pick").onchange = () => { setLeague($("lg-pick").value); if (POST_PAGE) { $("pm-pick").value = ""; $("pm-form").innerHTML = ""; pmDirty = false; } };
+
+/* ----- updates: the deploy writes version.json at the site root; reload when it changes ----- */
+const VERSION_URL = (PUBLIC_PAGE ? "../../" : "../") + "version.json";
+async function loadLatest() {
+  try { if (window.caches) for (const k of await caches.keys()) await caches.delete(k); } catch (e) {}
+  try { if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch (e) {}
+  const u = new URL(location.href); u.searchParams.set("v", Date.now().toString(36)); location.replace(u.toString());
+}
+async function checkVersion() {
+  if (!window.APP_VERSION || location.protocol === "file:") return;
+  try {
+    const r = await fetch(VERSION_URL + "?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) return;
+    const v = (await r.json()).v;
+    if (v && v !== window.APP_VERSION) $("update-bar").hidden = false; // never reload over someone's typing; let them tap
+  } catch (e) {}
+}
+$("update-go").onclick = loadLatest;
+$("load-latest").onclick = (ev) => { ev.preventDefault(); loadLatest(); };
+$("ver-tag").textContent = window.APP_VERSION ? " · version " + window.APP_VERSION : "";
+setTimeout(checkVersion, 3000); setInterval(checkVersion, 5 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVersion(); });
 
 /* ----- post-match entry (/cricket_post/) ----- */
 let postPick = "", pmDirty = false;
