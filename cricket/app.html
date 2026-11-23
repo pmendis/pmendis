@@ -1353,9 +1353,11 @@ function buildPostForm(id) {
   const firstBat = m && m.inns && m.inns[0] ? m.inns[0].bat : "";
   box.innerHTML = `<form id="pm" autocomplete="off">
     <div class="row2"><label>Team A<select id="pm-a" required>${teamOpts(v.a)}</select></label><label>Team B<select id="pm-b" required>${teamOpts(v.b)}</select></label></div>
+    <details id="pm-more" ${m && (m.when || m.venue || (m.stage && m.stage !== "League")) ? "open" : ""}><summary class="muted" style="cursor:pointer;margin:6px 0">More details (stage, overs, date, venue)</summary>
     <div class="row3"><label>Stage<select id="pm-stage">${["League", "Super 4", "Quarter-final", "Semi-final", "Final", "Friendly"].map((x) => `<option ${x === (v.stage || "League") ? "selected" : ""}>${x}</option>`).join("")}</select></label>
       <label>Date &amp; time<input id="pm-when" type="datetime-local" value="${esc(v.when || "")}"></label><label>Venue<input id="pm-venue" maxlength="60" value="${esc(v.venue || "")}"></label></div>
     <div class="row3"><label>Overs per innings<input id="pm-overs" type="number" min="1" max="50" value="${v.overs}"></label><label>Balls per over<input id="pm-bpo" type="number" min="4" max="10" value="${bpoOf(v)}"></label><label>Players per side<input id="pm-xi" type="number" min="2" max="11" value="${v.xi || 11}"></label></div>
+    </details>
     <label style="max-width:260px">Batted first<select id="pm-first" required><option value="">Choose…</option></select></label>
     <div id="pm-inns"></div>
     <div class="notice" id="pm-result" style="margin-top:10px">Fill in both innings to see the result.</div>
@@ -1375,14 +1377,14 @@ function buildPostForm(id) {
         <h2>${i ? "2nd" : "1st"} innings · ${esc(teamName(bat))} batting</h2>
         <div class="row3"><label>Total runs${num("t-runs", P.runs, 90)}</label><label>Wickets${num("t-wk", P.wk, 90)}</label><label>Overs (e.g. 9.4)<input class="t-ov" value="${P.balls ? oversStr(P.balls, bpoOf(m || v)) : ""}" inputmode="decimal" style="width:90px;padding:6px"></label></div>
         <div class="table-wrap"><table class="pm-t"><thead><tr><th>Batter</th><th class="num">Runs</th><th class="num">Balls faced</th></tr></thead><tbody>
-        ${rows(xi, P.batters).map((x) => `<tr class="r-bat"><td><select class="p">${opt(squad(bat), x.pid)}</select></td><td>${num("r", x.r)}</td><td>${num("b", x.b)}</td></tr>`).join("")}
-        </tbody></table></div>
+        ${rows(4, P.batters).map((x) => `<tr class="r-bat"><td><select class="p">${opt(squad(bat), x.pid)}</select></td><td>${num("r", x.r)}</td><td>${num("b", x.b)}</td></tr>`).join("")}
+        </tbody></table></div><button class="btn small" type="button" data-addrow="r-bat">+ Add batter</button>
         <div class="table-wrap" style="margin-top:8px"><table class="pm-t"><thead><tr><th>Bowler (${esc(teamShort(bowl))})</th><th class="num">Balls</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead><tbody>
-        ${rows(6, P.bowlers).map((x) => `<tr class="r-bowl"><td><select class="p">${opt(squad(bowl), x.pid)}</select></td><td>${num("bl", x.balls)}</td><td>${num("r", x.r)}</td><td>${num("w", x.w, 46)}</td></tr>`).join("")}
-        </tbody></table></div>
+        ${rows(3, P.bowlers).map((x) => `<tr class="r-bowl"><td><select class="p">${opt(squad(bowl), x.pid)}</select></td><td>${num("bl", x.balls)}</td><td>${num("r", x.r)}</td><td>${num("w", x.w, 46)}</td></tr>`).join("")}
+        </tbody></table></div><button class="btn small" type="button" data-addrow="r-bowl">+ Add bowler</button>
         <div class="table-wrap" style="margin-top:8px"><table class="pm-t"><thead><tr><th>Fielder (${esc(teamShort(bowl))})</th><th class="num">Catches</th><th class="num">Run-outs</th><th class="num">Stump.</th></tr></thead><tbody>
-        ${rows(4, P.fielders).map((x) => `<tr class="r-fld"><td><select class="p">${opt(squad(bowl), x.pid)}</select></td><td>${num("ct", x.ct, 46)}</td><td>${num("ro", x.ro, 46)}</td><td>${num("st", x.st, 46)}</td></tr>`).join("")}
-        </tbody></table></div></div>`; }).join("");
+        ${rows(2, P.fielders).map((x) => `<tr class="r-fld"><td><select class="p">${opt(squad(bowl), x.pid)}</select></td><td>${num("ct", x.ct, 46)}</td><td>${num("ro", x.ro, 46)}</td><td>${num("st", x.st, 46)}</td></tr>`).join("")}
+        </tbody></table></div><button class="btn small" type="button" data-addrow="r-fld">+ Add fielder</button></div>`; }).join("");
     preview();
   };
   const collect = () => {
@@ -1408,6 +1410,13 @@ function buildPostForm(id) {
   f.addEventListener("input", () => { pmDirty = true; preview(); });
   ["pm-a", "pm-b"].forEach((i) => $(i).addEventListener("change", () => { drawFirst(); drawInns(); }));
   ["pm-first", "pm-xi"].forEach((i) => $(i).addEventListener("change", drawInns));
+  $("pm-inns").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-addrow]"); if (!b) return;
+    const tb = b.previousElementSibling.querySelector("tbody"), last = tb.lastElementChild;
+    if (b.dataset.addrow === "r-bat" && tb.children.length >= Math.max(2, +$("pm-xi").value || 11)) { notice("That's every player in the side.", "warn"); return; }
+    const row = last.cloneNode(true); row.querySelectorAll("input").forEach((i) => { i.value = ""; }); row.querySelector("select").value = ""; tb.appendChild(row);
+    row.querySelector("select").focus();
+  });
   $("pm-cancel").onclick = () => { pmDirty = false; $("pm-pick").value = ""; box.innerHTML = ""; };
   f.onsubmit = async (ev) => {
     ev.preventDefault(); const d = draft();
