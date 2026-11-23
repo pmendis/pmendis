@@ -541,7 +541,7 @@ function playerStats() {
   const S = {};
   const P = (pid) => S[pid] ||= { pid, inns: 0, no: 0, r: 0, b: 0, f4: 0, f6: 0, hs: 0, hsNo: false, oi: 0, balls: 0, rc: 0, w: 0, best: null, ct: 0, ro: 0, stp: 0 };
   for (const m of matches()) {
-    if (!m.inns) continue;
+    if (!m.inns || m.status === "draft") continue;
     m.inns.forEach((inn, i) => {
       const st = replay(m, i);
       for (const bt of Object.values(st.bat)) {
@@ -899,7 +899,7 @@ function matchScoreLine(m, tid) {
   const st = replay(m, i); return `${scoreStr(st)} <span class="muted">(${oversStr(st.legal, st.bpo)})</span>`;
 }
 function matchRow(m) {
-  const chip = m.status === "super" ? '<span class="chip live">SUPER OVER</span>' : m.status === "live" ? '<span class="chip live">LIVE</span>' : m.status === "done" ? '<span class="chip done">Result</span>' : m.status === "abandoned" ? '<span class="chip ab">Abandoned</span>' : '<span class="chip">Upcoming</span>';
+  const chip = m.status === "draft" ? '<span class="chip">Being entered</span>' : m.status === "super" ? '<span class="chip live">SUPER OVER</span>' : m.status === "live" ? '<span class="chip live">LIVE</span>' : m.status === "done" ? '<span class="chip done">Result</span>' : m.status === "abandoned" ? '<span class="chip ab">Abandoned</span>' : '<span class="chip">Upcoming</span>';
   const res = (m.status === "done" || m.status === "abandoned") ? resultOf(m) : null;
   return `<div class="mrow" data-open="${esc(m.id)}" role="link" tabindex="0">
     <div class="teams"><div class="tline"><span>${esc(teamName(m.a))}</span><span class="sc">${matchScoreLine(m, m.a)}</span></div>
@@ -1006,8 +1006,9 @@ function renderMatch() {
   if (res) head += `<div class="res">${esc(res.text)}</div>`;
   head += `</div>`;
   $("match-head").innerHTML = head + soSummaryHtml(m);
-  const scorerOn = ed && m.status !== "done" && m.status !== "abandoned";
+  const scorerOn = ed && m.status !== "done" && m.status !== "abandoned" && !m.post;
   $("scorer").hidden = !scorerOn; if (scorerOn) renderScorer(m); else if (ed && m.status === "done") renderDoneTools(m);
+  if (m.post && m.status === "draft") { $("scorer").hidden = false; $("scorer").innerHTML = `<div class="panel" style="margin-top:14px"><span class="muted">Result still being entered on the post-match page.</span>${ed ? ` <a href="${POST_PAGE ? "" : "../cricket_post/"}#p-${esc(m.id)}">Continue there</a>` : ""}</div>`; }
   renderXiPanel(m, ed);
   $("scorecard").innerHTML = (m.inns || []).map((inn, i) => scorecardHtml(m, i)).reverse().join("") || `<div class="panel empty" style="margin-top:14px">Not started yet.</div>`;
 }
@@ -1345,7 +1346,7 @@ function renderPostPick() {
   if (!POST_PAGE) return;
   const sel = $("pm-pick"), cur = postPick || sel.value;
   sel.innerHTML = `<option value="">Choose…</option><option value="new" ${cur === "new" ? "selected" : ""}>+ New match</option>` + postable().map((m) =>
-    `<option value="${esc(m.id)}" ${cur === m.id ? "selected" : ""}>${esc(teamName(m.a))} v ${esc(teamName(m.b))}${m.stage && m.stage !== "League" ? " · " + esc(m.stage) : ""}${m.when ? " · " + esc(fmtWhen(m.when)) : ""}${m.post ? " · entered" : ""}</option>`).join("");
+    `<option value="${esc(m.id)}" ${cur === m.id ? "selected" : ""}>${esc(teamName(m.a))} v ${esc(teamName(m.b))}${m.stage && m.stage !== "League" ? " · " + esc(m.stage) : ""}${m.when ? " · " + esc(fmtWhen(m.when)) : ""}${m.post ? (m.status === "draft" ? " · draft" : " · entered") : ""}</option>`).join("");
   if (postPick && !pmDirty) { buildPostForm(postPick); postPick = ""; }
 }
 $("pm-pick").onchange = () => { pmDirty = false; buildPostForm($("pm-pick").value); };
@@ -1371,7 +1372,7 @@ function buildPostForm(id) {
     <div class="notice" id="pm-result" style="margin-top:10px">Fill in both innings to see the result.</div>
     <div id="pm-tie" hidden><div class="row2"><label>Tie decided by<select id="pm-tieby"><option value="">Finished as a tie</option><option value="so">Super Over</option><option value="boundaries">Super Over tied · boundaries</option><option value="coin">Super Over tied · coin toss</option></select></label><label>Winner<select id="pm-tiewin"></select></label></div>
       <div id="pm-soscore" hidden><p class="muted" style="margin:6px 0 2px;font-size:12.5px">Super Over scores (optional)</p><div class="row2" id="pm-sorows"></div></div></div>
-    <div class="btns" style="margin-top:10px"><button class="btn primary" type="submit">Save result</button><button class="btn" type="button" id="pm-cancel">Cancel</button></div>
+    <div class="btns" style="margin-top:10px"><button class="btn primary" type="submit">Save result</button><button class="btn" type="button" id="pm-draft" title="Keep what you have so far; it won't count until you tap Save result">Save progress</button><button class="btn" type="button" id="pm-cancel">Cancel</button></div>
   </form>`;
   const sides = () => [$("pm-a").value, $("pm-b").value];
   const drawToss = () => { const [a, b] = sides(), cur = $("pm-toss").value || (m && m.toss && m.toss.winner) || ""; $("pm-toss").innerHTML = `<option value=""></option>` + [a, b].filter(Boolean).map((t) => `<option value="${esc(t)}" ${t === cur ? "selected" : ""}>${esc(teamName(t))}</option>`).join(""); };
@@ -1437,6 +1438,15 @@ function buildPostForm(id) {
     row.querySelector("select").focus();
   });
   $("pm-cancel").onclick = () => { pmDirty = false; $("pm-pick").value = ""; box.innerHTML = ""; };
+  // save progress: keep the entries as a draft (not counted anywhere) to finish later
+  $("pm-draft").onclick = async () => {
+    const d = draft(); if (!d.a || !d.b || d.a === d.b) { notice("Choose two different teams first.", "bad"); return; }
+    const { id, ...rest } = d, nid = m ? m.id : uid();
+    const tw = $("pm-toss").value, ch = $("pm-chose").value;
+    const doc = { ...rest, soWinner: null, soBy: null, soScore: null, so: null, when: $("pm-when").value, venue: $("pm-venue").value.trim(), toss: tw && ch ? { winner: tw, chose: ch } : null,
+      post: true, status: "draft", resultText: "", createdBy: m ? m.createdBy || Store.me() : Store.me(), createdAt: m ? m.createdAt : new Date().toISOString() };
+    if (await Store.put("cr_matches", nid, doc)) { pmDirty = false; notice("Progress saved. It won't count until you tap Save result.", "ok"); postPick = nid; renderPostPick(); }
+  };
   f.onsubmit = async (ev) => {
     ev.preventDefault(); const d = draft();
     if (!d.a || !d.b || d.a === d.b) { notice("Choose two different teams.", "bad"); return; }
