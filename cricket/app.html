@@ -299,19 +299,13 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-ko-sf" style="width:auto"> Semi-final</label>
           <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-ko-f" style="width:auto"> Final</label>
         </div>
-        <h3 class="fs">Super Over <small>played when a match in these stages ends in a tie; repeated until there is a winner</small></h3>
+        <h3 class="fs">Super Over <small>rules used when the scorer starts a Super Over after a tie</small></h3>
         <div class="row3">
           <label>Overs<input id="lg-soOvers" type="number" min="1" max="5" value="1"></label>
           <label>Balls per over <span style="text-transform:none;letter-spacing:0;font-weight:400">(blank = match's)</span><input id="lg-soBpo" type="number" min="4" max="10" placeholder="same"></label>
           <label>Wickets allowed<input id="lg-soWk" type="number" min="1" max="10" value="2"></label>
         </div>
-        <p class="muted" style="margin:0 0 4px;font-size:12.5px">"Wickets allowed" = the innings ends when this many wickets fall (e.g. 2).</p>
-        <div class="btns" style="gap:14px">
-          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-so-lg" style="width:auto"> League</label>
-          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-so-qf" style="width:auto"> Quarter-final</label>
-          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-so-sf" style="width:auto"> Semi-final</label>
-          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-so-f" style="width:auto"> Final</label>
-        </div>
+        <p class="muted" style="margin:0 0 4px;font-size:12.5px">"Wickets allowed" = the innings ends when this many wickets fall (e.g. 2). When a match ends in a tie, the scorer chooses <b>Start Super Over</b> or <b>Finish as tie</b>.</p>
         <h3 class="fs">Public viewing <small>for heavy traffic</small></h3>
         <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-public" style="width:auto"> Allow viewing without signing in (public live page and this app)</label>
         <p class="muted" style="margin:4px 0 0;font-size:12.5px">When off, visitors see "Live scores are paused" and stop reading the database. Scorers and the owner can still sign in and work. Public live page: <a id="lg-public-link" href="live/" target="_blank" rel="noopener">cricket/live/</a></p>
@@ -407,9 +401,7 @@ const limOf = (m, k) => Math.max(0, Math.floor(+(m && m[k]) || 0));
 // knockout defaults: { overs, bpo, stages: [...] }; stages default to semi-final + final
 const koOf = (lg) => { const k = (lg && lg.ko) || {}; return { overs: +k.overs || 0, bpo: +k.bpo || 0, stages: Array.isArray(k.stages) ? k.stages : ["Semi-final", "Final"] }; };
 // Super Over settings: { overs, bpo (0 = match's), wk, stages }
-const soOf = (lg) => { const k = (lg && lg.so) || {}; return { overs: Math.max(1, +k.overs || 1), bpo: +k.bpo || 0, wk: Math.max(1, +k.wk || 2), stages: Array.isArray(k.stages) ? k.stages : ["Quarter-final", "Semi-final", "Final"] }; };
-const SO_IDS = { "League": "lg-so-lg", "Quarter-final": "lg-so-qf", "Semi-final": "lg-so-sf", "Final": "lg-so-f" };
-const soApplies = (m) => soOf(settings()).stages.includes(m.stage || "League");
+const soOf = (lg) => { const k = (lg && lg.so) || {}; return { overs: Math.max(1, +k.overs || 1), bpo: +k.bpo || 0, wk: Math.max(1, +k.wk || 2) }; };
 const KO_IDS = { "Quarter-final": "lg-ko-qf", "Semi-final": "lg-ko-sf", "Final": "lg-ko-f" };
 const bpoOf = (m) => Math.max(1, +(m && m.bpo) || 6);
 const oversStr = (balls, bpo = 6) => `${Math.floor(balls / bpo)}.${balls % bpo}`;
@@ -914,11 +906,11 @@ $("match-form").addEventListener("submit", async (ev) => {
 /* ----- league settings ----- */
 let lgDirty = false;
 $("league-form").addEventListener("input", () => { lgDirty = true; });
-function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); { const so = soOf(lg); $("lg-soOvers").value = so.overs; $("lg-soBpo").value = so.bpo || ""; $("lg-soWk").value = so.wk; for (const [st, id] of Object.entries(SO_IDS)) $(id).checked = so.stages.includes(st); } { const k = koOf(lg); $("lg-koOvers").value = k.overs || ""; $("lg-koBpo").value = k.bpo || ""; for (const [st, id] of Object.entries(KO_IDS)) $(id).checked = k.stages.includes(st); } $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonR").value = ptsOf(lg).br; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
+function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); { const so = soOf(lg); $("lg-soOvers").value = so.overs; $("lg-soBpo").value = so.bpo || ""; $("lg-soWk").value = so.wk; } { const k = koOf(lg); $("lg-koOvers").value = k.overs || ""; $("lg-koBpo").value = k.bpo || ""; for (const [st, id] of Object.entries(KO_IDS)) $(id).checked = k.stages.includes(st); } $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonR").value = ptsOf(lg).br; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
 $("league-cancel").onclick = () => { fillLeagueForm(); notice("Changes discarded.", "ok"); };
 $("league-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), so: { overs: Math.max(1, Math.min(5, +$("lg-soOvers").value || 1)), bpo: +$("lg-soBpo").value ? Math.max(4, Math.min(10, +$("lg-soBpo").value)) : 0, wk: Math.max(1, Math.min(10, +$("lg-soWk").value || 2)), stages: Object.entries(SO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, ko: { overs: Math.max(0, Math.min(50, +$("lg-koOvers").value || 0)), bpo: +$("lg-koBpo").value ? Math.max(4, Math.min(10, +$("lg-koBpo").value)) : 0, stages: Object.entries(KO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpR: ptsOf({ bpR: $("lg-bonR").value }).br, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
+  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), so: { overs: Math.max(1, Math.min(5, +$("lg-soOvers").value || 1)), bpo: +$("lg-soBpo").value ? Math.max(4, Math.min(10, +$("lg-soBpo").value)) : 0, wk: Math.max(1, Math.min(10, +$("lg-soWk").value || 2)) }, ko: { overs: Math.max(0, Math.min(50, +$("lg-koOvers").value || 0)), bpo: +$("lg-koBpo").value ? Math.max(4, Math.min(10, +$("lg-koBpo").value)) : 0, stages: Object.entries(KO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpR: ptsOf({ bpR: $("lg-bonR").value }).br, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
 });
 
 /* ============================ match view ============================ */
@@ -1022,7 +1014,7 @@ async function saveMatch(m, patch) {
 /* ----- Super Over: each round is stored in m.so[r] = [innings, innings]; the scoring screens run on a "view" of the match ----- */
 function soView(m, r) {
   const so = soOf(settings());
-  return { ...m, __so: r, overs: so.overs, bpo: so.bpo || bpoOf(m), xi: so.wk + 1, mob: 0, mxb: 0, inns: (m.so && m.so[r]) || [], status: "live", toss: null, soWinner: null };
+  return { ...m, __so: r, overs: so.overs, bpo: so.bpo || bpoOf(m), xi: so.wk + 1, mob: 0, mxb: 0, inns: (m.so && m.so[r]) || [], status: "live", toss: null, soWinner: null, soTied: false };
 }
 // the team that batted second bats first in the (next) Super Over
 function soFirstBat(m, r) { if (r === 0) return m.inns[1].bat; const prev = m.so[r - 1]; return prev[1].bat; }
@@ -1041,9 +1033,10 @@ async function soSave(view, patch) {
   if (patch.status === "done" && so[r].length === 2) {
     const v = { ...view, inns: so[r] }, a = replay(v, 0).runs, b = replay(v, 1).runs;
     if (a !== b) { soWinner = a > b ? so[r][0].bat : so[r][1].bat; status = "done"; resultText = `Match tied · ${teamName(soWinner)} won the Super Over`; }
-    else { so.push([]); resultText = "Super Over tied · another Super Over"; notice("Super Over tied. Play another Super Over.", "warn"); }
+    else { resultText = "Super Over tied"; notice("Super Over tied. Choose Play another Super Over or Finish as tie.", "warn");
+      return Store.put("cr_matches", id, { ...rest, so, status: "super", soWinner: null, soTied: true, resultText }); }
   }
-  return Store.put("cr_matches", id, { ...rest, so, status, soWinner, resultText });
+  return Store.put("cr_matches", id, { ...rest, so, status, soWinner, soTied: false, resultText });
 }
 function soSummaryHtml(m) {
   const rounds = (m.so || []).filter((x) => x.length); if (!rounds.length) return "";
@@ -1052,6 +1045,14 @@ function soSummaryHtml(m) {
     ${m.soWinner ? `<div style="margin-top:4px"><b>${esc(teamName(m.soWinner))} won the Super Over</b></div>` : ""}</div>`;
 }
 function renderScorer(m) {
+  if (m.status === "super" && m.__so === undefined && m.soTied) {
+    const n = (m.so || []).length;
+    $("scorer").innerHTML = `<div class="panel" style="margin-top:14px"><div class="btns"><b>Super Over${n > 1 ? " " + n : ""} tied.</b><button class="btn primary" type="button" id="so-again">Play another Super Over</button><button class="btn" type="button" id="so-tie">Finish as tie</button><button class="btn" type="button" id="so-undo">Undo last ball</button></div></div>`;
+    $("so-again").onclick = () => saveMatch(m, { so: [...m.so, []], soTied: false, resultText: "Match tied · Super Over" });
+    $("so-tie").onclick = async () => { if (await saveMatch(m, { status: "done", soTied: false, soWinner: null, resultText: "Match tied (Super Over tied)" })) notice("Match tied.", "ok"); };
+    $("so-undo").onclick = () => saveMatch(m, { soTied: false }).then(() => undoBall(soView({ ...m, soTied: false }, m.so.length - 1)));
+    return;
+  }
   if (m.status === "super" && m.__so === undefined) {
     const r = Math.max(0, (m.so || [[]]).length - 1), v = soView(m, r), so = soOf(settings());
     renderScorer(v);
@@ -1130,11 +1131,11 @@ function renderScorer(m) {
   }
   if (done) {
     box.innerHTML = `<div class="panel" style="margin-top:14px"><div class="btns"><span class="muted">${ci === 0 ? "1st innings complete." : "Match complete."}</span>
-      ${ci === 1 ? `<button class="btn primary" type="button" id="fin-go">Confirm result</button>` : ""}<button class="btn" type="button" id="fin-undo">Undo last ball</button>
+      ${ci === 1 ? (m.__so === undefined && (resultOf(m) || {}).tie ? `<b>Scores level.</b><button class="btn primary" type="button" id="fin-so">Start Super Over</button><button class="btn" type="button" id="fin-go">Finish as tie</button>` : `<button class="btn primary" type="button" id="fin-go">Confirm result</button>`) : ""}<button class="btn" type="button" id="fin-undo">Undo last ball</button>
       ${!inn.closed ? "" : `<button class="btn" type="button" id="fin-reopen">Reopen innings</button>`}</div></div>`;
     if (ci === 1) $("fin-go").onclick = async () => { const res = resultOf(m);
-      if (m.__so === undefined && res && res.tie && soApplies(m)) { await saveMatch(m, { status: "super", so: [[]], resultText: "Match tied · Super Over" }); notice("Scores level: play a Super Over.", "warn"); return; }
       await saveMatch(m, { status: "done", resultText: res ? res.text : "" }); if (m.__so === undefined) notice(res ? res.text : "Saved.", "ok"); };
+    const sg = $("fin-so"); if (sg) sg.onclick = async () => { await saveMatch(m, { status: "super", so: [[]], soTied: false, soWinner: null, resultText: "Match tied · Super Over" }); };
     $("fin-undo").onclick = () => undoBall(m);
     const ro = $("fin-reopen"); if (ro) ro.onclick = async () => { const ii = [...inns]; ii[ci] = { ...inn, closed: false }; await saveMatch(m, { inns: ii }); };
     return;
@@ -1210,7 +1211,7 @@ async function addBall(m, e) {
   const next = { ...m, inns };
   const patch = { inns };
   if (ci === 1 && inningsDone(next, 1) && m.__so === undefined) { const res = resultOf(next);
-    if (res && res.tie && soApplies(m)) { patch.status = "super"; patch.so = [[]]; patch.resultText = "Match tied · Super Over"; notice("Scores level: play a Super Over.", "warn"); }
+    if (res && res.tie) notice("Scores level. Choose Start Super Over or Finish as tie.", "warn"); // left open for the scorer to decide
     else { patch.status = "done"; patch.resultText = res ? res.text : ""; } }
   else if (ci === 1 && inningsDone(next, 1)) patch.status = "done";
   if (await saveMatch(m, patch)) { if (!replay(next, ci).b) nextBowler = null; if (patch.status === "done") notice(patch.resultText, "ok"); }
