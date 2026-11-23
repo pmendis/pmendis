@@ -206,7 +206,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
   <!-- STANDINGS -->
   <section data-view="standings" hidden>
     <div class="panel">
-      <div class="panel-head"><h2>Points table <small><span id="pts-note">Win 2 · Tie 1 · No result 1 · Loss 0</span> · ranked by points, then net run rate<span id="nrr-note"></span></small></h2></div>
+      <div class="panel-head"><h2>Points table <small><span id="pts-note">Win 4 · Tie 0 · No result 1 · Loss 0</span> · ranked by points, then net run rate<span id="nrr-note"></span></small></h2></div>
       <div class="table-wrap" id="standings"></div>
     </div>
     <div class="panel" id="live-panel" hidden><h2>Live now</h2><div id="live-list"></div></div>
@@ -313,8 +313,8 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
         <p class="muted" style="margin:4px 0 0;font-size:12.5px">When off, visitors see "Live scores are paused" and stop reading the database. Scorers and the owner can still sign in and work. Public live page: <a id="lg-public-link" href="live/" target="_blank" rel="noopener">cricket/live/</a></p>
         <h3 class="fs">Points table <small>applies to all league matches, including finished ones</small></h3>
         <div class="row2">
-          <label>Points for a win<input id="lg-ptW" type="number" min="0" max="10" step="0.5" value="2"></label>
-          <label>Points for a tie<input id="lg-ptT" type="number" min="0" max="10" step="0.5" value="1"></label>
+          <label>Points for a win<input id="lg-ptW" type="number" min="0" max="10" step="0.5" value="4"></label>
+          <label>Points for a tie<input id="lg-ptT" type="number" min="0" max="10" step="0.5" value="0"></label>
         </div>
         <div class="row2">
           <label>Points for no result<input id="lg-ptNR" type="number" min="0" max="10" step="0.5" value="1"></label>
@@ -678,7 +678,7 @@ const usedIn = (m) => { const u = new Set(); for (const inn of m.inns || []) { (
 const squad = (tid) => Store.list("cr_players").filter((p) => p.team === tid).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 const matches = () => Store.list("cr_matches").sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.createdAt || "").localeCompare(b.createdAt || ""));
 const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
-const ptsOf = (lg) => { const g = (k, d) => (lg[k] === undefined || lg[k] === "" || isNaN(+lg[k]) ? d : +lg[k]); return { w: g("ptW", 2), t: g("ptT", 1), nr: g("ptNR", 1), l: g("ptL", 0), bc: g("bpC", 0), bb: g("bpB", 0), br: Math.max(1, g("bpR", 10)), bo: g("bpO", 1) }; };
+const ptsOf = (lg) => { const g = (k, d) => (lg[k] === undefined || lg[k] === "" || isNaN(+lg[k]) ? d : +lg[k]); return { w: g("ptW", 4), t: g("ptT", 0), nr: g("ptNR", 1), l: g("ptL", 0), bc: g("bpC", 0), bb: g("bpB", 0), br: Math.max(1, g("bpR", 10)), bo: g("bpO", 1) }; };
 const scorerName = (email) => String(email || "").replace(/@cricket\.local$/i, "") || "another scorer";
 const nrrFmt = (n) => (n >= 0 ? "+" : "") + n.toFixed(3);
 const scoreStr = (st) => `${st.runs}/${st.wk}`;
