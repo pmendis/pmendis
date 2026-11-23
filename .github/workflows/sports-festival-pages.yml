@@ -53,6 +53,7 @@ jobs:
             echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
             echo '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
             echo '<meta http-equiv="Cache-Control" content="no-cache">'
+            echo "<script>window.APP_VERSION = \"$VERSION\";</script>"
             echo "<script src=\"../firebase-config.js?v=$VERSION\"></script></head><body>"
             cat cricket/app.html
             echo '</body></html>'
@@ -64,6 +65,7 @@ jobs:
             echo '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
             echo '<meta http-equiv="Cache-Control" content="no-cache">'
             echo '<script>window.CRICKET_PUBLIC = true;</script>'
+            echo "<script>window.APP_VERSION = \"$VERSION\";</script>"
             echo "<script src=\"../../firebase-config.js?v=$VERSION\"></script></head><body>"
             cat cricket/app.html
             echo '</body></html>'
@@ -75,6 +77,7 @@ jobs:
             echo '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
             echo '<meta http-equiv="Cache-Control" content="no-cache">'
             echo '<script>window.CRICKET_POST = true;</script>'
+            echo "<script>window.APP_VERSION = \"$VERSION\";</script>"
             echo "<script src=\"../firebase-config.js?v=$VERSION\"></script></head><body>"
             cat cricket/app.html
             echo '</body></html>'
