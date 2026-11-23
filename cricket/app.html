@@ -189,7 +189,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 
 <main class="wrap">
   <div id="notice" class="notice" hidden></div>
-  <div class="notice warn" id="update-bar" hidden style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">A newer version of this page is available. <button class="btn small primary" type="button" id="update-go">Load latest version</button></div>
+  <button type="button" class="notice warn" id="update-bar" hidden style="width:100%;text-align:left;cursor:pointer;font:inherit;border:0;display:flex;gap:10px;align-items:center;justify-content:space-between"><span>🔄 <b>A new version is available.</b> Tap to update.</span><span class="btn small primary">Update</span></button>
   <div class="panel" id="paused" hidden style="text-align:center;padding:28px 16px">
     <h2 style="margin:0 0 6px">Live scores are paused</h2>
     <p class="muted" style="margin:0">Public viewing is switched off for now because of heavy traffic. Please check back a little later.</p>
@@ -415,7 +415,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
       </div>
     </div>
   </section>
-  <p class="muted" style="text-align:center;font-size:12px;margin:18px 0 8px">Page not updating? <a href="#" id="load-latest">Load latest version</a><span id="ver-tag"></span></p>
+  <p class="muted" style="text-align:center;font-size:11px;margin:18px 0 8px" id="ver-tag"></p>
 </main>
 
 <script>
@@ -1389,19 +1389,23 @@ async function loadLatest() {
   try { if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch (e) {}
   const u = new URL(location.href); u.searchParams.set("v", Date.now().toString(36)); location.replace(u.toString());
 }
-async function checkVersion() {
+async function checkVersion(atStart) {
   if (!window.APP_VERSION || location.protocol === "file:") return;
   try {
     const r = await fetch(VERSION_URL + "?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) return;
     const v = (await r.json()).v;
-    if (v && v !== window.APP_VERSION) $("update-bar").hidden = false; // never reload over someone's typing; let them tap
+    if (!v || v === window.APP_VERSION) return;
+    if (atStart) { // an old copy from the browser cache: load the new one once (guarded so it can never loop)
+      let done = false; try { done = sessionStorage.getItem("cr.reloadedFor") === v; sessionStorage.setItem("cr.reloadedFor", v); } catch (e) { done = true; }
+      if (!done) { const u = new URL(location.href); u.searchParams.set("v", v); location.replace(u.toString()); return; }
+    }
+    $("update-bar").hidden = false; // while in use, never reload over someone's typing: ask instead
   } catch (e) {}
 }
-$("update-go").onclick = loadLatest;
-$("load-latest").onclick = (ev) => { ev.preventDefault(); loadLatest(); };
-$("ver-tag").textContent = window.APP_VERSION ? " · version " + window.APP_VERSION : "";
-setTimeout(checkVersion, 3000); setInterval(checkVersion, 5 * 60 * 1000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVersion(); });
+$("update-bar").onclick = loadLatest;
+$("ver-tag").textContent = window.APP_VERSION ? "Version " + window.APP_VERSION : "";
+checkVersion(true); setInterval(() => checkVersion(false), 5 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVersion(false); });
 
 /* ----- post-match entry (/cricket_post/) ----- */
 let postPick = "", pmDirty = false;
