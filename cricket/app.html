@@ -1364,6 +1364,8 @@ function buildPostForm(id) {
       <label>Date &amp; time<input id="pm-when" type="datetime-local" value="${esc(v.when || "")}"></label><label>Venue<input id="pm-venue" maxlength="60" value="${esc(v.venue || "")}"></label></div>
     <div class="row3"><label>Players per side<input id="pm-xi" type="number" min="2" max="11" value="${v.xi || 11}"></label></div>
     </details>
+    <div class="row2"><label>Toss won by <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span><select id="pm-toss"><option value=""></option></select></label>
+      <label>Chose to<select id="pm-chose"><option value=""></option><option value="bat" ${m && m.toss && m.toss.chose === "bat" ? "selected" : ""}>Bat</option><option value="bowl" ${m && m.toss && m.toss.chose === "bowl" ? "selected" : ""}>Bowl</option></select></label></div>
     <label style="max-width:260px">Batted first<select id="pm-first" required><option value="">Choose…</option></select></label>
     <div id="pm-inns"></div>
     <div class="notice" id="pm-result" style="margin-top:10px">Fill in both innings to see the result.</div>
@@ -1372,6 +1374,9 @@ function buildPostForm(id) {
     <div class="btns" style="margin-top:10px"><button class="btn primary" type="submit">Save result</button><button class="btn" type="button" id="pm-cancel">Cancel</button></div>
   </form>`;
   const sides = () => [$("pm-a").value, $("pm-b").value];
+  const drawToss = () => { const [a, b] = sides(), cur = $("pm-toss").value || (m && m.toss && m.toss.winner) || ""; $("pm-toss").innerHTML = `<option value=""></option>` + [a, b].filter(Boolean).map((t) => `<option value="${esc(t)}" ${t === cur ? "selected" : ""}>${esc(teamName(t))}</option>`).join(""); };
+  // toss winner + choice decides who batted first
+  const fromToss = () => { const [a, b] = sides(), tw = $("pm-toss").value, ch = $("pm-chose").value; if (!tw || !ch || !a || !b) return; const f = ch === "bat" ? tw : tw === a ? b : a; if ($("pm-first").value !== f) { $("pm-first").value = f; drawInns(); } };
   const drawFirst = () => { const [a, b] = sides(), cur = $("pm-first").value || firstBat; $("pm-first").innerHTML = `<option value="">Choose…</option>` + [a, b].filter(Boolean).map((t) => `<option value="${esc(t)}" ${t === cur ? "selected" : ""}>${esc(teamName(t))}</option>`).join(""); };
   const drawInns = () => {
     const [a, b] = sides(), f = $("pm-first").value; if (!a || !b || !f || a === b) { $("pm-inns").innerHTML = `<p class="muted">Choose both teams and who batted first.</p>`; return; }
@@ -1418,10 +1423,11 @@ function buildPostForm(id) {
       $("pm-sorows").innerHTML = order.map((t) => `<div data-so="${esc(t)}"><div class="sub" style="font-weight:700;color:var(--ink)">${esc(teamName(t))}</div><div class="btns" style="gap:6px"><label style="width:90px">Runs<input class="so-r" type="number" min="0" value="${esc(val(t, "r"))}"></label><label style="width:90px">Wickets<input class="so-w" type="number" min="0" max="10" value="${esc(val(t, "w"))}"></label></div></div>`).join("");
       $("pm-soscore").hidden = !$("pm-tieby").value; }
   };
-  drawFirst(); drawInns();
+  drawToss(); drawFirst(); drawInns();
   const f = $("pm");
   f.addEventListener("input", () => { pmDirty = true; preview(); });
-  ["pm-a", "pm-b"].forEach((i) => $(i).addEventListener("change", () => { drawFirst(); drawInns(); }));
+  ["pm-a", "pm-b"].forEach((i) => $(i).addEventListener("change", () => { drawToss(); drawFirst(); drawInns(); }));
+  ["pm-toss", "pm-chose"].forEach((i) => $(i).addEventListener("change", fromToss));
   ["pm-first", "pm-xi"].forEach((i) => $(i).addEventListener("change", drawInns));
   $("pm-inns").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-addrow]"); if (!b) return;
@@ -1445,7 +1451,9 @@ function buildPostForm(id) {
       const soScore = {}; document.querySelectorAll("#pm-sorows [data-so]").forEach((x) => { const r = x.querySelector(".so-r").value, wk = x.querySelector(".so-w").value; if (r !== "") soScore[x.dataset.so] = { r: +r || 0, w: +wk || 0 }; });
       extra = { soWinner: w, soBy: $("pm-tieby").value, soScore: Object.keys(soScore).length ? soScore : null }; }
     const { id, ...rest } = d, nid = m ? m.id : uid();
-    const doc = { ...rest, ...extra, so: null, when: $("pm-when").value, venue: $("pm-venue").value.trim(), post: true, status: "done", createdBy: m ? m.createdBy || Store.me() : Store.me(), createdAt: m ? m.createdAt : new Date().toISOString() };
+    const tw = $("pm-toss").value, ch = $("pm-chose").value;
+    if (tw && ch && (ch === "bat" ? tw : tw === d.a ? d.b : d.a) !== d.inns[0].bat) { notice("The toss doesn't match who batted first. Check the toss or Batted first.", "bad"); return; }
+    const doc = { ...rest, ...extra, so: null, toss: tw && ch ? { winner: tw, chose: ch } : null, when: $("pm-when").value, venue: $("pm-venue").value.trim(), post: true, status: "done", createdBy: m ? m.createdBy || Store.me() : Store.me(), createdAt: m ? m.createdAt : new Date().toISOString() };
     doc.resultText = (resultOf({ ...doc }) || {}).text || "";
     if (await Store.put("cr_matches", nid, doc)) { pmDirty = false; notice(`Saved: ${doc.resultText}`, "ok"); postPick = nid; renderPostPick(); }
   };
