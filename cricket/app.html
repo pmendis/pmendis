@@ -1354,10 +1354,11 @@ function buildPostForm(id) {
   const firstBat = m && m.inns && m.inns[0] ? m.inns[0].bat : "";
   box.innerHTML = `<form id="pm" autocomplete="off">
     <div class="row2"><label>Team A<select id="pm-a" required>${teamOpts(v.a)}</select></label><label>Team B<select id="pm-b" required>${teamOpts(v.b)}</select></label></div>
-    <details id="pm-more" ${m && (m.when || m.venue || (m.stage && m.stage !== "League")) ? "open" : ""}><summary class="muted" style="cursor:pointer;margin:6px 0">More details (stage, overs, date, venue)</summary>
+    <div class="row2"><label>Overs per innings<input id="pm-overs" type="number" min="1" max="50" required value="${v.overs}"></label><label>Balls per over<input id="pm-bpo" type="number" min="4" max="10" required value="${bpoOf(v)}"></label></div>
+    <details id="pm-more" ${m && (m.when || m.venue || (m.stage && m.stage !== "League")) ? "open" : ""}><summary class="muted" style="cursor:pointer;margin:6px 0">More details (stage, players per side, date, venue)</summary>
     <div class="row3"><label>Stage<select id="pm-stage">${["League", "Super 4", "Quarter-final", "Semi-final", "Final", "Friendly"].map((x) => `<option ${x === (v.stage || "League") ? "selected" : ""}>${x}</option>`).join("")}</select></label>
       <label>Date &amp; time<input id="pm-when" type="datetime-local" value="${esc(v.when || "")}"></label><label>Venue<input id="pm-venue" maxlength="60" value="${esc(v.venue || "")}"></label></div>
-    <div class="row3"><label>Overs per innings<input id="pm-overs" type="number" min="1" max="50" value="${v.overs}"></label><label>Balls per over<input id="pm-bpo" type="number" min="4" max="10" value="${bpoOf(v)}"></label><label>Players per side<input id="pm-xi" type="number" min="2" max="11" value="${v.xi || 11}"></label></div>
+    <div class="row3"><label>Players per side<input id="pm-xi" type="number" min="2" max="11" value="${v.xi || 11}"></label></div>
     </details>
     <label style="max-width:260px">Batted first<select id="pm-first" required><option value="">Choose…</option></select></label>
     <div id="pm-inns"></div>
