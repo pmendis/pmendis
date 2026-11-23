@@ -324,10 +324,14 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label>Points for no result<input id="lg-ptNR" type="number" min="0" max="10" step="0.5" value="1"></label>
           <label>Points for a loss<input id="lg-ptL" type="number" min="-5" max="10" step="0.5" value="0"></label>
         </div>
-        <div class="row3">
-          <label>Bonus: win a chase with overs to spare<input id="lg-bonC" type="number" min="0" max="5" step="0.5" value="0"></label>
-          <label>Bonus: bowl the other side out with overs to spare<input id="lg-bonB" type="number" min="0" max="5" step="0.5" value="0"></label>
-          <label>Overs to spare (at least)<input id="lg-bonO" type="number" min="0" max="20" step="0.5" value="1"></label>
+        <p class="muted" style="margin:8px 0 2px;font-size:12.5px"><b>Bonus points</b> (0 = off). The winner gets the <b>win bonus</b> if it wins by at least the run margin (batting first) or with at least the overs to spare (chasing). A team that bowls the other side out with at least the overs to spare gets the <b>bowl-out bonus</b>.</p>
+        <div class="row2">
+          <label>Win bonus points<input id="lg-bonC" type="number" min="0" max="5" step="0.5" value="0"></label>
+          <label>Bowl-out bonus points<input id="lg-bonB" type="number" min="0" max="5" step="0.5" value="0"></label>
+        </div>
+        <div class="row2">
+          <label>Win by at least (runs, batting first)<input id="lg-bonR" type="number" min="1" max="500" value="10"></label>
+          <label>Overs to spare, at least (chasing / bowl-out)<input id="lg-bonO" type="number" min="0" max="20" step="0.5" value="1"></label>
         </div>
         <label>Net run rate method<select id="lg-nrr">
           <option value="icc">Standard (ICC): runs per over, all-out side counts its full overs</option>
@@ -487,7 +491,11 @@ function standings() {
     // bonus points: overs to spare = balls left in the innings (wides/no-balls use a ball only if the match says so)
     const spare = (st) => (m.overs || 0) * st.bpo - st.legal >= P.bo * st.bpo;
     const st2 = replay(m, 1);
-    if (P.bc && !res.tie && res.winner === m.inns[1].bat && spare(st2) && rows[res.winner]) { rows[res.winner].bp += P.bc; rows[res.winner].pts += P.bc; }
+    // win bonus: batting first and winning by at least the run margin, or chasing with at least the overs to spare
+    if (P.bc && !res.tie && !res.so && rows[res.winner]) {
+      const st1 = replay(m, 0), byRuns = res.winner === m.inns[0].bat && st1.runs - st2.runs >= P.br, bySpare = res.winner === m.inns[1].bat && spare(st2);
+      if (byRuns || bySpare) { rows[res.winner].bp += P.bc; rows[res.winner].pts += P.bc; }
+    }
     for (let i = 0; i < 2; i++) {
       const inn = m.inns[i], st = replay(m, i), allOut = st.wk >= (m.xi || 11) - 1;
       if (P.bb && allOut && spare(st) && rows[inn.bowl]) { rows[inn.bowl].bp += P.bb; rows[inn.bowl].pts += P.bb; }
@@ -673,7 +681,7 @@ const usedIn = (m) => { const u = new Set(); for (const inn of m.inns || []) { (
 const squad = (tid) => Store.list("cr_players").filter((p) => p.team === tid).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 const matches = () => Store.list("cr_matches").sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.createdAt || "").localeCompare(b.createdAt || ""));
 const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
-const ptsOf = (lg) => { const g = (k, d) => (lg[k] === undefined || lg[k] === "" || isNaN(+lg[k]) ? d : +lg[k]); return { w: g("ptW", 2), t: g("ptT", 1), nr: g("ptNR", 1), l: g("ptL", 0), bc: g("bpC", 0), bb: g("bpB", 0), bo: g("bpO", 1) }; };
+const ptsOf = (lg) => { const g = (k, d) => (lg[k] === undefined || lg[k] === "" || isNaN(+lg[k]) ? d : +lg[k]); return { w: g("ptW", 2), t: g("ptT", 1), nr: g("ptNR", 1), l: g("ptL", 0), bc: g("bpC", 0), bb: g("bpB", 0), br: Math.max(1, g("bpR", 10)), bo: g("bpO", 1) }; };
 const scorerName = (email) => String(email || "").replace(/@cricket\.local$/i, "") || "another scorer";
 const nrrFmt = (n) => (n >= 0 ? "+" : "") + n.toFixed(3);
 const scoreStr = (st) => `${st.runs}/${st.wk}`;
@@ -825,7 +833,7 @@ function render() {
   if (!Store.can("teams")) $("team-form-panel").hidden = true;
   const lg = settings();
   $("lg-title").innerHTML = lg.name ? esc(lg.name) : "Festival <span>Cricket</span>";
-  { const P = ptsOf(lg); $("pts-note").textContent = `Win ${P.w} · Tie ${P.t} · No result ${P.nr} · Loss ${P.l}` + (P.bc || P.bb ? ` · Bonus (${P.bo}+ overs to spare): chase ${P.bc}, bowl out ${P.bb}` : ""); }
+  { const P = ptsOf(lg); $("pts-note").textContent = `Win ${P.w} · Tie ${P.t} · No result ${P.nr} · Loss ${P.l}` + (P.bc || P.bb ? ` · Bonus: ${[P.bc ? `win by ${P.br}+ runs or ${P.bo}+ overs to spare ${P.bc}` : "", P.bb ? `bowl out with ${P.bo}+ overs to spare ${P.bb}` : ""].filter(Boolean).join(", ")}` : ""); }
   $("nrr-note").textContent = lg.nrr === "balls" ? " (runs per ball)" : "";
   if (!$("league-panel").closest("section").hidden && !lgDirty) fillLeagueForm(); // show saved values until someone edits
   renderStandings(); renderMatchList(); renderStats(); renderTeams(); renderWipe(); renderAccess();
@@ -906,11 +914,11 @@ $("match-form").addEventListener("submit", async (ev) => {
 /* ----- league settings ----- */
 let lgDirty = false;
 $("league-form").addEventListener("input", () => { lgDirty = true; });
-function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); { const so = soOf(lg); $("lg-soOvers").value = so.overs; $("lg-soBpo").value = so.bpo || ""; $("lg-soWk").value = so.wk; for (const [st, id] of Object.entries(SO_IDS)) $(id).checked = so.stages.includes(st); } { const k = koOf(lg); $("lg-koOvers").value = k.overs || ""; $("lg-koBpo").value = k.bpo || ""; for (const [st, id] of Object.entries(KO_IDS)) $(id).checked = k.stages.includes(st); } $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
+function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); { const so = soOf(lg); $("lg-soOvers").value = so.overs; $("lg-soBpo").value = so.bpo || ""; $("lg-soWk").value = so.wk; for (const [st, id] of Object.entries(SO_IDS)) $(id).checked = so.stages.includes(st); } { const k = koOf(lg); $("lg-koOvers").value = k.overs || ""; $("lg-koBpo").value = k.bpo || ""; for (const [st, id] of Object.entries(KO_IDS)) $(id).checked = k.stages.includes(st); } $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonR").value = ptsOf(lg).br; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
 $("league-cancel").onclick = () => { fillLeagueForm(); notice("Changes discarded.", "ok"); };
 $("league-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), so: { overs: Math.max(1, Math.min(5, +$("lg-soOvers").value || 1)), bpo: +$("lg-soBpo").value ? Math.max(4, Math.min(10, +$("lg-soBpo").value)) : 0, wk: Math.max(1, Math.min(10, +$("lg-soWk").value || 2)), stages: Object.entries(SO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, ko: { overs: Math.max(0, Math.min(50, +$("lg-koOvers").value || 0)), bpo: +$("lg-koBpo").value ? Math.max(4, Math.min(10, +$("lg-koBpo").value)) : 0, stages: Object.entries(KO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
+  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), so: { overs: Math.max(1, Math.min(5, +$("lg-soOvers").value || 1)), bpo: +$("lg-soBpo").value ? Math.max(4, Math.min(10, +$("lg-soBpo").value)) : 0, wk: Math.max(1, Math.min(10, +$("lg-soWk").value || 2)), stages: Object.entries(SO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, ko: { overs: Math.max(0, Math.min(50, +$("lg-koOvers").value || 0)), bpo: +$("lg-koBpo").value ? Math.max(4, Math.min(10, +$("lg-koBpo").value)) : 0, stages: Object.entries(KO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpR: ptsOf({ bpR: $("lg-bonR").value }).br, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
 });
 
 /* ============================ match view ============================ */
