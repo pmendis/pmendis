@@ -97,6 +97,8 @@ main.is-paused > section { display: none !important; }
 #pm .row2, #pm .row3 { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } #pm { grid-template-columns: minmax(0, 1fr); } #pm > *, #pm .row2 > *, #pm .row3 > * { min-width: 0; } #pm .row2 input, #pm .row2 select, #pm .row3 input, #pm .row3 select { min-width: 0; max-width: 100%; }
 .pm-t { width: 100%; } .pm-t td, .pm-t th { padding: 3px 2px; } .pm-t th { font-size: 11px; } [data-pinn] { min-width: 0; max-width: 100%; overflow: hidden; } [data-pinn] .table-wrap { max-width: 100%; }
 .pm-t select { width: 100%; min-width: 108px; padding: 6px 4px; } .pm-t input:not([type=checkbox]) { width: 40px !important; padding: 6px 3px !important; }
+.lg-pick { margin-top: 6px; font: 600 14px var(--font-body); background: rgba(255,255,255,.12); color: var(--pitch-ink); border: 1px solid rgba(255,255,255,.35); border-radius: 99px; padding: 4px 28px 4px 12px; width: auto; }
+.lg-pick option { color: #142019; }
 .btn.solid-bad { background: var(--bad); color: #fff; border-color: var(--bad); }
 .confirm-dlg { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); padding: 18px; max-width: min(380px, calc(100vw - 32px)); }
 .confirm-dlg::backdrop { background: rgba(0,0,0,.45); }
@@ -164,6 +166,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
     <div>
       <div class="eyebrow">Inter-Department Sports Festival</div>
       <h1 id="lg-title">Festival <span>Cricket</span></h1>
+      <select id="lg-pick" class="lg-pick" aria-label="League" hidden></select>
     </div>
     <div class="hdr-right">
       <button class="pillbtn" type="button" id="auth-btn">Scorer sign in</button>
@@ -282,11 +285,19 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
   <!-- SETTINGS (scorers only) -->
   <section data-view="settings" hidden>
     <div class="panel" id="league-panel">
-      <h2>League settings <small>only scorers can see and change these</small></h2>
+      <h2>League settings <small>for the league chosen at the top; each league has its own rules</small></h2>
+      <div class="btns" id="lg-add-row" style="align-items:flex-end;margin-bottom:10px">
+        <label style="max-width:200px">Add a league<input id="lg-new" maxlength="30" placeholder="e.g. Women's" autocomplete="off"></label>
+        <button class="btn small" type="button" id="lg-add">+ Add league</button>
+        <span class="muted" style="font-size:12.5px">starts as a copy of this league's settings</span>
+      </div>
       <form id="league-form">
         <p class="muted" id="lg-ro" hidden style="margin:0 0 8px">View only: ask the owner for "Edit settings" to change these.</p>
         <fieldset id="lg-fs" style="border:0;padding:0;margin:0;min-width:0">
-        <label>League name<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
+        <div class="row2">
+          <label>League title (picker)<input id="lg-titlein" maxlength="30" placeholder="e.g. Men's"></label>
+          <label>Page heading<input id="lg-name" maxlength="60" placeholder="Festival Cricket"></label>
+        </div>
         <h3 class="fs">Match defaults <small>filled in for each new match; can be changed per match</small></h3>
         <div class="row2">
           <label>Overs per innings<input id="lg-overs" type="number" min="1" max="50" value="10"></label>
@@ -321,6 +332,10 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label>Balls per over <span style="text-transform:none;letter-spacing:0;font-weight:400">(blank = match's)</span><input id="lg-soBpo" type="number" min="4" max="10" placeholder="same"></label>
           <label>Wickets allowed<input id="lg-soWk" type="number" min="1" max="10" value="2"></label>
         </div>
+        <label style="max-width:520px">If the Super Over is tied<select id="lg-soTie">
+          <option value="boundaries">Most boundaries (4s + 6s) in the Super Over, then toss</option>
+          <option value="sixes">Most sixes in the main innings, then most fours, then toss</option>
+        </select></label>
         <p class="muted" style="margin:0 0 4px;font-size:12.5px">"Wickets allowed" = the innings ends when this many wickets fall (e.g. 2). When a match ends in a tie, the scorer chooses <b>Start Super Over</b> or <b>Finish as tie</b>. If the Super Over is tied, the team with more boundaries (4s + 6s) in its Super Over innings wins; if those are level too, the scorer records the coin toss winner.</p>
         <h3 class="fs">Public viewing <small>for heavy traffic</small></h3>
         <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-public" style="width:auto"> Allow viewing without signing in (public live page and this app)</label>
@@ -638,7 +653,7 @@ const Store = {
     });
   },
   // public viewing can be switched off by the organisers when traffic is too high; signed-in scorers and the owner always see data
-  publicOpen() { return settings().public !== false; },
+  publicOpen() { return (Store.get("cr_settings", DEF_LEAGUE) || {}).public !== false; },
   viewAllowed() { if (this.mode !== "firebase") return true; return PUBLIC_PAGE ? this.publicOpen() : !!this.user; },
   syncData() {
     if (this.mode !== "firebase" || !this.authKnown || !this.settingsKnown) return;
@@ -697,8 +712,16 @@ function notice(msg, kind, tag) {
   const n = $("notice"); n.textContent = msg; n.dataset.kind = kind || "warn"; n.dataset.tag = tag || ""; n.hidden = !msg;
   clearTimeout(notice.t); if (msg && kind === "ok") notice.t = setTimeout(() => { n.hidden = true; }, 2500);
 }
-const settings = () => Store.get("cr_settings", "league") || {};
-const teams = () => Store.list("cr_teams").sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+/* ----- leagues: each is a cr_settings document with its own rules ("league" is the original, Men's) ----- */
+const DEF_LEAGUE = "league";
+let LG = (() => { try { return new URLSearchParams(location.search).get("l") || localStorage.getItem("cr.league") || DEF_LEAGUE; } catch (e) { return DEF_LEAGUE; } })();
+const leagueTitle = (id) => { const d = Store.get("cr_settings", id) || {}; return d.title || (id === DEF_LEAGUE ? "Men's" : "League"); };
+const leagues = () => { const ids = new Set([DEF_LEAGUE]); for (const d of Store.list("cr_settings")) if (d.id === DEF_LEAGUE || d.id.startsWith("lg_")) ids.add(d.id); return [...ids].map((id) => ({ id, title: leagueTitle(id) })); };
+const settingsOf = (m) => Store.get("cr_settings", (m && m.league) || DEF_LEAGUE) || {};
+const inLeague = (x) => (x.league || DEF_LEAGUE) === LG;
+function setLeague(id) { LG = id; try { localStorage.setItem("cr.league", id); } catch (e) {} lgDirty = false; render(); }
+const settings = () => Store.get("cr_settings", LG) || (LG !== DEF_LEAGUE ? {} : {});
+const teams = () => Store.list("cr_teams").filter(inLeague).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 const team = (id) => Store.get("cr_teams", id);
 const teamName = (id) => (team(id) || {}).name || "?";
 const teamShort = (id) => { const t = team(id) || {}; return t.short || (t.name || "?").slice(0, 3).toUpperCase(); };
@@ -710,7 +733,7 @@ const isPlaying = (m, tid, pid) => playingOf(m, tid).some((p) => p.id === pid);
 // players a match already uses (they must stay in the playing team)
 const usedIn = (m) => { const u = new Set(); for (const inn of m.inns || []) { (inn.open || []).forEach((p) => u.add(p)); if (inn.openBowler) u.add(inn.openBowler); for (const e of inn.ev || []) [e.b, e.s, e.ns, e.nb, e.w && e.w.out].forEach((p) => p && u.add(p)); } return u; };
 const squad = (tid) => Store.list("cr_players").filter((p) => p.team === tid).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-const matches = () => Store.list("cr_matches").sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.createdAt || "").localeCompare(b.createdAt || ""));
+const matches = () => Store.list("cr_matches").filter(inLeague).sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.createdAt || "").localeCompare(b.createdAt || ""));
 const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
 const ptsOf = (lg) => { const g = (k, d) => (lg[k] === undefined || lg[k] === "" || isNaN(+lg[k]) ? d : +lg[k]); return { w: g("ptW", 4), t: g("ptT", 0), nr: g("ptNR", 1), l: g("ptL", 0), bc: g("bpC", 0), bb: g("bpB", 0), br: Math.max(1, g("bpR", 10)), bo: g("bpO", 1) }; };
 const scorerName = (email) => String(email || "").replace(/@cricket\.local$/i, "") || "another scorer";
@@ -755,7 +778,7 @@ function route() {
   if (POST_PAGE && h.startsWith("p-")) { view = "post"; postPick = h.slice(2); }
   currentMatch = null;
   if (view === "settings") fillLeagueForm(); // load saved values each time the tab opens
-  if (h.startsWith("m-")) { currentMatch = h.slice(2); view = "match"; }
+  if (h.startsWith("m-")) { currentMatch = h.slice(2); view = "match"; const mm = Store.get("cr_matches", currentMatch); if (mm && (mm.league || DEF_LEAGUE) !== LG) { LG = mm.league || DEF_LEAGUE; } }
   document.querySelectorAll("[data-view]").forEach((s) => { s.hidden = s.dataset.view !== view; });
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === view || (view === "match" && b.dataset.tab === "matches"))));
   render();
@@ -871,6 +894,8 @@ function render() {
   }
   const lg = settings();
   $("lg-title").innerHTML = lg.name ? esc(lg.name) : "Festival <span>Cricket</span>";
+  { const L = leagues(), sel = $("lg-pick"); sel.hidden = L.length < 2; const loaded = Store.mode === "firebase" ? !!Store.settingsKnown : Store.mode === "local" || Store.mode === "cloud"; if (loaded && Object.keys(Store.data.cr_settings || {}).length && !L.some((x) => x.id === LG)) LG = DEF_LEAGUE;
+    const html = L.map((x) => `<option value="${esc(x.id)}" ${x.id === LG ? "selected" : ""}>${esc(x.title)}</option>`).join(""); if (sel.innerHTML !== html) sel.innerHTML = html; sel.value = LG; }
   { const P = ptsOf(lg); $("pts-note").textContent = `Win ${P.w} · Tie ${P.t} · No result ${P.nr} · Loss ${P.l}` + (P.bc || P.bb ? ` · Bonus: ${[P.bc ? `win by ${P.br}+ runs or ${P.bo}+ overs to spare ${P.bc}` : "", P.bb ? `bowl out with ${P.bo}+ overs to spare ${P.bb}` : ""].filter(Boolean).join(", ")}` : ""); }
   $("nrr-note").textContent = lg.nrr === "balls" ? " (runs per ball)" : "";
   if (!$("league-panel").closest("section").hidden && !lgDirty) fillLeagueForm(); // show saved values until someone edits
@@ -951,18 +976,25 @@ $("match-form").addEventListener("submit", async (ev) => {
   const { id: _, ...rest } = old || {};
   const m = { ...rest, a, b, when: $("mf-when").value, venue: $("mf-venue").value.trim(), stage: $("mf-stage").value,
     overs: Math.max(1, Math.min(50, +$("mf-overs").value || 10)), xi: Math.max(2, Math.min(11, +$("mf-xi").value || 11)), bpo: Math.max(4, Math.min(10, +$("mf-bpo").value || 6)), mob: limOf({ v: $("mf-mob").value }, "v"), mxb: limOf({ v: $("mf-mxb").value }, "v"), wdp: penOf({ v: $("mf-wdp").value }, "v"), nbp: penOf({ v: $("mf-nbp").value }, "v"), xbw: $("mf-xbw").checked, xbl: $("mf-xbl").checked, xbn: $("mf-xbn").checked,
-    status: old ? old.status : "scheduled", inns: old ? old.inns || [] : [], createdBy: old ? old.createdBy || "" : Store.me(), createdAt: old ? old.createdAt : new Date().toISOString() };
+    status: old ? old.status : "scheduled", inns: old ? old.inns || [] : [], createdBy: old ? old.createdBy || "" : Store.me(), league: old ? old.league || DEF_LEAGUE : LG, createdAt: old ? old.createdAt : new Date().toISOString() };
   if (await Store.put("cr_matches", id, m)) { $("match-form-panel").hidden = true; notice(old ? "Match updated." : "Match created.", "ok"); }
 });
 
 /* ----- league settings ----- */
 let lgDirty = false;
 $("league-form").addEventListener("input", () => { lgDirty = true; });
-function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-name").value = lg.name || ""; $("lg-public").checked = lg.public !== false; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); { const so = soOf(lg); $("lg-soOvers").value = so.overs; $("lg-soBpo").value = so.bpo || ""; $("lg-soWk").value = so.wk; } { const k = koOf(lg); $("lg-koOvers").value = k.overs || ""; $("lg-koBpo").value = k.bpo || ""; for (const [st, id] of Object.entries(KO_IDS)) $(id).checked = k.stages.includes(st); } $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbl").checked = xblOf(lg, true); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonR").value = ptsOf(lg).br; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; $("lg-qual").value = qualOf(lg).n; $("lg-qualTo").value = qualOf(lg).to; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
+function fillLeagueForm() { lgDirty = false; const lg = settings(); $("lg-titlein").value = leagueTitle(LG); $("lg-soTie").value = lg.soTie === "sixes" ? "sixes" : "boundaries"; $("lg-public").checked = (Store.get("cr_settings", DEF_LEAGUE) || {}).public !== false; $("lg-name").value = lg.name || ""; $("lg-overs").value = lg.overs || 10; $("lg-xi").value = lg.xi || 11; $("lg-bpo").value = bpoOf(lg); { const so = soOf(lg); $("lg-soOvers").value = so.overs; $("lg-soBpo").value = so.bpo || ""; $("lg-soWk").value = so.wk; } { const k = koOf(lg); $("lg-koOvers").value = k.overs || ""; $("lg-koBpo").value = k.bpo || ""; for (const [st, id] of Object.entries(KO_IDS)) $(id).checked = k.stages.includes(st); } $("lg-mob").value = limOf(lg, "mob"); $("lg-mxb").value = limOf(lg, "mxb"); $("lg-wdp").value = penOf(lg, "wdp"); $("lg-nbp").value = penOf(lg, "nbp"); $("lg-xbw").checked = xbOf(lg, "w"); $("lg-xbl").checked = xblOf(lg, true); $("lg-xbn").checked = xbOf(lg, "n"); $("lg-bonC").value = ptsOf(lg).bc; $("lg-bonR").value = ptsOf(lg).br; $("lg-bonB").value = ptsOf(lg).bb; $("lg-bonO").value = ptsOf(lg).bo; $("lg-nrr").value = lg.nrr === "balls" ? "balls" : "icc"; $("lg-qual").value = qualOf(lg).n; $("lg-qualTo").value = qualOf(lg).to; { const P = ptsOf(lg); $("lg-ptW").value = P.w; $("lg-ptT").value = P.t; $("lg-ptNR").value = P.nr; $("lg-ptL").value = P.l; } }
 $("league-cancel").onclick = () => { fillLeagueForm(); notice("Changes discarded.", "ok"); };
+$("lg-add").onclick = async () => {
+  const t = $("lg-new").value.trim(); if (!t) { notice("Type a name for the new league, e.g. Women's.", "bad"); return; }
+  if (leagues().some((x) => x.title.toLowerCase() === t.toLowerCase())) { notice(`"${t}" already exists.`, "bad"); return; }
+  const id = "lg_" + uid(), { id: _i, public: _p, ...copy } = settings();
+  if (await Store.put("cr_settings", id, { ...copy, title: t })) { $("lg-new").value = ""; setLeague(id); fillLeagueForm(); notice(`Added ${t}. Adjust its rules below and tap Save.`, "ok"); }
+};
 $("league-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  if (await Store.put("cr_settings", "league", { name: $("lg-name").value.trim(), public: $("lg-public").checked, overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), so: { overs: Math.max(1, Math.min(5, +$("lg-soOvers").value || 1)), bpo: +$("lg-soBpo").value ? Math.max(4, Math.min(10, +$("lg-soBpo").value)) : 0, wk: Math.max(1, Math.min(10, +$("lg-soWk").value || 2)) }, ko: { overs: Math.max(0, Math.min(50, +$("lg-koOvers").value || 0)), bpo: +$("lg-koBpo").value ? Math.max(4, Math.min(10, +$("lg-koBpo").value)) : 0, stages: Object.entries(KO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbl: $("lg-xbl").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpR: ptsOf({ bpR: $("lg-bonR").value }).br, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, qual: Math.max(0, Math.min(10, Math.floor(+$("lg-qual").value || 0))), qualTo: $("lg-qualTo").value.trim() || "Super 4", ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
+  if (LG !== DEF_LEAGUE) { const d0 = Store.get("cr_settings", DEF_LEAGUE) || {}, { id: _x, ...r0 } = d0; if ((d0.public !== false) !== $("lg-public").checked) await Store.put("cr_settings", DEF_LEAGUE, { ...r0, public: $("lg-public").checked }); } // the public switch is global
+  if (await Store.put("cr_settings", LG, { ...(LG === DEF_LEAGUE ? { public: $("lg-public").checked } : {}), title: $("lg-titlein").value.trim() || leagueTitle(LG), soTie: $("lg-soTie").value, name: $("lg-name").value.trim(), overs: +$("lg-overs").value || 10, xi: +$("lg-xi").value || 11, bpo: Math.max(4, Math.min(10, +$("lg-bpo").value || 6)), so: { overs: Math.max(1, Math.min(5, +$("lg-soOvers").value || 1)), bpo: +$("lg-soBpo").value ? Math.max(4, Math.min(10, +$("lg-soBpo").value)) : 0, wk: Math.max(1, Math.min(10, +$("lg-soWk").value || 2)) }, ko: { overs: Math.max(0, Math.min(50, +$("lg-koOvers").value || 0)), bpo: +$("lg-koBpo").value ? Math.max(4, Math.min(10, +$("lg-koBpo").value)) : 0, stages: Object.entries(KO_IDS).filter(([, id]) => $(id).checked).map(([st]) => st) }, mob: limOf({ v: $("lg-mob").value }, "v"), mxb: limOf({ v: $("lg-mxb").value }, "v"), wdp: penOf({ v: $("lg-wdp").value }, "v"), nbp: penOf({ v: $("lg-nbp").value }, "v"), xbw: $("lg-xbw").checked, xbl: $("lg-xbl").checked, xbn: $("lg-xbn").checked, bpC: ptsOf({ bpC: $("lg-bonC").value }).bc, bpR: ptsOf({ bpR: $("lg-bonR").value }).br, bpB: ptsOf({ bpB: $("lg-bonB").value }).bb, bpO: ptsOf({ bpO: $("lg-bonO").value }).bo, nrr: $("lg-nrr").value, qual: Math.max(0, Math.min(10, Math.floor(+$("lg-qual").value || 0))), qualTo: $("lg-qualTo").value.trim() || "Super 4", ptW: ptsOf({ ptW: $("lg-ptW").value }).w, ptT: ptsOf({ ptT: $("lg-ptT").value }).t, ptNR: ptsOf({ ptNR: $("lg-ptNR").value }).nr, ptL: ptsOf({ ptL: $("lg-ptL").value }).l })) { lgDirty = false; notice("League settings saved.", "ok"); }
 });
 
 /* ============================ match view ============================ */
@@ -1088,9 +1120,13 @@ async function soSave(view, patch) {
     const v = { ...view, inns: so[r] }, a = replay(v, 0).runs, b = replay(v, 1).runs;
     let soBy = "so";
     if (a !== b) soWinner = a > b ? so[r][0].bat : so[r][1].bat;
+    else if (settings().soTie === "sixes") { // women's rule: most sixes, then most fours, in the main innings
+      const cnt = (k) => { const c = {}; real.inns.forEach((inn, i) => { c[inn.bat] = Object.values(replay(real, i).bat).reduce((n, b) => n + b[k], 0); }); return c; };
+      for (const k of ["f6", "f4"]) { const c = cnt(k), [x, y] = [real.a, real.b]; if (c[x] !== c[y]) { soWinner = c[x] > c[y] ? x : y; soBy = k === "f6" ? "sixes" : "fours"; break; } }
+    }
     else { const ba = boundaries(v, 0), bb = boundaries(v, 1); if (ba !== bb) { soWinner = ba > bb ? so[r][0].bat : so[r][1].bat; soBy = "boundaries"; } }
     if (soWinner) { status = "done"; const res = { ...real, soWinner, soBy }; resultText = soText(res); return Store.put("cr_matches", id, { ...rest, so, status, soWinner, soBy, soTied: false, resultText }); }
-    notice("Super Over tied and boundaries level. Record the coin toss winner.", "warn");
+    notice(settings().soTie === "sixes" ? "Super Over tied and sixes and fours level. Record the toss winner." : "Super Over tied and boundaries level. Record the coin toss winner.", "warn");
     return Store.put("cr_matches", id, { ...rest, so, status: "super", soWinner: null, soBy: null, soTied: true, resultText: "Super Over tied · coin toss" });
   }
   return Store.put("cr_matches", id, { ...rest, so, status, soWinner, soTied: false, resultText });
@@ -1101,7 +1137,9 @@ function soText(m) {
   return soTextBase(m, w) + sc;
 }
 function soTextBase(m, w) {
-  return m.soBy === "coin" ? `Match tied · ${w} won on the coin toss (Super Over and boundaries level)`
+  return m.soBy === "sixes" ? `Match tied · ${w} won on most sixes (Super Over tied)`
+    : m.soBy === "fours" ? `Match tied · ${w} won on most fours (Super Over tied)`
+    : m.soBy === "coin" ? `Match tied · ${w} won on the coin toss (${settingsOf(m).soTie === "sixes" ? "Super Over, sixes and fours level" : "Super Over and boundaries level"})`
     : m.soBy === "boundaries" ? `Match tied · ${w} won the Super Over on boundaries` : `Match tied · ${w} won the Super Over`;
 }
 // boundaries (4s + 6s) a team hit in one innings
@@ -1115,8 +1153,10 @@ function soSummaryHtml(m) {
 function renderScorer(m) {
   if (m.status === "super" && m.__so === undefined && m.soTied) {
     const r = m.so.length - 1, v = soView(m, r), ins = m.so[r];
-    const line = ins.map((inn, k) => `${esc(teamName(inn.bat))} ${replay(v, k).runs} runs, ${boundaries(v, k)} boundar${boundaries(v, k) === 1 ? "y" : "ies"}`).join(" · ");
-    $("scorer").innerHTML = `<div class="panel" style="margin-top:14px"><h2>Coin toss <small>Super Over tied and boundaries level: ${line}</small></h2>
+    const six = settings().soTie === "sixes", cnt = (t, k) => m.inns.reduce((n, inn, i) => n + (inn.bat === t ? Object.values(replay(m, i).bat).reduce((a, b) => a + b[k], 0) : 0), 0);
+    const line = six ? [m.a, m.b].map((t) => `${esc(teamName(t))} ${cnt(t, "f6")} sixes, ${cnt(t, "f4")} fours`).join(" · ")
+      : ins.map((inn, k) => `${esc(teamName(inn.bat))} ${replay(v, k).runs} runs, ${boundaries(v, k)} boundar${boundaries(v, k) === 1 ? "y" : "ies"}`).join(" · ");
+    $("scorer").innerHTML = `<div class="panel" style="margin-top:14px"><h2>Toss <small>${six ? "Super Over tied; sixes and fours level in the match" : "Super Over tied and boundaries level"}: ${line}</small></h2>
       <div class="btns"><span class="muted">Coin toss won by:</span>${[m.a, m.b].map((tid) => `<button class="btn primary" type="button" data-coin="${esc(tid)}">${esc(teamName(tid))}</button>`).join("")}<button class="btn" type="button" id="so-undo">Undo last ball</button></div></div>`;
     $("scorer").querySelectorAll("[data-coin]").forEach((b) => b.onclick = async () => {
       const w = b.dataset.coin, txt = soText({ ...m, soWinner: w, soBy: "coin" });
@@ -1337,6 +1377,8 @@ function openXiDialog(m) {
   };
 }
 
+$("lg-pick").onchange = () => { setLeague($("lg-pick").value); if (POST_PAGE) { $("pm-pick").value = ""; $("pm-form").innerHTML = ""; pmDirty = false; } };
+
 /* ----- post-match entry (/cricket_post/) ----- */
 let postPick = "", pmDirty = false;
 const ovIn = (txt, bpo) => { const t = String(txt || "").trim(); if (!t) return 0; const [o, b] = t.split("."); return (+o || 0) * bpo + Math.min(bpo - 1, +b || 0); };
@@ -1370,7 +1412,7 @@ function buildPostForm(id) {
     <label style="max-width:260px">Batted first<select id="pm-first" required><option value="">Choose…</option></select></label>
     <div id="pm-inns"></div>
     <div class="notice" id="pm-result" style="margin-top:10px">Fill in both innings to see the result.</div>
-    <div id="pm-tie" hidden><div class="row2"><label>Tie decided by<select id="pm-tieby"><option value="">Finished as a tie</option><option value="so">Super Over</option><option value="boundaries">Super Over tied · boundaries</option><option value="coin">Super Over tied · coin toss</option></select></label><label>Winner<select id="pm-tiewin"></select></label></div>
+    <div id="pm-tie" hidden><div class="row2"><label>Tie decided by<select id="pm-tieby"><option value="">Finished as a tie</option><option value="so">Super Over</option>${settings().soTie === "sixes" ? '<option value="sixes">Super Over tied · most sixes</option><option value="fours">Super Over tied · most fours</option>' : '<option value="boundaries">Super Over tied · boundaries</option>'}<option value="coin">Super Over tied · toss</option></select></label><label>Winner<select id="pm-tiewin"></select></label></div>
       <div id="pm-soscore" hidden><p class="muted" style="margin:6px 0 2px;font-size:12.5px">Super Over scores (optional)</p><div class="row2" id="pm-sorows"></div></div></div>
     <div class="btns" style="margin-top:10px"><button class="btn primary" type="submit">Save result</button><button class="btn" type="button" id="pm-draft" title="Keep what you have so far; it won't count until you tap Save result">Save progress</button><button class="btn" type="button" id="pm-cancel">Cancel</button></div>
   </form>`;
@@ -1444,7 +1486,7 @@ function buildPostForm(id) {
     const { id, ...rest } = d, nid = m ? m.id : uid();
     const tw = $("pm-toss").value, ch = $("pm-chose").value;
     const doc = { ...rest, soWinner: null, soBy: null, soScore: null, so: null, when: $("pm-when").value, venue: $("pm-venue").value.trim(), toss: tw && ch ? { winner: tw, chose: ch } : null,
-      post: true, status: "draft", resultText: "", createdBy: m ? m.createdBy || Store.me() : Store.me(), createdAt: m ? m.createdAt : new Date().toISOString() };
+      post: true, league: m ? m.league || DEF_LEAGUE : LG, status: "draft", resultText: "", createdBy: m ? m.createdBy || Store.me() : Store.me(), createdAt: m ? m.createdAt : new Date().toISOString() };
     if (await Store.put("cr_matches", nid, doc)) { pmDirty = false; notice("Progress saved. It won't count until you tap Save result.", "ok"); postPick = nid; renderPostPick(); }
   };
   f.onsubmit = async (ev) => {
@@ -1463,7 +1505,7 @@ function buildPostForm(id) {
     const { id, ...rest } = d, nid = m ? m.id : uid();
     const tw = $("pm-toss").value, ch = $("pm-chose").value;
     if (tw && ch && (ch === "bat" ? tw : tw === d.a ? d.b : d.a) !== d.inns[0].bat) { notice("The toss doesn't match who batted first. Check the toss or Batted first.", "bad"); return; }
-    const doc = { ...rest, ...extra, so: null, toss: tw && ch ? { winner: tw, chose: ch } : null, when: $("pm-when").value, venue: $("pm-venue").value.trim(), post: true, status: "done", createdBy: m ? m.createdBy || Store.me() : Store.me(), createdAt: m ? m.createdAt : new Date().toISOString() };
+    const doc = { ...rest, ...extra, so: null, toss: tw && ch ? { winner: tw, chose: ch } : null, when: $("pm-when").value, venue: $("pm-venue").value.trim(), post: true, league: m ? m.league || DEF_LEAGUE : LG, status: "done", createdBy: m ? m.createdBy || Store.me() : Store.me(), createdAt: m ? m.createdAt : new Date().toISOString() };
     doc.resultText = (resultOf({ ...doc }) || {}).text || "";
     if (await Store.put("cr_matches", nid, doc)) { pmDirty = false; notice(`Saved: ${doc.resultText}`, "ok"); postPick = nid; renderPostPick(); }
   };
@@ -1492,7 +1534,7 @@ $("team-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const id = $("tf-id").value || uid(), name = $("tf-name").value.trim(); if (!name) return;
   if (teams().some((t) => t.id !== id && nameKey(t.name) === nameKey(name))) { notice(`"${name}" already exists.`, "bad"); return; }
-  if (!(await Store.put("cr_teams", id, { ...(team(id) ? (({ id: _i, ...r }) => r)(team(id)) : {}), name, short: $("tf-short").value.trim().toUpperCase(), group: $("tf-group").value.trim().toUpperCase() }))) return;
+  if (!(await Store.put("cr_teams", id, { ...(team(id) ? (({ id: _i, ...r }) => r)(team(id)) : {}), name, short: $("tf-short").value.trim().toUpperCase(), group: $("tf-group").value.trim().toUpperCase(), league: (team(id) || {}).league || LG }))) return;
   // squad: keep existing players by name (their stats stay), add new ones, remove names deleted from the list if they never played
   const lines = $("tf-players").value.split("\n").map((s) => s.trim().replace(/\s+/g, " ")).filter(Boolean);
   const resv = new Set(), want = [];
