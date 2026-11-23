@@ -307,7 +307,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
           <label>Balls per over <span style="text-transform:none;letter-spacing:0;font-weight:400">(blank = match's)</span><input id="lg-soBpo" type="number" min="4" max="10" placeholder="same"></label>
           <label>Wickets allowed<input id="lg-soWk" type="number" min="1" max="10" value="2"></label>
         </div>
-        <p class="muted" style="margin:0 0 4px;font-size:12.5px">"Wickets allowed" = the innings ends when this many wickets fall (e.g. 2). When a match ends in a tie, the scorer chooses <b>Start Super Over</b> or <b>Finish as tie</b>.</p>
+        <p class="muted" style="margin:0 0 4px;font-size:12.5px">"Wickets allowed" = the innings ends when this many wickets fall (e.g. 2). When a match ends in a tie, the scorer chooses <b>Start Super Over</b> or <b>Finish as tie</b>. If the Super Over is tied, the team with more boundaries (4s + 6s) in its Super Over innings wins; if those are level too, the scorer records the coin toss winner.</p>
         <h3 class="fs">Public viewing <small>for heavy traffic</small></h3>
         <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" id="lg-public" style="width:auto"> Allow viewing without signing in (public live page and this app)</label>
         <p class="muted" style="margin:4px 0 0;font-size:12.5px">When off, visitors see "Live scores are paused" and stop reading the database. Scorers and the owner can still sign in and work. Public live page: <a id="lg-public-link" href="live/" target="_blank" rel="noopener">cricket/live/</a></p>
@@ -403,7 +403,7 @@ const limOf = (m, k) => Math.max(0, Math.floor(+(m && m[k]) || 0));
 // knockout defaults: { overs, bpo, stages: [...] }; stages default to semi-final + final
 const koOf = (lg) => { const k = (lg && lg.ko) || {}; return { overs: +k.overs || 0, bpo: +k.bpo || 0, stages: Array.isArray(k.stages) ? k.stages : ["Semi-final", "Final"] }; };
 // Super Over settings: { overs, bpo (0 = match's), wk, stages }
-const soOf = (lg) => { const k = (lg && lg.so) || {}; return { overs: Math.max(1, +k.overs || 1), bpo: +k.bpo || 0, wk: Math.max(1, +k.wk || 2) }; };
+const soOf = (lg) => { const k = (lg && lg.so) || {}; return { overs: Math.max(1, +k.overs || 1), bpo: k.bpo === undefined ? 4 : +k.bpo || 0, wk: Math.max(1, +k.wk || 2) }; };
 const KO_IDS = { "Quarter-final": "lg-ko-qf", "Semi-final": "lg-ko-sf", "Final": "lg-ko-f" };
 // last-ball rule: with "counts as a ball", a wide/no-ball on the innings' last ball is still re-bowled (league default on)
 const xblOf = (m, isLeague) => (m && m.xbl !== undefined ? !!m.xbl : !!isLeague);
@@ -462,7 +462,7 @@ function inningsDone(m, i, st) {
   return false;
 }
 function resultOf(m) {
-  if (m.soWinner && m.__so === undefined) return { text: `Match tied · ${teamName(m.soWinner)} won the Super Over`, winner: m.soWinner, tie: false, so: true };
+  if (m.soWinner && m.__so === undefined) return { text: soText(m), winner: m.soWinner, tie: false, so: true };
   if (m.status === "abandoned") return { text: "No result (abandoned)", winner: null, tie: false, nr: true };
   if (!m.inns || m.inns.length < 2) return null;
   const a = replay(m, 0), b = replay(m, 1), A = m.inns[0].bat, Bt = m.inns[1].bat;
@@ -1037,24 +1037,37 @@ async function soSave(view, patch) {
   let status = "super", soWinner = null, resultText = "Match tied · Super Over";
   if (patch.status === "done" && so[r].length === 2) {
     const v = { ...view, inns: so[r] }, a = replay(v, 0).runs, b = replay(v, 1).runs;
-    if (a !== b) { soWinner = a > b ? so[r][0].bat : so[r][1].bat; status = "done"; resultText = `Match tied · ${teamName(soWinner)} won the Super Over`; }
-    else { resultText = "Super Over tied"; notice("Super Over tied. Choose Play another Super Over or Finish as tie.", "warn");
-      return Store.put("cr_matches", id, { ...rest, so, status: "super", soWinner: null, soTied: true, resultText }); }
+    let soBy = "so";
+    if (a !== b) soWinner = a > b ? so[r][0].bat : so[r][1].bat;
+    else { const ba = boundaries(v, 0), bb = boundaries(v, 1); if (ba !== bb) { soWinner = ba > bb ? so[r][0].bat : so[r][1].bat; soBy = "boundaries"; } }
+    if (soWinner) { status = "done"; const res = { ...real, soWinner, soBy }; resultText = soText(res); return Store.put("cr_matches", id, { ...rest, so, status, soWinner, soBy, soTied: false, resultText }); }
+    notice("Super Over tied and boundaries level. Record the coin toss winner.", "warn");
+    return Store.put("cr_matches", id, { ...rest, so, status: "super", soWinner: null, soBy: null, soTied: true, resultText: "Super Over tied · coin toss" });
   }
   return Store.put("cr_matches", id, { ...rest, so, status, soWinner, soTied: false, resultText });
 }
+function soText(m) {
+  const w = teamName(m.soWinner);
+  return m.soBy === "coin" ? `Match tied · ${w} won on the coin toss (Super Over and boundaries level)`
+    : m.soBy === "boundaries" ? `Match tied · ${w} won the Super Over on boundaries` : `Match tied · ${w} won the Super Over`;
+}
+// boundaries (4s + 6s) a team hit in one innings
+const boundaries = (v, i) => Object.values(replay(v, i).bat).reduce((n, b) => n + b.f4 + b.f6, 0);
 function soSummaryHtml(m) {
   const rounds = (m.so || []).filter((x) => x.length); if (!rounds.length) return "";
   return `<div class="panel" style="margin-top:10px"><h2>Super Over${rounds.length > 1 ? "s" : ""}</h2>${rounds.map((inns, r) => { const v = soView(m, r);
     return `<div class="sub" style="color:var(--ink)"><b>${rounds.length > 1 ? `Round ${r + 1}: ` : ""}</b>${inns.map((inn, i) => { const st = replay(v, i); return `${esc(teamShort(inn.bat))} ${st.runs}/${st.wk} (${oversStr(st.legal, st.bpo)})`; }).join(" · ")}</div>`; }).join("")}
-    ${m.soWinner ? `<div style="margin-top:4px"><b>${esc(teamName(m.soWinner))} won the Super Over</b></div>` : ""}</div>`;
+    ${m.soWinner ? `<div style="margin-top:4px"><b>${esc(soText(m).replace("Match tied · ", ""))}</b></div>` : ""}</div>`;
 }
 function renderScorer(m) {
   if (m.status === "super" && m.__so === undefined && m.soTied) {
-    const n = (m.so || []).length;
-    $("scorer").innerHTML = `<div class="panel" style="margin-top:14px"><div class="btns"><b>Super Over${n > 1 ? " " + n : ""} tied.</b><button class="btn primary" type="button" id="so-again">Play another Super Over</button><button class="btn" type="button" id="so-tie">Finish as tie</button><button class="btn" type="button" id="so-undo">Undo last ball</button></div></div>`;
-    $("so-again").onclick = () => saveMatch(m, { so: [...m.so, []], soTied: false, resultText: "Match tied · Super Over" });
-    $("so-tie").onclick = async () => { if (await saveMatch(m, { status: "done", soTied: false, soWinner: null, resultText: "Match tied (Super Over tied)" })) notice("Match tied.", "ok"); };
+    const r = m.so.length - 1, v = soView(m, r), ins = m.so[r];
+    const line = ins.map((inn, k) => `${esc(teamName(inn.bat))} ${replay(v, k).runs} runs, ${boundaries(v, k)} boundar${boundaries(v, k) === 1 ? "y" : "ies"}`).join(" · ");
+    $("scorer").innerHTML = `<div class="panel" style="margin-top:14px"><h2>Coin toss <small>Super Over tied and boundaries level: ${line}</small></h2>
+      <div class="btns"><span class="muted">Coin toss won by:</span>${[m.a, m.b].map((tid) => `<button class="btn primary" type="button" data-coin="${esc(tid)}">${esc(teamName(tid))}</button>`).join("")}<button class="btn" type="button" id="so-undo">Undo last ball</button></div></div>`;
+    $("scorer").querySelectorAll("[data-coin]").forEach((b) => b.onclick = async () => {
+      const w = b.dataset.coin, txt = soText({ ...m, soWinner: w, soBy: "coin" });
+      if (await saveMatch(m, { status: "done", soTied: false, soWinner: w, soBy: "coin", resultText: txt })) notice(txt, "ok"); });
     $("so-undo").onclick = () => saveMatch(m, { soTied: false }).then(() => undoBall(soView({ ...m, soTied: false }, m.so.length - 1)));
     return;
   }
