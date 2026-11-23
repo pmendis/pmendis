@@ -1374,13 +1374,13 @@ function buildPostForm(id) {
       return `<div class="panel" style="margin-top:12px" data-pinn="${i}" data-bat="${esc(bat)}" data-bowl="${esc(bowl)}">
         <h2>${i ? "2nd" : "1st"} innings · ${esc(teamName(bat))} batting</h2>
         <div class="row3"><label>Total runs${num("t-runs", P.runs, 90)}</label><label>Wickets${num("t-wk", P.wk, 90)}</label><label>Overs (e.g. 9.4)<input class="t-ov" value="${P.balls ? oversStr(P.balls, bpoOf(m || v)) : ""}" inputmode="decimal" style="width:90px;padding:6px"></label></div>
-        <div class="table-wrap"><table class="pm-t"><thead><tr><th>Batter</th><th class="num">R</th><th class="num">B</th><th class="num">4s</th><th class="num">6s</th><th class="num" title="Not out">N/O</th></tr></thead><tbody>
-        ${rows(xi, P.batters).map((x) => `<tr class="r-bat"><td><select class="p">${opt(squad(bat), x.pid)}</select></td><td>${num("r", x.r)}</td><td>${num("b", x.b)}</td><td>${num("f4", x.f4, 46)}</td><td>${num("f6", x.f6, 46)}</td><td class="num"><input class="no" type="checkbox" style="width:auto" ${x.no ? "checked" : ""}></td></tr>`).join("")}
+        <div class="table-wrap"><table class="pm-t"><thead><tr><th>Batter</th><th class="num">Runs</th><th class="num">Balls faced</th></tr></thead><tbody>
+        ${rows(xi, P.batters).map((x) => `<tr class="r-bat"><td><select class="p">${opt(squad(bat), x.pid)}</select></td><td>${num("r", x.r)}</td><td>${num("b", x.b)}</td></tr>`).join("")}
         </tbody></table></div>
-        <div class="table-wrap" style="margin-top:8px"><table class="pm-t"><thead><tr><th>Bowler (${esc(teamShort(bowl))})</th><th class="num">Overs</th><th class="num">R</th><th class="num">W</th></tr></thead><tbody>
-        ${rows(6, P.bowlers).map((x) => `<tr class="r-bowl"><td><select class="p">${opt(squad(bowl), x.pid)}</select></td><td><input class="ov" value="${x.balls ? oversStr(x.balls, bpoOf(m || v)) : ""}" inputmode="decimal" style="width:60px;padding:6px"></td><td>${num("r", x.r)}</td><td>${num("w", x.w, 46)}</td></tr>`).join("")}
+        <div class="table-wrap" style="margin-top:8px"><table class="pm-t"><thead><tr><th>Bowler (${esc(teamShort(bowl))})</th><th class="num">Balls</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead><tbody>
+        ${rows(6, P.bowlers).map((x) => `<tr class="r-bowl"><td><select class="p">${opt(squad(bowl), x.pid)}</select></td><td>${num("bl", x.balls)}</td><td>${num("r", x.r)}</td><td>${num("w", x.w, 46)}</td></tr>`).join("")}
         </tbody></table></div>
-        <div class="table-wrap" style="margin-top:8px"><table class="pm-t"><thead><tr><th>Fielder (${esc(teamShort(bowl))})</th><th class="num">Catches</th><th class="num">Run-outs</th><th class="num">Stumpings</th></tr></thead><tbody>
+        <div class="table-wrap" style="margin-top:8px"><table class="pm-t"><thead><tr><th>Fielder (${esc(teamShort(bowl))})</th><th class="num">Catches</th><th class="num">Run-outs</th><th class="num">Stump.</th></tr></thead><tbody>
         ${rows(4, P.fielders).map((x) => `<tr class="r-fld"><td><select class="p">${opt(squad(bowl), x.pid)}</select></td><td>${num("ct", x.ct, 46)}</td><td>${num("ro", x.ro, 46)}</td><td>${num("st", x.st, 46)}</td></tr>`).join("")}
         </tbody></table></div></div>`; }).join("");
     preview();
@@ -1389,8 +1389,8 @@ function buildPostForm(id) {
     const bpo = Math.max(4, Math.min(10, +$("pm-bpo").value || 6)), n = (el, c) => +((el.querySelector("." + c) || {}).value) || 0;
     return [...document.querySelectorAll("[data-pinn]")].map((d) => ({ bat: d.dataset.bat, bowl: d.dataset.bowl, closed: true, post: {
       runs: n(d, "t-runs"), wk: n(d, "t-wk"), balls: ovIn(d.querySelector(".t-ov").value, bpo),
-      batters: [...d.querySelectorAll(".r-bat")].filter((r) => r.querySelector(".p").value).map((r) => ({ pid: r.querySelector(".p").value, r: n(r, "r"), b: n(r, "b"), f4: n(r, "f4"), f6: n(r, "f6"), no: r.querySelector(".no").checked })),
-      bowlers: [...d.querySelectorAll(".r-bowl")].filter((r) => r.querySelector(".p").value).map((r) => ({ pid: r.querySelector(".p").value, balls: ovIn(r.querySelector(".ov").value, bpo), r: n(r, "r"), w: n(r, "w") })),
+      batters: [...d.querySelectorAll(".r-bat")].filter((r) => r.querySelector(".p").value).map((r) => ({ pid: r.querySelector(".p").value, r: n(r, "r"), b: n(r, "b") })),
+      bowlers: [...d.querySelectorAll(".r-bowl")].filter((r) => r.querySelector(".p").value).map((r) => ({ pid: r.querySelector(".p").value, balls: n(r, "bl"), r: n(r, "r"), w: n(r, "w") })),
       fielders: [...d.querySelectorAll(".r-fld")].filter((r) => r.querySelector(".p").value).map((r) => ({ pid: r.querySelector(".p").value, ct: n(r, "ct"), ro: n(r, "ro"), st: n(r, "st") })) } }));
   };
   const draft = () => { const [a, b] = sides(); return { ...(m || {}), id: m ? m.id : "new", a, b, stage: $("pm-stage").value, overs: Math.max(1, +$("pm-overs").value || 10), bpo: Math.max(4, Math.min(10, +$("pm-bpo").value || 6)), xi: Math.max(2, Math.min(11, +$("pm-xi").value || 11)), inns: collect(), soWinner: null, so: null }; };
