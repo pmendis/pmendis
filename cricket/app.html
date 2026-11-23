@@ -664,7 +664,7 @@ const Store = {
     if (PUBLIC_PAGE) return false;
     if (this.mode === "local" || this.mode === "cloud") return true;
     if (this.mode !== "firebase") return false;
-    if (this.owner) return p === "viewSettings" || p === "editSettings" || p === "teams";
+    if (this.owner) return p === "viewSettings" || p === "editSettings";
     if (!this.isScorer()) return false;
     return !!(this.perms || DEFAULT_PERMS)[p];
   },
