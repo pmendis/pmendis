@@ -103,6 +103,22 @@ service cloud.firestore {
       allow delete: if isOwner() || can('allMatches') || (can('score') && mine());
     }
 
+    // ---------- Festival progress app (progress/) ----------
+    // Anyone can read. The owner manages settings (houses) and access; accounts the owner ticks on the
+    // Access tab (username@cricket.local, pg_access/<email> with edit: true) can update events and results.
+    function pgCan() {
+      return isScorer() && exists(/databases/$(database)/documents/pg_access/$(myKey()))
+          && get(/databases/$(database)/documents/pg_access/$(myKey())).data.get('edit', false) == true;
+    }
+    match /pg_settings/{d} { allow read: if true; allow write: if isOwner(); }
+    match /pg_events/{d}   { allow read: if true; allow write: if isOwner() || pgCan(); }
+    match /pg_access/{key} {
+      allow get: if request.auth != null && key == myKey();
+      allow read, write: if isOwner();
+    }
+    // The app reads this (empty) document to find out whether the signed-in person is the owner.
+    match /pg_owner/{d}    { allow read: if isOwner(); }
+
     match /proposals/{id} {
       allow create: if request.auth != null && validProposal();
       allow update: if ownsProposal() && validProposal();
