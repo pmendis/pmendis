@@ -1,4 +1,5 @@
 <title>Festival Progress</title>
+<script>try { var _l = JSON.parse(localStorage.getItem("pg.look") || "{}"); if (_l.skin) document.documentElement.dataset.skin = _l.skin; } catch (e) {}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
@@ -247,7 +248,7 @@ const Store = {
       if (this.owner) this.unsubA = this.fb.collection("pg_access").onSnapshot((s) => { const n = {}; s.forEach((d) => { n[d.id] = d.data(); }); this.access = n; render(); }, () => {});
       this.authKnown = true; render();
     });
-    for (const c of COLS) this.fb.collection(c).onSnapshot((snap) => { const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.data[c] = n; render(); },
+    for (const c of COLS) this.fb.collection(c).onSnapshot((snap) => { const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.data[c] = n; if (c === "pg_settings") this.settingsLoaded = true; render(); },
       (err) => notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page.", "bad"));
     render(); return true;
   },
@@ -293,9 +294,12 @@ function tallies() {
 let view = "overview", fType = "", fStatus = "", openEv = new Set(), editing = null;
 function render() {
   const s = settings(), ed = Store.canEdit();
-  $("title").innerHTML = s.title ? esc(s.title) : "Festival <span>Progress</span>";
-  document.documentElement.dataset.skin = s.skin || "classic";
-  $("eyebrow").textContent = s.eyebrow ?? "Sports Festival"; $("eyebrow").hidden = s.eyebrow === "";
+  const known0 = Store.mode === "local" || (Store.mode === "firebase" && Store.settingsLoaded);
+  const look = (() => { try { return JSON.parse(localStorage.getItem("pg.look") || "{}"); } catch (e) { return {}; } })();
+  const T = known0 ? s.title : (s.title || look.title), EB = known0 ? s.eyebrow : (s.eyebrow ?? look.eyebrow);
+  $("title").innerHTML = T ? esc(T) : "Festival <span>Progress</span>";
+  if (known0) { document.documentElement.dataset.skin = s.skin || "classic"; try { localStorage.setItem("pg.look", JSON.stringify({ skin: s.skin || "classic", title: s.title || "", eyebrow: s.eyebrow ?? null })); } catch (e) {} }
+  $("eyebrow").textContent = EB ?? "Sports Festival"; $("eyebrow").hidden = EB === "";
   const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
   m.textContent = Store.mode === "wait" ? "Connecting…" : PUBLIC_PAGE ? "Live" : Store.mode === "local" ? "Saved in this browser" : Store.owner ? "Owner" : ed ? "Updater · " + Store.me().replace("@cricket.local", "") : Store.user ? "View only (no access yet)" : "View only";
   $("auth-btn").hidden = Store.mode !== "firebase" || PUBLIC_PAGE; $("auth-btn").textContent = Store.user ? "Sign out" : "Sign in";
@@ -305,6 +309,7 @@ function render() {
   if (known && ((view === "settings" && !Store.isOwner()) || (view === "access" && $("tab-access").hidden))) { view = "overview"; }
   document.querySelectorAll("[data-view]").forEach((x) => { x.hidden = x.dataset.view !== view; });
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === view)));
+  if (view === "settings" && setDirty) document.documentElement.dataset.skin = $("set-skin").value; // keep the preview while editing
   renderOverview(); renderEvents(); renderAthletes(); if (view === "settings" && !setDirty) fillSettings(); renderAccess();
 }
 function renderOverview() {
