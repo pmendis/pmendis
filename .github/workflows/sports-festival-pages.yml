@@ -3,7 +3,7 @@ name: Deploy Sports Festival app to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ["sports-festival/**", "cricket/**", ".github/workflows/sports-festival-pages.yml"]
+    paths: ["sports-festival/**", "cricket/**", "progress/**", ".github/workflows/sports-festival-pages.yml"]
   workflow_dispatch:
 
 permissions:
