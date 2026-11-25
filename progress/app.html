@@ -464,8 +464,8 @@ function inkOn(hex) { const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "")); if
 function wrapText(ctx, text, maxW) { const words = String(text).split(/\s+/), lines = []; let line = "";
   for (const w of words) { const t = line ? line + " " + w : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; } if (line) lines.push(line); return lines; }
 function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-async function drawFlyer(tall) {
-  const cv = $("an-canvas"); if (cv.height !== (tall || 1350)) cv.height = tall || 1350;
+async function drawFlyer() {
+  const cv = $("an-canvas"); if (cv.height !== 1350) cv.height = 1350;
   const ctx = cv.getContext("2d"), W = 1080, H = cv.height, s = settings();
   try { await Promise.all(["800 italic 60px 'Barlow Condensed'", "700 30px 'Barlow Condensed'", "600 26px Inter", "700 26px Inter"].map((f) => document.fonts.load(f))); } catch (e) {}
   const name = $("an-event").value, list = (annEvents().find(([n]) => n === name) || [, []])[1], what = $("an-what").value;
@@ -477,26 +477,26 @@ async function drawFlyer(tall) {
   const grass = ctx.createLinearGradient(0, H - 260, 0, H); grass.addColorStop(0, "rgba(22,120,60,0)"); grass.addColorStop(1, "rgba(22,120,60,.85)"); ctx.fillStyle = grass; ctx.fillRect(0, H - 260, W, 260);
   ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
   // titles
-  let y = 92;
+  let y = 78;
   if (s.eyebrow !== "") { ctx.fillStyle = "#c6ff3d"; ctx.font = `700 36px ${D}`; ctx.fillText(String(s.eyebrow ?? "Sports Festival").toUpperCase(), W / 2, y); y += 14; }
-  ctx.font = `800 italic 72px ${D}`; const tl = wrapText(ctx, (s.title || "Festival Progress").toUpperCase(), W - 120);
-  for (const l of tl.slice(0, 2)) { y += 72; const g = ctx.createLinearGradient(0, y - 60, 0, y); g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#ffd54a"); ctx.fillStyle = g; ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 12; ctx.fillText(l, W / 2, y); ctx.shadowBlur = 0; }
+  ctx.font = `800 italic 64px ${D}`; const tl = wrapText(ctx, (s.title || "Festival Progress").toUpperCase(), W - 120);
+  for (const l of tl.slice(0, 2)) { y += 62; const g = ctx.createLinearGradient(0, y - 60, 0, y); g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#ffd54a"); ctx.fillStyle = g; ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 12; ctx.fillText(l, W / 2, y); ctx.shadowBlur = 0; }
   // gold ribbon with event name
-  y += 28; const rib = ctx.createLinearGradient(80, 0, W - 80, 0); rib.addColorStop(0, "#a9781a"); rib.addColorStop(.5, "#ffd54a"); rib.addColorStop(1, "#a9781a");
-  ctx.fillStyle = rib; ctx.beginPath(); ctx.moveTo(70, y); ctx.lineTo(W - 70, y); ctx.lineTo(W - 100, y + 62); ctx.lineTo(W - 70, y + 124); ctx.lineTo(70, y + 124); ctx.lineTo(100, y + 62); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#1a1200"; ctx.font = `800 58px ${D}`; ctx.fillText((name || "No event").toUpperCase(), W / 2, y + 56);
-  ctx.font = `800 40px ${D}`; ctx.fillText(what === "awards" ? "INDIVIDUAL AWARD WINNERS" : what === "results" ? "RESULTS" : "RESULTS & AWARD WINNERS", W / 2, y + 102);
-  y += 150;
+  y += 20; const rib = ctx.createLinearGradient(80, 0, W - 80, 0); rib.addColorStop(0, "#a9781a"); rib.addColorStop(.5, "#ffd54a"); rib.addColorStop(1, "#a9781a");
+  ctx.fillStyle = rib; ctx.beginPath(); ctx.moveTo(70, y); ctx.lineTo(W - 70, y); ctx.lineTo(W - 100, y + 56); ctx.lineTo(W - 70, y + 112); ctx.lineTo(70, y + 112); ctx.lineTo(100, y + 56); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#1a1200"; ctx.font = `800 58px ${D}`; ctx.fillText((name || "No event").toUpperCase(), W / 2, y + 52);
+  ctx.font = `800 40px ${D}`; ctx.fillText(what === "awards" ? "INDIVIDUAL AWARD WINNERS" : what === "results" ? "RESULTS" : "RESULTS & AWARD WINNERS", W / 2, y + 96);
+  y += 138;
   // one card per category
   const cards = list.map((e) => ({ cat: e.cat || "Open", res: what !== "awards" && e.status === "done" ? [...(e.results || [])].filter((r) => +r.place >= 1 && +r.place <= 3).sort((a, b) => a.place - b.place) : [], aw: what !== "results" ? (e.awards || []) : [] }))
     .filter((c) => c.res.length || c.aw.length);
-  const footerTop = H - 250, cols = cards.length > 1 ? 2 : 1, gap = 24, cw = (W - 80 - gap * (cols - 1)) / cols;
+  const footerTop = H - 232, cols = cards.length > 1 ? 2 : 1, gap = 24, cw = (W - 80 - gap * (cols - 1)) / cols;
   const rowH = (c) => 78 + c.res.length * 62 + (c.res.length && c.aw.length ? 16 : 0) + c.aw.length * 92 + 18;
   const ribbons = ["#d92d2d", "#2457e6", "#8e2de2", "#e67e22", "#13a35b", "#c2185b"];
   // lay panels out in rows of two; a last odd panel is centred
   const rowsOf = []; for (let i = 0; i < cards.length; i += cols) rowsOf.push(cards.slice(i, i + cols));
   const need = rowsOf.reduce((t, r) => t + Math.max(...r.map(rowH)) + gap, 0); let scale = 1;
-  if (need > footerTop - y) { if (!tall && H < 1900) return drawFlyer(Math.min(1920, Math.ceil(H + need - (footerTop - y) + 10))); scale = Math.max(.55, (footerTop - y) / need); } // grow the image (up to 1080×1920) before shrinking text
+  if (need > footerTop - y) scale = Math.max(.55, (footerTop - y) / need); // fixed 1080×1350: shrink to fit only when needed
   const pos = []; let ry = y; rowsOf.forEach((r) => { const rh = Math.max(...r.map(rowH)) * scale; r.forEach((c, k) => pos.push({ x: r.length === 1 && cols === 2 ? (W - cw) / 2 : 40 + k * (cw + gap), top: ry, h: rowH(c) * scale })); ry += rh + gap * scale; });
   cards.forEach((c, i) => {
     const { x, top, h } = pos[i];
