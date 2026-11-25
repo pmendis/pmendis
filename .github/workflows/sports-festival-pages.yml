@@ -82,6 +82,21 @@ jobs:
             cat cricket/app.html
             echo '</body></html>'
           } > _site/cricket_post/index.html
+          # Festival progress: editor at /progress/, public view at /progress/live/ (pg_* collections)
+          for P in progress progress/live; do
+            mkdir -p _site/$P
+            UP=$( [ "$P" = "progress" ] && echo "../" || echo "../../" )
+            {
+              echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+              echo '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+              echo '<meta http-equiv="Cache-Control" content="no-cache">'
+              [ "$P" = "progress/live" ] && echo '<script>window.PROGRESS_PUBLIC = true;</script>'
+              echo "<script>window.APP_VERSION = \"$VERSION\";</script>"
+              echo "<script src=\"${UP}firebase-config.js?v=$VERSION\"></script></head><body>"
+              cat progress/app.html
+              echo '</body></html>'
+            } > _site/$P/index.html
+          done
         env:
           FIREBASE_CONFIG: ${{ vars.FIREBASE_CONFIG }}
       - uses: actions/configure-pages@v5

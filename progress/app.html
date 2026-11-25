@@ -1,0 +1,456 @@
+<title>Festival Progress</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Festival progress: points, medals, event status and individual performances for every house. */
+:root {
+  --bg: #f3f4f8; --surface: #ffffff; --ink: #141a2b; --muted: #5b6275; --line: #dcdfe8;
+  --accent: #c2410c; --band: #1e2a5a; --band-ink: #eef1fb;
+  --ok: #1d7a4a; --ok-bg: #e3f4ea; --warn: #9a5b00; --warn-bg: #fdf0d9; --bad: #b3261e; --bad-bg: #fbe4e2;
+  --gold: #c9a227; --silver: #9aa3ae; --bronze: #b0703a;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1220; --surface: #171b2d; --ink: #e7eaf5; --muted: #a0a7bd; --line: #2a3048; --accent: #f97316; --band: #141b3d; --band-ink: #e7eaf5;
+  --ok: #6fd39c; --ok-bg: #12301f; --warn: #f2bf62; --warn-bg: #33270f; --bad: #ff8a80; --bad-bg: #3a1714; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1220; --surface: #171b2d; --ink: #e7eaf5; --muted: #a0a7bd; --line: #2a3048; --accent: #f97316; --band: #141b3d; --band-ink: #e7eaf5;
+  --ok: #6fd39c; --ok-bg: #12301f; --warn: #f2bf62; --warn-bg: #33270f; --bad: #ff8a80; --bad-bg: #3a1714; color-scheme: dark }
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5; margin: 0; }
+.wrap { margin: 0 auto; max-width: 1000px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; letter-spacing: .01em; }
+[hidden] { display: none !important; }
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+header.band { background: var(--band); color: var(--band-ink); }
+header.band .wrap { padding-block: 8px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
+.eyebrow { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
+header.band h1 { font-size: clamp(20px, 3.4vw, 26px); font-weight: 800; text-transform: uppercase; line-height: 1.05; }
+header.band h1 span { color: #fbbf24; }
+.hdr-right { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.pillbtn { background: none; border: 1px solid rgba(255,255,255,.3); color: inherit; border-radius: 99px; padding: 2px 10px; font: 500 12px var(--font-body); cursor: pointer; }
+.mode { font-size: 12px; padding: 2px 10px; border-radius: 99px; border: 1px solid rgba(255,255,255,.25); display: inline-flex; gap: 6px; align-items: center; }
+.mode::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.mode.ed { color: #86efac; } .mode.view { color: #fde68a; }
+nav.tabs { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+nav.tabs .wrap { display: flex; gap: 2px; overflow-x: auto; }
+nav.tabs button { font: 600 15px var(--font-display); text-transform: uppercase; letter-spacing: .06em; background: none; border: 0; color: var(--muted); padding: 7px 12px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+main { padding-block: 14px 40px; }
+.notice { display: block; width: 100%; text-align: left; font: inherit; border: 0; padding: 9px 12px; border-radius: var(--r); background: var(--warn-bg); color: var(--warn); margin-bottom: 12px; }
+.notice[data-kind="ok"] { background: var(--ok-bg); color: var(--ok); }
+.notice[data-kind="bad"] { background: var(--bad-bg); color: var(--bad); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; }
+.panel + .panel { margin-top: 14px; }
+.panel h2 { font-size: 18px; text-transform: uppercase; margin-bottom: 8px; }
+.panel h2 small { font: 400 12px var(--font-body); text-transform: none; color: var(--muted); margin-left: 6px; }
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.panel-head h2 { margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } .grid2 > .panel + .panel { margin-top: 0; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 6px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.table-wrap { overflow-x: auto; }
+.sub { font-size: 12px; color: var(--muted); }
+.muted { color: var(--muted); }
+.empty { color: var(--muted); text-align: center; padding: 18px 8px; }
+.chip { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.chip.live { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+.chip.done { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.chip.off { text-decoration: line-through; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.medal { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font: 700 11px var(--font-body); color: #1b1b1b; }
+.m1 { background: var(--gold); } .m2 { background: var(--silver); } .m3 { background: var(--bronze); color: #fff; }
+.bar { height: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--ok); }
+.ev { padding: 9px 0; border-bottom: 1px solid var(--line); }
+.ev:last-child { border-bottom: 0; }
+.ev-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; cursor: pointer; }
+.ev-head b { font-size: 15px; }
+.ev-body { margin-top: 6px; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.filters button { font: 600 12px var(--font-body); border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 99px; padding: 3px 11px; cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--band); border-color: var(--band); color: var(--band-ink); }
+label { display: grid; gap: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); min-width: 0; }
+input, select, textarea { font: 400 15px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); padding: 7px 9px; width: 100%; min-width: 0; }
+input[type="checkbox"] { width: auto; }
+.row2, .row3 { display: grid; gap: 10px; margin-bottom: 10px; }
+.row2 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } .row3 { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn { font: 600 14px var(--font-body); border-radius: var(--r); padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.danger { color: var(--bad); }
+.rows td { padding: 3px 2px; border: 0; } .rows input, .rows select { padding: 6px; font-size: 14px; }
+.rows .n { width: 64px; }
+</style>
+
+<header class="band">
+  <div class="wrap">
+    <div><div class="eyebrow">Inter-Department Sports Festival</div><h1 id="title">Festival <span>Progress</span></h1></div>
+    <div class="hdr-right"><button class="pillbtn" type="button" id="auth-btn" hidden>Sign in</button><span class="mode view" id="mode">View only</span></div>
+  </div>
+</header>
+<nav class="tabs"><div class="wrap" role="tablist">
+  <button role="tab" data-tab="overview">Overview</button>
+  <button role="tab" data-tab="events">Events</button>
+  <button role="tab" data-tab="athletes">Athletes</button>
+  <button role="tab" data-tab="settings" id="tab-settings" hidden>Settings</button>
+  <button role="tab" data-tab="access" id="tab-access" hidden>Access</button>
+</div></nav>
+
+<main class="wrap">
+  <div id="notice" class="notice" hidden></div>
+  <button type="button" class="notice" id="update-bar" hidden>🔄 <b>A new version is available.</b> Tap to update.</button>
+
+  <div class="panel" id="auth-panel" hidden style="margin-bottom:14px">
+    <h2>Sign in <small>with the username and password the organiser gave you</small></h2>
+    <form id="auth-form" autocomplete="on"><div class="row2">
+      <label>Username<input id="auth-user" required autocomplete="username" placeholder="e.g. results1"></label>
+      <label>Password<input id="auth-pass" type="password" required autocomplete="current-password"></label></div>
+      <div class="btns"><button class="btn primary" type="submit">Sign in</button><button class="btn" type="button" id="auth-cancel">Cancel</button></div></form>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section data-view="overview" hidden>
+    <div class="panel"><div class="panel-head"><h2>Progress</h2><span class="sub" id="prog-note"></span></div>
+      <div class="bar"><span id="prog-bar" style="width:0"></span></div><div class="sub" id="prog-types" style="margin-top:6px"></div></div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="panel"><h2>Overall house points</h2><div class="table-wrap" id="points"></div><div class="sub" id="pts-scheme" style="margin-top:6px"></div><div id="chart" style="margin-top:10px"></div></div>
+      <div class="panel"><h2>Medal table <small>1st gold · 2nd silver · 3rd bronze</small></h2><div class="table-wrap" id="medals"></div></div>
+    </div>
+    <div class="panel" id="live-panel" hidden><h2>Happening now</h2><div id="live-list"></div></div>
+    <div class="panel"><h2>Latest results</h2><div id="recent"></div></div>
+    <div class="panel" id="awards-panel" hidden><h2>Individual award winners</h2><div id="awards"></div></div>
+  </section>
+
+  <!-- EVENTS -->
+  <section data-view="events" hidden>
+    <div class="panel" id="ev-form-panel" hidden></div>
+    <div class="panel">
+      <div class="panel-head"><h2>Events</h2><button class="btn primary small" type="button" id="ev-add" hidden>+ New event</button></div>
+      <div class="filters" id="f-type"></div><div class="filters" id="f-status"></div>
+      <div id="ev-list"></div>
+    </div>
+  </section>
+
+  <!-- ATHLETES -->
+  <section data-view="athletes" hidden>
+    <div class="panel"><div class="panel-head"><h2>Individual performances</h2><input id="ath-q" placeholder="Search athlete or house" style="max-width:240px"></div>
+      <div class="table-wrap" id="ath-list"></div></div>
+  </section>
+
+  <!-- SETTINGS (owner) -->
+  <section data-view="settings" hidden>
+    <div class="panel"><h2>Settings <small>owner only</small></h2>
+      <form id="set-form">
+        <label style="max-width:420px">Page title<input id="set-title" maxlength="60" placeholder="Festival Progress"></label>
+        <div class="row2" style="margin-top:10px">
+          <label>Categories <span style="text-transform:none;letter-spacing:0;font-weight:400">(comma separated)</span><input id="set-cats" placeholder="Men's, Women's, 40+ Mixed"></label>
+        </div>
+        <div class="row3">
+          <label>Default points · 1st<input id="set-p1" type="number" step="0.5" min="0" placeholder="50"></label>
+          <label>2nd<input id="set-p2" type="number" step="0.5" min="0" placeholder="35"></label>
+          <label>3rd<input id="set-p3" type="number" step="0.5" min="0" placeholder="20"></label>
+        </div>
+        <p class="muted" style="margin:0 0 6px;font-size:12.5px">Filled in automatically when a place is entered; can still be changed for any result.</p>
+        <h3 style="margin:14px 0 6px;font-size:15px;text-transform:uppercase">Houses</h3>
+        <table class="rows"><tbody id="house-rows"></tbody></table>
+        <div class="btns" style="margin:6px 0 12px"><button class="btn small" type="button" id="house-add">+ Add house</button></div>
+        <div class="btns"><button class="btn primary" type="submit">Save</button></div>
+      </form></div>
+  </section>
+
+  <!-- ACCESS (owner) -->
+  <section data-view="access" hidden>
+    <div class="panel"><h2>Access <small>owner only · who may update events and results</small></h2>
+      <p class="muted" style="margin:0 0 10px">Create the account in Firebase Authentication first (username@cricket.local, e.g. results1@cricket.local), then add the username here.</p>
+      <form id="acc-form" class="btns" style="align-items:flex-end;margin-bottom:12px">
+        <label style="max-width:220px">Account<input id="acc-user" type="search" name="pg-acc-id" placeholder="e.g. results1" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-lpignore="true" required></label>
+        <button class="btn primary" type="submit">Add</button></form>
+      <div class="table-wrap" id="acc-list"></div></div>
+  </section>
+
+  <p class="muted" style="text-align:center;font-size:11px;margin:18px 0 0" id="ver-tag"></p>
+</main>
+
+<script>
+(() => {
+const PUBLIC_PAGE = !!window.PROGRESS_PUBLIC;
+const COLS = ["pg_settings", "pg_events"];
+const LS_KEY = "festprogress.v1";
+const TYPES = [["team", "Team events"], ["track", "Track & field"], ["other", "Other"]];
+const STATUSES = [["upcoming", "Upcoming"], ["live", "Live"], ["done", "Completed"], ["postponed", "Postponed"], ["cancelled", "Cancelled"]];
+const DEF_CATS = ["Men's", "Women's", "40+ Mixed"];
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+let noticeTimer = null;
+function notice(msg, kind) { const n = $("notice"); n.textContent = msg; n.dataset.kind = kind || ""; n.hidden = false; clearTimeout(noticeTimer); if (kind === "ok") noticeTimer = setTimeout(() => { n.hidden = true; }, 4000); }
+
+/* ---------- data store: Firebase when configured, otherwise this browser ---------- */
+const Store = {
+  mode: "wait", data: { pg_settings: {}, pg_events: {} }, user: null, owner: false, perms: null, access: {}, fb: null,
+  async init() {
+    if (await this.tryFirebase()) return;
+    this.mode = "local"; try { const raw = localStorage.getItem(LS_KEY); if (raw) Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
+    render();
+  },
+  async tryFirebase() {
+    const cfg = window.FIREBASE_CONFIG;
+    if (!cfg || !cfg.apiKey || !cfg.projectId || /^YOUR_/.test(cfg.apiKey)) return false;
+    const load = (src) => new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.appendChild(s); });
+    try { const base = "https://www.gstatic.com/firebasejs/10.14.1/"; await load(base + "firebase-app-compat.js"); await Promise.all([load(base + "firebase-firestore-compat.js"), load(base + "firebase-auth-compat.js")]);
+      firebase.initializeApp(cfg); this.fb = firebase.firestore(); } catch (e) { notice("Couldn't load the shared database. Check your internet connection.", "bad"); return false; }
+    this.mode = "firebase";
+    firebase.auth().onAuthStateChanged(async (u) => {
+      this.user = u && !u.isAnonymous ? u : null; this.owner = false; this.perms = null;
+      if (this.user && !this.isAccount()) { try { await this.fb.collection("pg_owner").doc("check").get(); this.owner = true; } catch (e) {} }
+      if (this.unsubP) { this.unsubP(); this.unsubP = null; }
+      if (this.user && this.isAccount()) this.unsubP = this.fb.collection("pg_access").doc(this.me()).onSnapshot((d) => { this.perms = d.exists ? d.data() : {}; render(); }, () => { this.perms = {}; render(); });
+      if (this.unsubA) { this.unsubA(); this.unsubA = null; } this.access = {};
+      if (this.owner) this.unsubA = this.fb.collection("pg_access").onSnapshot((s) => { const n = {}; s.forEach((d) => { n[d.id] = d.data(); }); this.access = n; render(); }, () => {});
+      this.authKnown = true; render();
+    });
+    for (const c of COLS) this.fb.collection(c).onSnapshot((snap) => { const n = {}; snap.forEach((d) => { n[d.id] = d.data(); }); this.data[c] = n; render(); },
+      (err) => notice("Lost connection to the shared database (" + (err && err.code || "error") + "). Reload the page.", "bad"));
+    render(); return true;
+  },
+  me() { return this.user ? String(this.user.email || "").toLowerCase() : ""; },
+  isAccount() { return !!this.user && /@cricket\.local$/i.test(this.user.email || ""); },
+  canEdit() { if (PUBLIC_PAGE) return false; if (this.mode === "local") return true; return this.mode === "firebase" && (this.owner || !!(this.perms && this.perms.edit)); },
+  isOwner() { if (PUBLIC_PAGE) return false; return this.mode === "local" || (this.mode === "firebase" && this.owner); },
+  persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.data)); } catch (e) {} },
+  async put(col, id, obj) {
+    try { if (this.mode === "firebase") await this.fb.collection(col).doc(id).set(obj); else { this.data[col] = { ...this.data[col], [id]: obj }; this.persist(); render(); } return true; }
+    catch (e) { notice((e && e.code === "permission-denied") ? "This account can't make changes. Ask the owner for access." : "Couldn't save (" + (e && e.code || "error") + ").", "bad"); return false; }
+  },
+  async remove(col, id) {
+    try { if (this.mode === "firebase") await this.fb.collection(col).doc(id).delete(); else { const n = { ...this.data[col] }; delete n[id]; this.data[col] = n; this.persist(); render(); } return true; }
+    catch (e) { notice("Couldn't delete (" + (e && e.code || "error") + ").", "bad"); return false; }
+  },
+  list(col) { return Object.entries(this.data[col] || {}).map(([id, v]) => ({ id, ...v })); },
+  get(col, id) { const v = (this.data[col] || {})[id]; return v ? { id, ...v } : null; },
+};
+
+/* ---------- derived data ---------- */
+const settings = () => Store.get("pg_settings", "main") || {};
+const houses = () => settings().houses || [];
+const house = (id) => houses().find((h) => h.id === id);
+const hName = (id) => (house(id) || {}).name || "?";
+const hDot = (id) => `<span class="dot" style="background:${esc((house(id) || {}).color || "#999")}"></span>`;
+const cats = () => (settings().cats && settings().cats.length ? settings().cats : DEF_CATS);
+const defPts = () => { const p = settings().pts || {}; return { 1: p[1] ?? 50, 2: p[2] ?? 35, 3: p[3] ?? 20 }; };
+const events = () => Store.list("pg_events").sort((a, b) => (a.when || "~").localeCompare(b.when || "~") || (a.name || "").localeCompare(b.name || ""));
+const typeName = (t) => (TYPES.find((x) => x[0] === t) || [, "Other"])[1];
+const statusName = (s) => (STATUSES.find((x) => x[0] === s) || [, "Upcoming"])[1];
+const fmtWhen = (w) => { if (!w) return ""; const d = new Date(w); return isNaN(d) ? w : d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
+const medalHtml = (p) => (+p >= 1 && +p <= 3 ? `<span class="medal m${+p}" title="${["Gold", "Silver", "Bronze"][+p - 1]}">${+p}</span>` : esc(p || ""));
+// houses' totals from completed events: points typed in per result; medals from places 1-3
+function tallies() {
+  const T = {}; for (const h of houses()) T[h.id] = { id: h.id, pts: 0, g: 0, s: 0, b: 0, byCat: {} };
+  for (const e of events()) { if (e.status !== "done") continue;
+    for (const r of e.results || []) { const t = T[r.house]; if (!t) continue; t.pts += +r.points || 0; const ck = e.cat || "Other"; t.byCat[ck] = (t.byCat[ck] || 0) + (+r.points || 0); if (+r.place === 1) t.g++; else if (+r.place === 2) t.s++; else if (+r.place === 3) t.b++; } }
+  return Object.values(T);
+}
+
+/* ---------- render ---------- */
+let view = "overview", fType = "", fStatus = "", openEv = new Set(), editing = null;
+function render() {
+  const s = settings(), ed = Store.canEdit();
+  $("title").innerHTML = s.title ? esc(s.title) : "Festival <span>Progress</span>";
+  const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
+  m.textContent = Store.mode === "wait" ? "Connecting…" : PUBLIC_PAGE ? "Live" : Store.mode === "local" ? "Saved in this browser" : Store.owner ? "Owner" : ed ? "Updater · " + Store.me().replace("@cricket.local", "") : Store.user ? "View only (no access yet)" : "View only";
+  $("auth-btn").hidden = Store.mode !== "firebase" || PUBLIC_PAGE; $("auth-btn").textContent = Store.user ? "Sign out" : "Sign in";
+  $("tab-settings").hidden = !Store.isOwner(); $("tab-access").hidden = !(Store.mode === "firebase" && Store.isOwner());
+  $("ev-add").hidden = !ed; if (!ed && !$("ev-form-panel").hidden) $("ev-form-panel").hidden = true;
+  const known = Store.mode === "local" || (Store.mode === "firebase" && Store.authKnown);
+  if (known && ((view === "settings" && !Store.isOwner()) || (view === "access" && $("tab-access").hidden))) { view = "overview"; }
+  document.querySelectorAll("[data-view]").forEach((x) => { x.hidden = x.dataset.view !== view; });
+  document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === view)));
+  renderOverview(); renderEvents(); renderAthletes(); if (view === "settings" && !setDirty) fillSettings(); renderAccess();
+}
+function renderOverview() {
+  const E = events(), active = E.filter((e) => e.status !== "cancelled"), done = active.filter((e) => e.status === "done");
+  const pct = active.length ? Math.round(done.length * 100 / active.length) : 0;
+  $("prog-bar").style.width = pct + "%"; $("prog-note").textContent = active.length ? `${done.length} of ${active.length} events completed (${pct}%)` : "No events yet";
+  $("prog-types").textContent = TYPES.map(([k, n]) => { const a = active.filter((e) => (e.type || "other") === k); return a.length ? `${n}: ${a.filter((e) => e.status === "done").length}/${a.length}` : ""; }).filter(Boolean).join(" · ");
+  const T = tallies();
+  if (!houses().length) { $("points").innerHTML = $("medals").innerHTML = `<div class="empty">No houses yet.${Store.isOwner() ? " Add them in Settings." : ""}</div>`; }
+  else {
+    const P = [...T].sort((a, b) => b.pts - a.pts || hName(a.id).localeCompare(hName(b.id)));
+    // standard ranking with joint places (e.g. 1, 2, joint 3rd, joint 3rd)
+    const rank = (t) => 1 + P.filter((x) => x.pts > t.pts).length, joint = (t) => P.filter((x) => x.pts === t.pts).length > 1;
+    const ord = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+    const C = [...new Set([...cats(), ...P.flatMap((t) => Object.keys(t.byCat))])].filter((c) => c !== "Other" || P.some((t) => t.byCat.Other));
+    const fmt = (n) => String(+(+n || 0).toFixed(2));
+    $("points").innerHTML = `<table><thead><tr><th>Rank</th><th>House</th>${C.map((c) => `<th class="num">${esc(c)}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody>${P.map((t) => `<tr><td><b>${joint(t) ? "Joint " : ""}${ord(rank(t))}</b></td><td>${hDot(t.id)}<b>${esc(hName(t.id))}</b></td>${C.map((c) => `<td class="num">${fmt(t.byCat[c])}</td>`).join("")}<td class="num"><b>${fmt(t.pts)}</b></td></tr>`).join("")}</tbody></table>`;
+    const D = defPts(); $("pts-scheme").textContent = `Scoring: 1st ${D[1]} · 2nd ${D[2]} · 3rd ${D[3]} (unless set otherwise for an event)`;
+    const max = Math.max(1, ...P.map((t) => t.pts));
+    $("chart").innerHTML = P.map((t) => `<div style="display:grid;grid-template-columns:110px 1fr 44px;gap:8px;align-items:center;margin:4px 0"><span class="sub" style="color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(hName(t.id))}</span><div style="background:var(--bg);border-radius:4px;height:16px"><div style="width:${(t.pts / max * 100).toFixed(1)}%;height:100%;border-radius:4px;background:${esc((house(t.id) || {}).color || "#888")}"></div></div><span class="num"><b>${fmt(t.pts)}</b></span></div>`).join("");
+    const M = [...T].sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || hName(a.id).localeCompare(hName(b.id)));
+    $("medals").innerHTML = `<table><thead><tr><th>#</th><th>House</th><th class="num">${medalHtml(1)}</th><th class="num">${medalHtml(2)}</th><th class="num">${medalHtml(3)}</th><th class="num">Total</th></tr></thead><tbody>${M.map((t, i) => `<tr><td>${i + 1}</td><td>${hDot(t.id)}<b>${esc(hName(t.id))}</b></td><td class="num">${t.g}</td><td class="num">${t.s}</td><td class="num">${t.b}</td><td class="num"><b>${t.g + t.s + t.b}</b></td></tr>`).join("")}</tbody></table>`;
+  }
+  const AW = E.filter((e) => (e.awards || []).length && e.status !== "cancelled");
+  $("awards-panel").hidden = !AW.length;
+  $("awards").innerHTML = AW.map((e) => `<div style="margin-bottom:8px"><b>${esc(e.name)}</b>${e.cat ? ` <span class="chip">${esc(e.cat)}</span>` : ""}${e.awards.map((a) => `<div class="sub" style="margin-left:4px">🏅 <b style="color:var(--ink)">${esc(a.title)}:</b> ${esc(a.athlete)}${a.house ? ` ${hDot(a.house)}${esc(hName(a.house))}` : ""}</div>`).join("")}</div>`).join("");
+  const live = E.filter((e) => e.status === "live");
+  $("live-panel").hidden = !live.length; $("live-list").innerHTML = live.map(evRow).join("");
+  const recent = E.filter((e) => e.status === "done").sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || "")).slice(0, 6);
+  $("recent").innerHTML = recent.length ? recent.map(evRow).join("") : `<div class="empty">No results yet.</div>`;
+}
+const winners = (e) => (e.results || []).filter((r) => +r.place >= 1 && +r.place <= 3).sort((a, b) => a.place - b.place).map((r) => `${medalHtml(r.place)} ${esc(hName(r.house))}`).join(" &nbsp; ");
+function evRow(e) {
+  const open = openEv.has(e.id), ed = Store.canEdit();
+  const chip = e.status === "live" ? '<span class="chip live">LIVE</span>' : e.status === "done" ? '<span class="chip done">Completed</span>' : e.status === "cancelled" ? '<span class="chip off">Cancelled</span>' : `<span class="chip">${esc(statusName(e.status))}</span>`;
+  const R = [...(e.results || [])].sort((a, b) => (+a.place || 99) - (+b.place || 99)), P = [...(e.perfs || [])].sort((a, b) => (+a.place || 99) - (+b.place || 99));
+  return `<div class="ev"><div class="ev-head" data-open="${esc(e.id)}"><div><b>${esc(e.name)}</b> ${chip}<div class="sub">${[typeName(e.type), e.cat, fmtWhen(e.when), e.venue].filter(Boolean).map(esc).join(" · ")}</div></div>
+    <div class="sub">${winners(e) || (open ? "" : "Details ▸")}</div></div>
+    ${open ? `<div class="ev-body">
+      ${R.length ? `<div class="table-wrap"><table><thead><tr><th>Place</th><th>House</th><th class="num">Points</th></tr></thead><tbody>${R.map((r) => `<tr><td>${medalHtml(r.place)}</td><td>${hDot(r.house)}${esc(hName(r.house))}</td><td class="num">${esc(r.points ?? "")}</td></tr>`).join("")}</tbody></table></div>` : `<div class="sub">No results yet.</div>`}
+      ${P.length ? `<div class="table-wrap" style="margin-top:6px"><table><thead><tr><th>Place</th><th>Athlete</th><th>House</th><th>Mark</th></tr></thead><tbody>${P.map((p) => `<tr><td>${medalHtml(p.place)}</td><td><b>${esc(p.athlete)}</b></td><td>${esc(hName(p.house))}</td><td>${esc(p.mark || "")}</td></tr>`).join("")}</tbody></table></div>` : ""}
+      ${(e.awards || []).length ? `<div style="margin-top:6px">${e.awards.map((a) => `<div class="sub"><b style="color:var(--ink)">${esc(a.title)}:</b> ${esc(a.athlete)}${a.house ? ` (${esc(hName(a.house))})` : ""}</div>`).join("")}</div>` : ""}
+      ${e.notes ? `<div class="sub" style="margin-top:4px">${esc(e.notes)}</div>` : ""}
+      ${ed ? `<div class="btns" style="margin-top:6px"><button class="btn small" type="button" data-edit="${esc(e.id)}">Update</button></div>` : ""}
+    </div>` : ""}</div>`;
+}
+function renderEvents() {
+  $("f-type").innerHTML = [["", "All types"], ...TYPES].map(([k, n]) => `<button type="button" data-ft="${k}" aria-pressed="${fType === k}">${n}</button>`).join("");
+  $("f-status").innerHTML = [["", "Any status"], ...STATUSES].map(([k, n]) => `<button type="button" data-fs="${k}" aria-pressed="${fStatus === k}">${n}</button>`).join("");
+  const L = events().filter((e) => (!fType || (e.type || "other") === fType) && (!fStatus || (e.status || "upcoming") === fStatus));
+  $("ev-list").innerHTML = L.length ? L.map(evRow).join("") : `<div class="empty">No events${fType || fStatus ? " match this filter" : " yet"}.${Store.canEdit() && !events().length ? " Use + New event." : ""}</div>`;
+}
+function renderAthletes() {
+  const q = $("ath-q").value.trim().toLowerCase(), A = {};
+  for (const e of events()) { if (e.status === "cancelled") continue; for (const p of e.perfs || []) { if (!p.athlete) continue;
+    const k = p.athlete.trim().toLowerCase() + "|" + p.house; const a = A[k] ||= { name: p.athlete.trim(), house: p.house, g: 0, s: 0, b: 0, list: [] };
+    if (e.status === "done") { if (+p.place === 1) a.g++; else if (+p.place === 2) a.s++; else if (+p.place === 3) a.b++; }
+    a.list.push(`${esc(e.name)}${p.mark ? " " + esc(p.mark) : ""}${p.place ? ` (${+p.place >= 1 && +p.place <= 3 ? ["1st", "2nd", "3rd"][p.place - 1] : esc(p.place) + "th"})` : ""}`); } }
+  const L = Object.values(A).filter((a) => !q || a.name.toLowerCase().includes(q) || hName(a.house).toLowerCase().includes(q)).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || a.name.localeCompare(b.name));
+  $("ath-list").innerHTML = L.length ? `<table><thead><tr><th>Athlete</th><th class="num">${medalHtml(1)}</th><th class="num">${medalHtml(2)}</th><th class="num">${medalHtml(3)}</th><th>Events</th></tr></thead><tbody>${L.map((a) => `<tr><td><b>${esc(a.name)}</b><div class="sub">${hDot(a.house)}${esc(hName(a.house))}</div></td><td class="num">${a.g}</td><td class="num">${a.s}</td><td class="num">${a.b}</td><td class="sub">${a.list.join(" · ")}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">${q ? "No athlete matches." : "No individual performances yet."}</div>`;
+}
+
+/* ---------- event form ---------- */
+const houseOpts = (sel) => `<option value=""></option>` + houses().map((h) => `<option value="${esc(h.id)}" ${h.id === sel ? "selected" : ""}>${esc(h.name)}</option>`).join("");
+const resRow = (r = {}) => `<tr class="r-res"><td><input class="n place" type="number" min="1" placeholder="Place" value="${esc(r.place ?? "")}"></td><td><select class="house">${houseOpts(r.house)}</select></td><td><input class="n pts" type="number" step="0.5" placeholder="Points" value="${esc(r.points ?? "")}"></td></tr>`;
+const awardRow = (a = {}) => `<tr class="r-award"><td><input class="aw" list="award-names" placeholder="Award" value="${esc(a.title || "")}"></td><td><input class="ath" placeholder="Player" value="${esc(a.athlete || "")}"></td><td><select class="house">${houseOpts(a.house)}</select></td></tr>`;
+const perfRow = (p = {}) => `<tr class="r-perf"><td><input class="ath" placeholder="Athlete" value="${esc(p.athlete || "")}"></td><td><select class="house">${houseOpts(p.house)}</select></td><td><input class="mark" placeholder="e.g. 12.4 s" value="${esc(p.mark || "")}" style="max-width:110px"></td><td><input class="n place" type="number" min="1" placeholder="Place" value="${esc(p.place ?? "")}"></td></tr>`;
+function openForm(id) {
+  if (!houses().length) { notice(Store.isOwner() ? "Add the houses in Settings first." : "The owner needs to add the houses first.", "bad"); return; }
+  const e = id ? Store.get("pg_events", id) : null; editing = id || null;
+  const DP = defPts(), R = e && e.results && e.results.length ? e.results : [1, 2, 3].map((n) => ({ place: n, points: DP[n] }));
+  const A = e && e.awards && e.awards.length ? e.awards : [{ title: "Best Batter" }, { title: "Best Bowler" }, { title: "Player of the Series" }];
+  const P = e && e.perfs && e.perfs.length ? e.perfs : [{}, {}, {}];
+  const box = $("ev-form-panel"); box.hidden = false;
+  box.innerHTML = `<h2>${e ? "Update event" : "New event"}</h2><form id="ev-form" autocomplete="off">
+    <div class="row2"><label>Event<input id="e-name" required maxlength="60" value="${esc(e ? e.name : "")}" placeholder="e.g. 100 m"></label>
+      <label>Type<select id="e-type">${TYPES.map(([k, n]) => `<option value="${k}" ${(e ? e.type : "team") === k ? "selected" : ""}>${n}</option>`).join("")}</select></label></div>
+    <div class="row3"><label>Category<select id="e-cat"><option value=""></option>${[...new Set([...cats(), ...(e && e.cat ? [e.cat] : [])])].map((c) => `<option ${e && e.cat === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
+      <label>Status<select id="e-status">${STATUSES.map(([k, n]) => `<option value="${k}" ${(e ? e.status : "upcoming") === k ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+      <label>Date &amp; time<input id="e-when" type="datetime-local" value="${esc(e ? e.when || "" : "")}"></label>
+      <label>Venue<input id="e-venue" maxlength="60" value="${esc(e ? e.venue || "" : "")}"></label></div>
+    <h3 style="margin:10px 0 2px;font-size:15px;text-transform:uppercase">Results <span class="sub" style="text-transform:none">place, house and points (1st–3rd also count as medals)</span></h3>
+    <table class="rows"><tbody id="res-rows">${R.map(resRow).join("")}</tbody></table><button class="btn small" type="button" id="res-add">+ Add place</button>
+    <h3 style="margin:12px 0 2px;font-size:15px;text-transform:uppercase">Individual performances <span class="sub" style="text-transform:none">optional</span></h3>
+    <div class="table-wrap"><table class="rows"><tbody id="perf-rows">${P.map(perfRow).join("")}</tbody></table></div><button class="btn small" type="button" id="perf-add">+ Add athlete</button>
+    <h3 style="margin:12px 0 2px;font-size:15px;text-transform:uppercase">Individual awards <span class="sub" style="text-transform:none">optional, e.g. Best Batter</span></h3>
+    <datalist id="award-names">${["Best Batter", "Best Bowler", "Best Fielder", "Player of the Series", "Man of the Series", "Best Player", "Best Athlete"].map((x) => `<option value="${x}">`).join("")}</datalist>
+    <div class="table-wrap"><table class="rows"><tbody id="award-rows">${A.map(awardRow).join("")}</tbody></table></div><button class="btn small" type="button" id="award-add">+ Add award</button>
+    <label style="margin-top:10px">Notes<input id="e-notes" maxlength="200" value="${esc(e ? e.notes || "" : "")}" placeholder="optional"></label>
+    <div class="btns" style="margin-top:12px"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="e-cancel">Cancel</button>${e ? `<button class="btn danger" type="button" id="e-del">Delete event</button>` : ""}</div></form>`;
+  $("res-add").onclick = () => { const n = $("res-rows").children.length + 1; $("res-rows").insertAdjacentHTML("beforeend", resRow({ place: n, points: defPts()[n] ?? "" })); };
+  $("award-add").onclick = () => { $("award-rows").insertAdjacentHTML("beforeend", awardRow()); };
+  // default points: typing a place fills its points if they are empty
+  $("res-rows").addEventListener("input", (ev) => { const pl = ev.target.closest(".place"); if (!pl) return; const pts = pl.closest("tr").querySelector(".pts"); const d = defPts()[+pl.value]; if (pts.dataset.auto !== "0" && d !== undefined) { pts.value = d; pts.dataset.auto = "1"; } });
+  $("res-rows").addEventListener("change", (ev) => { if (ev.target.classList.contains("pts")) ev.target.dataset.auto = "0"; });
+  $("perf-add").onclick = () => { $("perf-rows").insertAdjacentHTML("beforeend", perfRow()); $("perf-rows").lastElementChild.querySelector(".ath").focus(); };
+  $("e-cancel").onclick = () => { box.hidden = true; editing = null; };
+  const del = $("e-del"); if (del) del.onclick = async () => { if (del.dataset.armed) { if (await Store.remove("pg_events", e.id)) { box.hidden = true; notice("Event deleted.", "ok"); } } else { del.dataset.armed = 1; del.textContent = "Tap again to delete"; } };
+  $("ev-form").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const results = [...document.querySelectorAll("#res-rows .r-res")].map((r) => ({ place: +r.querySelector(".place").value || null, house: r.querySelector(".house").value, points: r.querySelector(".pts").value === "" ? 0 : +r.querySelector(".pts").value })).filter((r) => r.house);
+    const perfs = [...document.querySelectorAll("#perf-rows .r-perf")].map((r) => ({ athlete: r.querySelector(".ath").value.trim(), house: r.querySelector(".house").value, mark: r.querySelector(".mark").value.trim(), place: +r.querySelector(".place").value || null })).filter((p) => p.athlete);
+    const awards = [...document.querySelectorAll("#award-rows .r-award")].map((r) => ({ title: r.querySelector(".aw").value.trim(), athlete: r.querySelector(".ath").value.trim(), house: r.querySelector(".house").value })).filter((a) => a.title && a.athlete);
+    if (perfs.some((p) => !p.house)) { notice("Choose a house for every athlete.", "bad"); return; }
+    const status = $("e-status").value;
+    if (status === "done" && !results.length) { notice("A completed event needs at least one result (place and house).", "bad"); return; }
+    const doc = { ...(e ? (({ id: _i, ...r }) => r)(e) : { createdAt: new Date().toISOString(), createdBy: Store.me() }), name: $("e-name").value.trim(), type: $("e-type").value, cat: $("e-cat").value, status,
+      when: $("e-when").value, venue: $("e-venue").value.trim(), notes: $("e-notes").value.trim(), results, perfs, awards, updatedAt: new Date().toISOString(), updatedBy: Store.me() };
+    const nid = e ? e.id : uid();
+    if (await Store.put("pg_events", nid, doc)) { box.hidden = true; editing = null; openEv.add(nid); notice(`Saved ${doc.name}.`, "ok"); }
+  };
+  box.scrollIntoView({ behavior: "smooth", block: "start" }); $("e-name").focus();
+}
+
+/* ---------- settings (owner) ---------- */
+let setDirty = false;
+const houseRow = (h = {}) => `<tr class="r-house" data-id="${esc(h.id || "")}"><td><input class="hn" placeholder="House name" value="${esc(h.name || "")}"></td><td style="width:60px"><input class="hc" type="color" value="${esc(h.color || "#3b82f6")}" style="padding:2px;height:36px"></td><td style="width:40px"><button class="btn small danger" type="button" data-hdel>✕</button></td></tr>`;
+function fillSettings() { const s = settings(); $("set-title").value = s.title || ""; $("set-cats").value = cats().join(", "); const P = defPts(); $("set-p1").value = P[1]; $("set-p2").value = P[2]; $("set-p3").value = P[3]; $("house-rows").innerHTML = (s.houses && s.houses.length ? s.houses : [{}, {}, {}, {}]).map(houseRow).join(""); setDirty = false; }
+$("set-form").addEventListener("input", () => { setDirty = true; });
+$("house-add").onclick = () => { $("house-rows").insertAdjacentHTML("beforeend", houseRow()); setDirty = true; };
+$("house-rows").addEventListener("click", (ev) => { const b = ev.target.closest("[data-hdel]"); if (!b) return; const tr = b.closest("tr"), id = tr.dataset.id;
+  if (id && events().some((e) => (e.results || []).some((r) => r.house === id) || (e.perfs || []).some((p) => p.house === id))) { notice("This house has results. Rename it instead of removing it.", "bad"); return; }
+  tr.remove(); setDirty = true; });
+$("set-form").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const hs = [...document.querySelectorAll("#house-rows .r-house")].map((tr) => ({ id: tr.dataset.id || uid(), name: tr.querySelector(".hn").value.trim(), color: tr.querySelector(".hc").value })).filter((h) => h.name);
+  if (new Set(hs.map((h) => h.name.toLowerCase())).size !== hs.length) { notice("Two houses have the same name.", "bad"); return; }
+  const { id: _sid, ...cur } = settings();
+  const cl = $("set-cats").value.split(",").map((x) => x.trim()).filter(Boolean);
+  if (await Store.put("pg_settings", "main", { ...cur, title: $("set-title").value.trim(), houses: hs, cats: cl.length ? cl : DEF_CATS, pts: { 1: +$("set-p1").value || 0, 2: +$("set-p2").value || 0, 3: +$("set-p3").value || 0 } })) { setDirty = false; notice("Settings saved.", "ok"); }
+};
+
+/* ---------- access (owner) ---------- */
+function renderAccess() {
+  if ($("tab-access").hidden) return;
+  const L = Object.entries(Store.access || {}).sort();
+  $("acc-list").innerHTML = L.length ? `<table><thead><tr><th>Account</th><th>Can update</th><th></th></tr></thead><tbody>${L.map(([k, v]) => `<tr><td><b>${esc(k.replace("@cricket.local", ""))}</b></td><td><input type="checkbox" data-acc="${esc(k)}" ${v.edit ? "checked" : ""}></td><td><button class="btn small danger" type="button" data-accdel="${esc(k)}">Remove</button></td></tr>`).join("")}</tbody></table>` : `<div class="empty">No accounts yet.</div>`;
+}
+const accKey = (n) => { let v = String(n || "").trim().toLowerCase(); if (v && !v.includes("@")) v += "@cricket.local"; return v; };
+$("acc-form").onsubmit = async (ev) => { ev.preventDefault(); const k = accKey($("acc-user").value); if (!/@cricket\.local$/.test(k)) { notice("Accounts end in @cricket.local.", "bad"); return; }
+  if (await Store.put("pg_access", k, { edit: true, updatedAt: new Date().toISOString() })) { $("acc-user").value = ""; notice(`${k.replace("@cricket.local", "")} can now update.`, "ok"); } };
+$("acc-list").addEventListener("change", (ev) => { const c = ev.target.closest("[data-acc]"); if (c) Store.put("pg_access", c.dataset.acc, { edit: c.checked, updatedAt: new Date().toISOString() }); });
+$("acc-list").addEventListener("click", (ev) => { const b = ev.target.closest("[data-accdel]"); if (b) Store.remove("pg_access", b.dataset.accdel); });
+
+/* ---------- navigation and events ---------- */
+document.querySelectorAll("nav.tabs button").forEach((b) => b.onclick = () => { view = b.dataset.tab; location.hash = view; if (view === "settings") fillSettings(); render(); });
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h && h !== view && document.querySelector(`[data-view="${h}"]`)) { view = h; render(); } });
+document.addEventListener("click", (ev) => {
+  const ft = ev.target.closest("[data-ft]"); if (ft) { fType = ft.dataset.ft; renderEvents(); return; }
+  const fs = ev.target.closest("[data-fs]"); if (fs) { fStatus = fs.dataset.fs; renderEvents(); return; }
+  const ed = ev.target.closest("[data-edit]"); if (ed) { view = "events"; render(); openForm(ed.dataset.edit); return; }
+  const op = ev.target.closest("[data-open]"); if (op) { const id = op.dataset.open; openEv.has(id) ? openEv.delete(id) : openEv.add(id); render(); }
+});
+$("ev-add").onclick = () => openForm(null);
+$("ath-q").addEventListener("input", renderAthletes);
+$("auth-btn").onclick = async () => { if (Store.user) { await firebase.auth().signOut(); notice("Signed out.", "ok"); return; } $("auth-panel").hidden = false; $("auth-user").focus(); };
+$("auth-cancel").onclick = () => { $("auth-panel").hidden = true; };
+$("auth-form").onsubmit = async (ev) => { ev.preventDefault(); let u = $("auth-user").value.trim(); if (u && !u.includes("@")) u += "@cricket.local";
+  try { await firebase.auth().signInWithEmailAndPassword(u, $("auth-pass").value); $("auth-panel").hidden = true; $("auth-pass").value = ""; notice("Signed in.", "ok"); }
+  catch (e) { notice("Sign-in failed: wrong username or password.", "bad"); } };
+
+/* ---------- new version: load it once on opening; while in use, ask ---------- */
+const VERSION_URL = (PUBLIC_PAGE ? "../../" : "../") + "version.json";
+async function checkVersion(atStart) {
+  if (!window.APP_VERSION || location.protocol === "file:") return;
+  try { const r = await fetch(VERSION_URL + "?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) return; const v = (await r.json()).v;
+    if (!v || v === window.APP_VERSION) return;
+    if (atStart) { let done = false; try { done = sessionStorage.getItem("pg.reloadedFor") === v; sessionStorage.setItem("pg.reloadedFor", v); } catch (e) { done = true; }
+      if (!done) { const u = new URL(location.href); u.searchParams.set("v", v); location.replace(u.toString()); return; } }
+    $("update-bar").hidden = false; } catch (e) {}
+}
+$("update-bar").onclick = () => { const u = new URL(location.href); u.searchParams.set("v", Date.now().toString(36)); location.replace(u.toString()); };
+$("ver-tag").textContent = window.APP_VERSION ? "Version " + window.APP_VERSION : "";
+checkVersion(true); setInterval(() => checkVersion(false), 5 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVersion(false); });
+
+const h0 = location.hash.slice(1); if (h0 && document.querySelector(`[data-view="${h0}"]`)) view = h0;
+render(); Store.init();
+})();
+</script>
