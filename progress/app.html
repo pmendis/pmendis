@@ -88,6 +88,32 @@ input[type="checkbox"] { width: auto; }
 .btn.danger { color: var(--bad); }
 .rows td { padding: 3px 2px; border: 0; } .rows input, .rows select { padding: 6px; font-size: 14px; }
 .rows .n { width: 64px; }
+/* ---- "Stadium" look: night-stadium dark, electric accents, bold slanted type ---- */
+:root[data-skin="stadium"] {
+  --bg: #0b0f1a; --surface: #131a2b; --ink: #f3f6ff; --muted: #9aa6c4; --line: #26324f;
+  --accent: #ff5a1f; --band: #05070d; --band-ink: #f3f6ff; --lime: #c6ff3d;
+  --ok: #c6ff3d; --ok-bg: #22300d; --warn: #ffc65c; --warn-bg: #33270f; --bad: #ff7a6b; --bad-bg: #3a1714; color-scheme: dark;
+}
+[data-skin="stadium"] body { background: radial-gradient(1200px 500px at 50% -120px, #1d2b55 0%, transparent 70%), repeating-linear-gradient(135deg, transparent 0 22px, rgba(255,255,255,.018) 22px 44px), var(--bg); }
+[data-skin="stadium"] header.band { background: linear-gradient(100deg, #05070d 0%, #10183a 55%, #ff5a1f 140%); border-bottom: 3px solid var(--lime); }
+[data-skin="stadium"] header.band h1 { font-style: italic; letter-spacing: .02em; }
+[data-skin="stadium"] header.band h1 span, [data-skin="stadium"] .eyebrow { color: var(--lime); }
+[data-skin="stadium"] nav.tabs { background: #0e1424; border-bottom-color: var(--line); }
+[data-skin="stadium"] nav.tabs button { font-style: italic; }
+[data-skin="stadium"] nav.tabs button[aria-selected="true"] { color: var(--lime); border-bottom-color: var(--lime); }
+[data-skin="stadium"] .panel { border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.35); position: relative; overflow: hidden; }
+[data-skin="stadium"] .panel::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: linear-gradient(var(--lime), var(--accent)); }
+[data-skin="stadium"] .panel h2 { font-style: italic; font-size: 20px; display: inline-block; background: linear-gradient(90deg, var(--lime), #7dffb2); -webkit-background-clip: text; background-clip: text; color: transparent; }
+[data-skin="stadium"] .panel h2 small { -webkit-text-fill-color: var(--muted); }
+[data-skin="stadium"] th { color: var(--lime); }
+[data-skin="stadium"] .bar { background: #0b0f1a; border-color: var(--line); }
+[data-skin="stadium"] .bar > span { background: linear-gradient(90deg, var(--lime), var(--accent)); }
+[data-skin="stadium"] .btn.primary { background: linear-gradient(100deg, var(--accent), #ff8a3d); border-color: transparent; box-shadow: 0 4px 14px rgba(255,90,31,.35); }
+[data-skin="stadium"] .chip.live { background: var(--accent); color: #fff; animation: pulse 1.6s infinite; }
+@keyframes pulse { 50% { opacity: .65; } }
+[data-skin="stadium"] .filters button[aria-pressed="true"] { background: var(--lime); border-color: var(--lime); color: #0b0f1a; }
+[data-skin="stadium"] input, [data-skin="stadium"] select { background: #0d1322; }
+@media (prefers-reduced-motion: reduce) { [data-skin="stadium"] .chip.live { animation: none; } }
 </style>
 
 <header class="band">
@@ -156,7 +182,8 @@ input[type="checkbox"] { width: auto; }
         <div class="row2" style="margin-top:10px">
           <label>Categories <span style="text-transform:none;letter-spacing:0;font-weight:400">(comma separated)</span><input id="set-cats" placeholder="Men's, Women's, 40+ Mixed"></label>
         </div>
-        <div class="row3">
+        <label style="max-width:300px">Look<select id="set-skin"><option value="classic">Classic (clean, navy)</option><option value="stadium">Stadium (dark, bold, sporty)</option></select></label>
+        <div class="row3" style="margin-top:10px">
           <label>Default points · 1st<input id="set-p1" type="number" step="0.5" min="0" placeholder="50"></label>
           <label>2nd<input id="set-p2" type="number" step="0.5" min="0" placeholder="35"></label>
           <label>3rd<input id="set-p3" type="number" step="0.5" min="0" placeholder="20"></label>
@@ -267,6 +294,7 @@ let view = "overview", fType = "", fStatus = "", openEv = new Set(), editing = n
 function render() {
   const s = settings(), ed = Store.canEdit();
   $("title").innerHTML = s.title ? esc(s.title) : "Festival <span>Progress</span>";
+  document.documentElement.dataset.skin = s.skin || "classic";
   $("eyebrow").textContent = s.eyebrow ?? "Sports Festival"; $("eyebrow").hidden = s.eyebrow === "";
   const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
   m.textContent = Store.mode === "wait" ? "Connecting…" : PUBLIC_PAGE ? "Live" : Store.mode === "local" ? "Saved in this browser" : Store.owner ? "Owner" : ed ? "Updater · " + Store.me().replace("@cricket.local", "") : Store.user ? "View only (no access yet)" : "View only";
@@ -395,8 +423,9 @@ function openForm(id) {
 /* ---------- settings (owner) ---------- */
 let setDirty = false;
 const houseRow = (h = {}) => `<tr class="r-house" data-id="${esc(h.id || "")}"><td><input class="hn" placeholder="House name" value="${esc(h.name || "")}"></td><td style="width:60px"><input class="hc" type="color" value="${esc(h.color || "#3b82f6")}" style="padding:2px;height:36px"></td><td style="width:40px"><button class="btn small danger" type="button" data-hdel>✕</button></td></tr>`;
-function fillSettings() { const s = settings(); $("set-title").value = s.title || ""; $("set-eyebrow").value = s.eyebrow ?? "Sports Festival"; $("set-cats").value = cats().join(", "); const P = defPts(); $("set-p1").value = P[1]; $("set-p2").value = P[2]; $("set-p3").value = P[3]; $("house-rows").innerHTML = (s.houses && s.houses.length ? s.houses : [{}, {}, {}, {}]).map(houseRow).join(""); setDirty = false; }
+function fillSettings() { const s = settings(); $("set-skin").value = s.skin || "classic"; $("set-title").value = s.title || ""; $("set-eyebrow").value = s.eyebrow ?? "Sports Festival"; $("set-cats").value = cats().join(", "); const P = defPts(); $("set-p1").value = P[1]; $("set-p2").value = P[2]; $("set-p3").value = P[3]; $("house-rows").innerHTML = (s.houses && s.houses.length ? s.houses : [{}, {}, {}, {}]).map(houseRow).join(""); setDirty = false; }
 $("set-form").addEventListener("input", () => { setDirty = true; });
+$("set-skin").addEventListener("change", () => { document.documentElement.dataset.skin = $("set-skin").value; });
 $("house-add").onclick = () => { $("house-rows").insertAdjacentHTML("beforeend", houseRow()); setDirty = true; };
 $("house-rows").addEventListener("click", (ev) => { const b = ev.target.closest("[data-hdel]"); if (!b) return; const tr = b.closest("tr"), id = tr.dataset.id;
   if (id && events().some((e) => (e.results || []).some((r) => r.house === id) || (e.perfs || []).some((p) => p.house === id))) { notice("This house has results. Rename it instead of removing it.", "bad"); return; }
@@ -407,7 +436,7 @@ $("set-form").onsubmit = async (ev) => {
   if (new Set(hs.map((h) => h.name.toLowerCase())).size !== hs.length) { notice("Two houses have the same name.", "bad"); return; }
   const { id: _sid, ...cur } = settings();
   const cl = $("set-cats").value.split(",").map((x) => x.trim()).filter(Boolean);
-  if (await Store.put("pg_settings", "main", { ...cur, title: $("set-title").value.trim(), eyebrow: $("set-eyebrow").value.trim(), houses: hs, cats: cl.length ? cl : DEF_CATS, pts: { 1: +$("set-p1").value || 0, 2: +$("set-p2").value || 0, 3: +$("set-p3").value || 0 } })) { setDirty = false; notice("Settings saved.", "ok"); }
+  if (await Store.put("pg_settings", "main", { ...cur, title: $("set-title").value.trim(), eyebrow: $("set-eyebrow").value.trim(), skin: $("set-skin").value, houses: hs, cats: cl.length ? cl : DEF_CATS, pts: { 1: +$("set-p1").value || 0, 2: +$("set-p2").value || 0, 3: +$("set-p3").value || 0 } })) { setDirty = false; notice("Settings saved.", "ok"); }
 };
 
 /* ---------- access (owner) ---------- */
