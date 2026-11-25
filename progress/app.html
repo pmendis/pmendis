@@ -92,7 +92,7 @@ input[type="checkbox"] { width: auto; }
 
 <header class="band">
   <div class="wrap">
-    <div><div class="eyebrow">Inter-Department Sports Festival</div><h1 id="title">Festival <span>Progress</span></h1></div>
+    <div><div class="eyebrow" id="eyebrow">Sports Festival</div><h1 id="title">Festival <span>Progress</span></h1></div>
     <div class="hdr-right"><button class="pillbtn" type="button" id="auth-btn" hidden>Sign in</button><span class="mode view" id="mode">View only</span></div>
   </div>
 </header>
@@ -149,7 +149,10 @@ input[type="checkbox"] { width: auto; }
   <section data-view="settings" hidden>
     <div class="panel"><h2>Settings <small>owner only</small></h2>
       <form id="set-form">
-        <label style="max-width:420px">Page title<input id="set-title" maxlength="60" placeholder="Festival Progress"></label>
+        <div class="row2">
+          <label>Small heading <span style="text-transform:none;letter-spacing:0;font-weight:400">(above the title; blank hides it)</span><input id="set-eyebrow" maxlength="60" placeholder="e.g. CBL Inter-House Sports Festival"></label>
+          <label>Page title<input id="set-title" maxlength="60" placeholder="Festival Progress"></label>
+        </div>
         <div class="row2" style="margin-top:10px">
           <label>Categories <span style="text-transform:none;letter-spacing:0;font-weight:400">(comma separated)</span><input id="set-cats" placeholder="Men's, Women's, 40+ Mixed"></label>
         </div>
@@ -264,6 +267,7 @@ let view = "overview", fType = "", fStatus = "", openEv = new Set(), editing = n
 function render() {
   const s = settings(), ed = Store.canEdit();
   $("title").innerHTML = s.title ? esc(s.title) : "Festival <span>Progress</span>";
+  $("eyebrow").textContent = s.eyebrow ?? "Sports Festival"; $("eyebrow").hidden = s.eyebrow === "";
   const m = $("mode"); m.className = "mode " + (ed ? "ed" : "view");
   m.textContent = Store.mode === "wait" ? "Connecting…" : PUBLIC_PAGE ? "Live" : Store.mode === "local" ? "Saved in this browser" : Store.owner ? "Owner" : ed ? "Updater · " + Store.me().replace("@cricket.local", "") : Store.user ? "View only (no access yet)" : "View only";
   $("auth-btn").hidden = Store.mode !== "firebase" || PUBLIC_PAGE; $("auth-btn").textContent = Store.user ? "Sign out" : "Sign in";
@@ -391,7 +395,7 @@ function openForm(id) {
 /* ---------- settings (owner) ---------- */
 let setDirty = false;
 const houseRow = (h = {}) => `<tr class="r-house" data-id="${esc(h.id || "")}"><td><input class="hn" placeholder="House name" value="${esc(h.name || "")}"></td><td style="width:60px"><input class="hc" type="color" value="${esc(h.color || "#3b82f6")}" style="padding:2px;height:36px"></td><td style="width:40px"><button class="btn small danger" type="button" data-hdel>✕</button></td></tr>`;
-function fillSettings() { const s = settings(); $("set-title").value = s.title || ""; $("set-cats").value = cats().join(", "); const P = defPts(); $("set-p1").value = P[1]; $("set-p2").value = P[2]; $("set-p3").value = P[3]; $("house-rows").innerHTML = (s.houses && s.houses.length ? s.houses : [{}, {}, {}, {}]).map(houseRow).join(""); setDirty = false; }
+function fillSettings() { const s = settings(); $("set-title").value = s.title || ""; $("set-eyebrow").value = s.eyebrow ?? "Sports Festival"; $("set-cats").value = cats().join(", "); const P = defPts(); $("set-p1").value = P[1]; $("set-p2").value = P[2]; $("set-p3").value = P[3]; $("house-rows").innerHTML = (s.houses && s.houses.length ? s.houses : [{}, {}, {}, {}]).map(houseRow).join(""); setDirty = false; }
 $("set-form").addEventListener("input", () => { setDirty = true; });
 $("house-add").onclick = () => { $("house-rows").insertAdjacentHTML("beforeend", houseRow()); setDirty = true; };
 $("house-rows").addEventListener("click", (ev) => { const b = ev.target.closest("[data-hdel]"); if (!b) return; const tr = b.closest("tr"), id = tr.dataset.id;
@@ -403,7 +407,7 @@ $("set-form").onsubmit = async (ev) => {
   if (new Set(hs.map((h) => h.name.toLowerCase())).size !== hs.length) { notice("Two houses have the same name.", "bad"); return; }
   const { id: _sid, ...cur } = settings();
   const cl = $("set-cats").value.split(",").map((x) => x.trim()).filter(Boolean);
-  if (await Store.put("pg_settings", "main", { ...cur, title: $("set-title").value.trim(), houses: hs, cats: cl.length ? cl : DEF_CATS, pts: { 1: +$("set-p1").value || 0, 2: +$("set-p2").value || 0, 3: +$("set-p3").value || 0 } })) { setDirty = false; notice("Settings saved.", "ok"); }
+  if (await Store.put("pg_settings", "main", { ...cur, title: $("set-title").value.trim(), eyebrow: $("set-eyebrow").value.trim(), houses: hs, cats: cl.length ? cl : DEF_CATS, pts: { 1: +$("set-p1").value || 0, 2: +$("set-p2").value || 0, 3: +$("set-p3").value || 0 } })) { setDirty = false; notice("Settings saved.", "ok"); }
 };
 
 /* ---------- access (owner) ---------- */
