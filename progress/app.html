@@ -464,8 +464,9 @@ function inkOn(hex) { const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "")); if
 function wrapText(ctx, text, maxW) { const words = String(text).split(/\s+/), lines = []; let line = "";
   for (const w of words) { const t = line ? line + " " + w : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; } if (line) lines.push(line); return lines; }
 function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-async function drawFlyer() {
-  const cv = $("an-canvas"), ctx = cv.getContext("2d"), W = 1080, H = 1350, s = settings();
+async function drawFlyer(tall) {
+  const cv = $("an-canvas"); if (cv.height !== (tall || 1350)) cv.height = tall || 1350;
+  const ctx = cv.getContext("2d"), W = 1080, H = cv.height, s = settings();
   try { await Promise.all(["800 italic 60px 'Barlow Condensed'", "700 30px 'Barlow Condensed'", "600 26px Inter", "700 26px Inter"].map((f) => document.fonts.load(f))); } catch (e) {}
   const name = $("an-event").value, list = (annEvents().find(([n]) => n === name) || [, []])[1], what = $("an-what").value;
   const D = "'Barlow Condensed', 'Arial Narrow', sans-serif", B = "Inter, Arial, sans-serif";
@@ -477,50 +478,50 @@ async function drawFlyer() {
   ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
   // titles
   let y = 92;
-  if (s.eyebrow !== "") { ctx.fillStyle = "#c6ff3d"; ctx.font = `700 30px ${D}`; ctx.fillText(String(s.eyebrow ?? "Sports Festival").toUpperCase(), W / 2, y); y += 14; }
-  ctx.font = `800 italic 66px ${D}`; const tl = wrapText(ctx, (s.title || "Festival Progress").toUpperCase(), W - 120);
-  for (const l of tl.slice(0, 2)) { y += 66; const g = ctx.createLinearGradient(0, y - 60, 0, y); g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#ffd54a"); ctx.fillStyle = g; ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 12; ctx.fillText(l, W / 2, y); ctx.shadowBlur = 0; }
+  if (s.eyebrow !== "") { ctx.fillStyle = "#c6ff3d"; ctx.font = `700 36px ${D}`; ctx.fillText(String(s.eyebrow ?? "Sports Festival").toUpperCase(), W / 2, y); y += 14; }
+  ctx.font = `800 italic 72px ${D}`; const tl = wrapText(ctx, (s.title || "Festival Progress").toUpperCase(), W - 120);
+  for (const l of tl.slice(0, 2)) { y += 72; const g = ctx.createLinearGradient(0, y - 60, 0, y); g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#ffd54a"); ctx.fillStyle = g; ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 12; ctx.fillText(l, W / 2, y); ctx.shadowBlur = 0; }
   // gold ribbon with event name
   y += 28; const rib = ctx.createLinearGradient(80, 0, W - 80, 0); rib.addColorStop(0, "#a9781a"); rib.addColorStop(.5, "#ffd54a"); rib.addColorStop(1, "#a9781a");
   ctx.fillStyle = rib; ctx.beginPath(); ctx.moveTo(70, y); ctx.lineTo(W - 70, y); ctx.lineTo(W - 100, y + 62); ctx.lineTo(W - 70, y + 124); ctx.lineTo(70, y + 124); ctx.lineTo(100, y + 62); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#1a1200"; ctx.font = `800 52px ${D}`; ctx.fillText((name || "No event").toUpperCase(), W / 2, y + 56);
-  ctx.font = `800 36px ${D}`; ctx.fillText(what === "awards" ? "INDIVIDUAL AWARD WINNERS" : what === "results" ? "RESULTS" : "RESULTS & AWARD WINNERS", W / 2, y + 102);
+  ctx.fillStyle = "#1a1200"; ctx.font = `800 58px ${D}`; ctx.fillText((name || "No event").toUpperCase(), W / 2, y + 56);
+  ctx.font = `800 40px ${D}`; ctx.fillText(what === "awards" ? "INDIVIDUAL AWARD WINNERS" : what === "results" ? "RESULTS" : "RESULTS & AWARD WINNERS", W / 2, y + 102);
   y += 150;
   // one card per category
   const cards = list.map((e) => ({ cat: e.cat || "Open", res: what !== "awards" && e.status === "done" ? [...(e.results || [])].filter((r) => +r.place >= 1 && +r.place <= 3).sort((a, b) => a.place - b.place) : [], aw: what !== "results" ? (e.awards || []) : [] }))
     .filter((c) => c.res.length || c.aw.length);
   const footerTop = H - 250, cols = cards.length > 1 ? 2 : 1, gap = 24, cw = (W - 80 - gap * (cols - 1)) / cols;
-  const rowH = (c) => 70 + c.res.length * 52 + (c.res.length && c.aw.length ? 14 : 0) + c.aw.length * 76 + 16;
+  const rowH = (c) => 78 + c.res.length * 62 + (c.res.length && c.aw.length ? 16 : 0) + c.aw.length * 92 + 18;
   const ribbons = ["#d92d2d", "#2457e6", "#8e2de2", "#e67e22", "#13a35b", "#c2185b"];
   // lay panels out in rows of two; a last odd panel is centred
   const rowsOf = []; for (let i = 0; i < cards.length; i += cols) rowsOf.push(cards.slice(i, i + cols));
   const need = rowsOf.reduce((t, r) => t + Math.max(...r.map(rowH)) + gap, 0); let scale = 1;
-  if (need > footerTop - y) scale = Math.max(.6, (footerTop - y) / need);
+  if (need > footerTop - y) { if (!tall && H < 1900) return drawFlyer(Math.min(1920, Math.ceil(H + need - (footerTop - y) + 10))); scale = Math.max(.55, (footerTop - y) / need); } // grow the image (up to 1080×1920) before shrinking text
   const pos = []; let ry = y; rowsOf.forEach((r) => { const rh = Math.max(...r.map(rowH)) * scale; r.forEach((c, k) => pos.push({ x: r.length === 1 && cols === 2 ? (W - cw) / 2 : 40 + k * (cw + gap), top: ry, h: rowH(c) * scale })); ry += rh + gap * scale; });
   cards.forEach((c, i) => {
     const { x, top, h } = pos[i];
     ctx.save(); ctx.translate(x, top); ctx.scale(1, 1);
     rr(ctx, 0, 0, cw, h, 18); ctx.fillStyle = "rgba(8,14,40,.82)"; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = ribbons[i % ribbons.length]; ctx.stroke();
     ctx.fillStyle = ribbons[i % ribbons.length]; ctx.beginPath(); ctx.moveTo(24, -14); ctx.lineTo(cw - 24, -14); ctx.lineTo(cw - 40, 40 * scale); ctx.lineTo(40, 40 * scale); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.font = `800 italic ${34 * scale}px ${D}`; ctx.fillText((c.cat + " category").toUpperCase(), cw / 2, 26 * scale);
-    let yy = 70 * scale;
+    ctx.fillStyle = "#fff"; ctx.font = `800 italic ${40 * scale}px ${D}`; ctx.fillText((c.cat + " category").toUpperCase(), cw / 2, 28 * scale);
+    let yy = 80 * scale;
     for (const r of c.res) { const medal = ["#e7b928", "#c0c7d0", "#c07a3c"][r.place - 1], h0 = house(r.house) || {};
-      ctx.beginPath(); ctx.arc(46, yy + 10 * scale, 17 * scale, 0, 7); ctx.fillStyle = medal; ctx.fill(); ctx.fillStyle = "#111"; ctx.font = `800 ${22 * scale}px ${B}`; ctx.fillText(String(r.place), 46, yy + 18 * scale);
-      ctx.textAlign = "left"; ctx.fillStyle = "#fff"; ctx.font = `700 ${28 * scale}px ${B}`; ctx.fillText(hName(r.house), 76, yy + 20 * scale);
-      ctx.fillStyle = h0.color || "#999"; ctx.fillRect(cw - 34, yy - 8 * scale, 12, 34 * scale); ctx.textAlign = "center"; yy += 52 * scale; }
-    if (c.res.length && c.aw.length) yy += 14 * scale;
-    for (const a of c.aw) { ctx.fillStyle = "#ffd54a"; ctx.font = `700 ${25 * scale}px ${B}`; ctx.fillText(a.title, cw / 2, yy + 8 * scale);
-      ctx.fillStyle = "#fff"; ctx.font = `700 ${27 * scale}px ${B}`; const t = a.athlete + (a.house ? ` (${hName(a.house)})` : ""); let fs = 27; while (ctx.measureText(t).width > cw - 30 && fs > 16) { fs--; ctx.font = `700 ${fs * scale}px ${B}`; } ctx.fillText(t, cw / 2, yy + 40 * scale);
-      yy += 76 * scale; }
+      ctx.beginPath(); ctx.arc(48, yy + 10 * scale, 21 * scale, 0, 7); ctx.fillStyle = medal; ctx.fill(); ctx.fillStyle = "#111"; ctx.font = `800 ${26 * scale}px ${B}`; ctx.fillText(String(r.place), 48, yy + 19 * scale);
+      ctx.textAlign = "left"; ctx.fillStyle = "#fff"; ctx.font = `700 ${34 * scale}px ${B}`; let hs0 = 34; while (ctx.measureText(hName(r.house)).width > cw - 130 && hs0 > 20) { hs0--; ctx.font = `700 ${hs0 * scale}px ${B}`; } ctx.fillText(hName(r.house), 82, yy + 22 * scale);
+      ctx.fillStyle = h0.color || "#999"; ctx.fillRect(cw - 36, yy - 10 * scale, 14, 40 * scale); ctx.textAlign = "center"; yy += 62 * scale; }
+    if (c.res.length && c.aw.length) yy += 16 * scale;
+    for (const a of c.aw) { ctx.fillStyle = "#ffd54a"; ctx.font = `700 ${30 * scale}px ${B}`; ctx.fillText(a.title, cw / 2, yy + 10 * scale);
+      ctx.fillStyle = "#fff"; ctx.font = `700 ${33 * scale}px ${B}`; const t = a.athlete + (a.house ? ` (${hName(a.house)})` : ""); let fs = 33; while (ctx.measureText(t).width > cw - 30 && fs > 18) { fs--; ctx.font = `700 ${fs * scale}px ${B}`; } ctx.fillText(t, cw / 2, yy + 50 * scale);
+      yy += 92 * scale; }
     ctx.restore();
   });
   if (!cards.length) { ctx.fillStyle = "#c9d3ff"; ctx.font = `600 30px ${B}`; ctx.fillText("Results will appear here once entered.", W / 2, y + 120); }
   // footer: message + house banners
-  ctx.fillStyle = "#ffd54a"; ctx.font = `800 italic 48px ${D}`; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 10;
+  ctx.fillStyle = "#ffd54a"; ctx.font = `800 italic 54px ${D}`; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 10;
   ctx.fillText($("an-msg").value || "", W / 2, footerTop + 58); ctx.shadowBlur = 0;
   const hs = houses(); if (hs.length) { const bw = Math.min(220, (W - 80 - (hs.length - 1) * 16) / hs.length), sx = (W - (bw * hs.length + 16 * (hs.length - 1))) / 2;
     hs.forEach((h, i) => { const bx = sx + i * (bw + 16), by = footerTop + 100; ctx.fillStyle = h.color || "#888"; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + bw, by); ctx.lineTo(bx + bw, by + 96); ctx.lineTo(bx + bw / 2, by + 116); ctx.lineTo(bx, by + 96); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = inkOn(h.color); ctx.font = `800 italic 30px ${D}`; const ws = wrapText(ctx, h.name.toUpperCase(), bw - 16).slice(0, 2); ws.forEach((l, k) => ctx.fillText(l, bx + bw / 2, by + (ws.length === 1 ? 58 : 42 + k * 32))); }); }
+      ctx.fillStyle = inkOn(h.color); ctx.font = `800 italic 34px ${D}`; const ws = wrapText(ctx, h.name.toUpperCase(), bw - 16).slice(0, 2); ws.forEach((l, k) => ctx.fillText(l, bx + bw / 2, by + (ws.length === 1 ? 58 : 42 + k * 32))); }); }
   $("an-note").textContent = cards.length ? "" : "Pick an event with completed results or award winners.";
 }
 const flyerName = () => ($("an-event").value || "results").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + "-flyer.png";
