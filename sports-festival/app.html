@@ -173,6 +173,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: no-preference) { button.btn { transition: background .15s, color .15s; } }
+.done-dlg { border: 0; border-radius: 14px; padding: 22px 20px 18px; max-width: min(380px, calc(100vw - 32px)); text-align: center; background: var(--surface, #fff); color: var(--ink, #111); box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+.done-dlg::backdrop { background: rgba(0,0,0,.5); }
+.done-dlg .done-tick { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 10px; display: grid; place-items: center; font-size: 30px; font-weight: 800; color: #fff; background: #1d7a4a; }
+.done-dlg h3 { margin: 0 0 6px; font-size: 20px; }
+.done-dlg p { margin: 0 0 16px; line-height: 1.45; }
+.done-dlg .btn { min-width: 120px; }
 </style>
 
 <header class="band">
@@ -310,6 +316,11 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
           <span class="muted" data-i18n="langLabel">Language:</span>
           <button type="button" data-lang="en">English</button><button type="button" data-lang="si">සිංහල</button><button type="button" data-lang="ta">தமிழ்</button>
         </div>
+        <dialog id="prop-done" class="done-dlg" aria-labelledby="prop-done-title">
+          <div class="done-tick" aria-hidden="true">✓</div>
+          <h3 id="prop-done-title"></h3><p id="prop-done-msg"></p>
+          <button class="btn primary" type="button" id="prop-done-ok">OK</button>
+        </dialog>
         <form id="prop-form" autocomplete="off">
           <input type="hidden" id="prop-id">
           <div class="row2">
@@ -339,6 +350,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       </div>
       <div class="panel" id="review-panel" hidden>
         <h2>Proposals to review <small>Accept adds the player to the squad list as proposed (not confirmed)</small></h2>
+        <div class="row-btns" id="sum-row" hidden style="margin:0 0 10px"><button class="btn small" type="button" id="sum-img">📷 Summary image for WhatsApp</button></div>
         <div class="table-wrap" id="review-list"></div>
       </div>
     </div>
@@ -446,6 +458,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       tickOne: "Tick at least one sport.",
       connecting: "Still connecting. Wait a moment and try again.",
       gone: "That proposal has already been reviewed or deleted.",
+      doneSent: "Proposal sent ✓", doneUpd: "Proposal updated ✓", bOk: "OK",
       sent: "Thanks. {name} has been proposed; the house organiser will review it.",
       sentUpdate: "Thanks. EPF {ref} is already in the squad list as {old}; once the organiser accepts, their details and sports will be replaced with yours.",
       updated: "Updated your proposal for {name}.",
@@ -476,6 +489,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       tickOne: "අවම වශයෙන් එක් ක්‍රීඩාවක් ටික් කරන්න.",
       connecting: "තවමත් සම්බන්ධ වෙමින් පවතී. මොහොතක් රැඳී සිට නැවත උත්සාහ කරන්න.",
       gone: "එම යෝජනාව දැනටමත් සලකා බලා හෝ මකා දමා ඇත.",
+      doneSent: "යෝජනාව යවන ලදී ✓", doneUpd: "යෝජනාව යාවත්කාලීන කළා ✓", bOk: "හරි",
       sent: "ස්තූතියි. {name} යෝජනා කර ඇත. සංවිධායකවරයා එය සලකා බලනු ඇත.",
       sentUpdate: "ස්තූතියි. EPF {ref} දැනටමත් {old} ලෙස කණ්ඩායම් ලැයිස්තුවේ ඇත. සංවිධායකවරයා පිළිගත් පසු එම විස්තර සහ ක්‍රීඩා ඔබ ලබා දුන් ඒවායින් ප්‍රතිස්ථාපනය වේ.",
       updated: "{name} සඳහා වූ ඔබේ යෝජනාව යාවත්කාලීන කළා.",
@@ -506,6 +520,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       tickOne: "குறைந்தது ஒரு விளையாட்டையாவது தெரிவு செய்யவும்.",
       connecting: "இன்னும் இணைக்கப்படுகிறது. சிறிது நேரம் காத்திருந்து மீண்டும் முயற்சிக்கவும்.",
       gone: "அந்த முன்மொழிவு ஏற்கனவே பரிசீலிக்கப்பட்டது அல்லது நீக்கப்பட்டது.",
+      doneSent: "முன்மொழிவு அனுப்பப்பட்டது ✓", doneUpd: "முன்மொழிவு புதுப்பிக்கப்பட்டது ✓", bOk: "சரி",
       sent: "நன்றி. {name} முன்மொழியப்பட்டுள்ளார். ஏற்பாட்டாளர் அதைப் பரிசீலிப்பார்.",
       sentUpdate: "நன்றி. EPF {ref} ஏற்கனவே {old} என அணிப் பட்டியலில் உள்ளது. ஏற்பாட்டாளர் ஏற்றுக்கொண்டதும் அந்த விவரங்களும் விளையாட்டுகளும் நீங்கள் வழங்கியவற்றால் மாற்றப்படும்.",
       updated: "{name} க்கான உங்கள் முன்மொழிவு புதுப்பிக்கப்பட்டது.",
@@ -1273,7 +1288,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       createdAt: prev ? prev.createdAt : new Date().toISOString(), ownerUid: Store.me });
     if (ok) {
       resetProp();
-      notice(editId ? t("updated", { name }) : match ? t("sentUpdate", { ref, old: match.name }) : t("sent", { name }), "ok");
+      showDone(editId ? t("doneUpd") : t("doneSent"), editId ? t("updated", { name }) : match ? t("sentUpdate", { ref, old: match.name }) : t("sent", { name }));
     }
   });
   function applyLang() {
@@ -1298,6 +1313,13 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     if (!$("notice").hidden && $("notice").dataset.kind !== "ok") $("notice").hidden = true; // old-language warning would be confusing
     applyLang();
   }));
+  // success pop-up: stays until OK, then back to the top of the empty form for the next player
+  function showDone(title, msg) {
+    const d = $("prop-done"); $("prop-done-title").textContent = title; $("prop-done-msg").textContent = msg; $("prop-done-ok").textContent = t("bOk");
+    if (typeof d.showModal === "function") { try { d.showModal(); } catch (e) { d.setAttribute("open", ""); } } else { notice(msg, "ok"); return; }
+    $("prop-done-ok").focus();
+  }
+  $("prop-done-ok").onclick = () => { $("prop-done").close(); $("prop-form").scrollIntoView({ behavior: "smooth", block: "start" }); setTimeout(() => $("prop-ref").focus({ preventScroll: true }), 300); };
   function resetProp() {
     const by = $("prop-by").value; $("prop-form").reset(); $("prop-by").value = by; $("prop-id").value = "";
     $("prop-found").hidden = true; propLoadedRef = "";
@@ -1353,12 +1375,49 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("prop-save").textContent = t("bSave"); $("prop-cancel").hidden = false;
     $("prop-form").scrollIntoView({ behavior: "smooth", block: "start" }); $("prop-name").focus();
   }
+
+  // Owner only: proposals received, as a PNG to share on WhatsApp
+  function drawSummary() {
+    const list = Store.list("proposals").sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    const W = 1080, P = 56, c = document.createElement("canvas"), x = c.getContext("2d");
+    const F = (w, z) => `${w} ${z}px "Segoe UI", Roboto, Arial, sans-serif`;
+    const wrap = (t, w, f) => { x.font = f; const out = []; let line = ""; for (const word of t.split(" ")) { const tr = line ? line + " " + word : word; if (x.measureText(tr).width > w && line) { out.push(line); line = word; } else line = tr; } if (line) out.push(line); return out; };
+    const rows = list.map((r) => { const ev = (r.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean).map(sportLabel);
+      return { r, sp: wrap(ev.length ? ev.join("  •  ") : "No sports", W - P * 2 - 70, F(400, 28)), by: [r.ref ? "EPF " + r.ref : "", r.dept, r.proposedBy ? "by " + r.proposedBy : ""].filter(Boolean).join(" · ") }; });
+    const head = 250, rh = (o) => 60 + o.sp.length * 38 + (o.by ? 38 : 0) + 24;
+    const H = head + rows.reduce((a, o) => a + rh(o), 0) + 110; c.width = W; c.height = H;
+    x.fillStyle = "#f4f6fa"; x.fillRect(0, 0, W, H); x.fillStyle = "#0f2346"; x.fillRect(0, 0, W, head - 30);
+    x.fillStyle = "#e4561b"; x.fillRect(0, head - 36, W, 6);
+    const h = house(); x.fillStyle = "#ffffff"; x.font = F(700, 30); x.fillText("PROPOSALS RECEIVED", P, 72);
+    x.font = F(800, 56); x.fillText((h.name || "House").toUpperCase(), P, 140);
+    x.font = F(400, 28); x.fillStyle = "#cfd8ea"; x.fillText(`${list.length} player${list.length === 1 ? "" : "s"} · ${new Date().toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`, P, 188);
+    let y = head;
+    rows.forEach((o, i) => { const hgt = rh(o); x.fillStyle = "#ffffff"; x.fillRect(P - 16, y - 8, W - P * 2 + 32, hgt - 12);
+      x.fillStyle = "#e4561b"; x.font = F(800, 34); x.fillText(String(i + 1), P, y + 40);
+      x.fillStyle = "#0f2346"; x.font = F(700, 36); x.fillText(o.r.name + (o.r.gender || o.r.age ? "" : ""), P + 70, y + 40);
+      x.font = F(400, 26); x.fillStyle = "#6b7280"; const meta = [o.r.gender, o.r.age].filter(Boolean).join(" · "); if (meta) x.fillText(meta, W - P - x.measureText(meta).width, y + 40);
+      let yy = y + 40; x.fillStyle = "#1f2937"; x.font = F(400, 28); o.sp.forEach((l) => { yy += 38; x.fillText(l, P + 70, yy); });
+      if (o.by) { yy += 38; x.fillStyle = "#6b7280"; x.font = F(400, 24); x.fillText(o.by, P + 70, yy); }
+      y += hgt; });
+    x.fillStyle = "#6b7280"; x.font = F(400, 24); x.fillText("Received and waiting for review by the house organiser.", P, H - 50);
+    return c;
+  }
+  $("sum-img").addEventListener("click", () => {
+    const c = drawSummary(), name = `proposals-${new Date().toISOString().slice(0, 10)}.png`;
+    c.toBlob(async (b) => {
+      const f = new File([b], name, { type: "image/png" });
+      try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "Proposals received" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      notice("Summary image downloaded — attach it in WhatsApp.", "ok");
+    }, "image/png");
+  });
   function renderReview() {
     renderMine();
     const list = Store.list("proposals").sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
     const panel = $("review-panel"); panel.hidden = !Store.canEdit();
     $("c-propose").textContent = Store.canEdit() && list.length ? list.length : "";
     if (panel.hidden) return;
+    $("sum-row").hidden = !isOwner() || !list.length;
     if (!list.length) { $("review-list").innerHTML = `<div class="empty">No proposals waiting. Share this page's <b>Propose a player</b> tab with your house members.</div>`; return; }
     $("review-list").innerHTML = `<table><tbody>${list.map((r) => {
       const evs = (r.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
