@@ -237,6 +237,12 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       <div class="panel"><h2>Next games</h2><div class="table-wrap" id="ov-games"></div></div>
       <div class="panel"><h2>Proposed squads <small>players proposed against squad size · confirmed = selected for the final squad</small></h2><div class="table-wrap" id="ov-squads"></div></div>
     </div>
+    <div class="panel" id="limits-panel" hidden style="margin-top:20px">
+      <h2>Event limits per player <small>owner only</small></h2>
+      <label style="display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink)"><input type="checkbox" id="limits-on" style="width:auto">
+        Limit each player to 3 Track &amp; Field, 2 Relay and 3 Team &amp; Individual events (8 in total)</label>
+      <p class="muted" style="margin:6px 0 0;font-size:12.5px">When off, players can be proposed or added to any number of sports. Squad sizes, age categories and gender rules still apply.</p>
+    </div>
     <div class="panel" id="access-panel" hidden style="margin-top:20px">
       <h2>Editor access <small>people who signed in and asked to edit; approve the ones you trust</small></h2>
       <div id="access-requests"></div>
@@ -745,7 +751,9 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     { key: "games", types: ["team", "individual"], max: 3, label: "Team & Individual games" },
   ];
   const sportLabel = (s) => s ? [s.name, s.gender, s.age || "Open"].filter(Boolean).join(" - ") : "?";
-  const limitFor = (type) => LIMITS.find((g) => g.types.includes(type));
+  // the owner can switch the per-player event limits off (stored in settings/rules, separate from house details)
+  const limitsOn = () => (Store.get("settings", "rules") || {}).limits !== false;
+  const limitFor = (type) => limitsOn() ? LIMITS.find((g) => g.types.includes(type)) : null;
   const RESULT = { scheduled: "To play", won: "Won", draw: "Draw", lost: "Lost" };
 
   /* ---------- Two-click delete (the viewer blocks confirm dialogs) ---------- */
@@ -782,6 +790,14 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
   window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
 
   /* ---------- Editor access panel (Firebase mode) ---------- */
+  // owner = the email in the rules; it registers itself as an organiser with addedBy "owner". Browser-only mode: everyone (testing).
+  const isOwner = () => Store.mode !== "firebase" || !!(Store.editor && (Store.organisers[Store.emailKey(Store.user)] || {}).addedBy === "owner");
+  function renderLimits() { const p = $("limits-panel"); p.hidden = !isOwner(); if (!p.hidden) $("limits-on").checked = limitsOn(); }
+  $("limits-on").addEventListener("change", async () => {
+    const on = $("limits-on").checked, cur = Store.get("settings", "rules") || {}, { id: _i, ...rest } = cur;
+    if (await Store.put("settings", "rules", { ...rest, limits: on })) notice(on ? "Event limits are on: 3 Track & Field, 2 Relay, 3 Team & Individual per player." : "Event limits are off: players can take part in any number of sports.", "ok");
+    render();
+  });
   function renderAccess() {
     const p = $("access-panel"); p.hidden = !(Store.mode === "firebase" && Store.editor);
     if (p.hidden) return;
@@ -834,7 +850,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("backup-tools").hidden = Store.mode !== "local";
     const ab = $("auth-btn"); ab.hidden = Store.mode !== "firebase";
     ab.textContent = Store.user ? "Sign out" : "Sign in to edit";
-    renderAccess(); renderReview();
+    renderAccess(); renderLimits(); renderReview();
     $("house-edit").hidden = !Store.canEdit();
     document.querySelectorAll("#player-form, #game-form").forEach((f) => { f.closest(".panel").hidden = !Store.canEdit(); });
     applySportForm();
@@ -1038,8 +1054,8 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       const off = full || capped || wrongAge || wrongGender || closed;
       return `<label class="${off ? "full" : ""}"><input type="checkbox" value="${esc(s.id)}" ${checked.has(s.id) ? "checked" : ""} ${off ? "disabled" : ""}>
         ${esc(variantLabel(s))}<span class="q">${q ? `${n}/${q}` : n}${closed ? " " + t("hClosed", {}, L) : full ? " " + t("hFull", {}, L) : capped ? " " + t("hLimit", {}, L) : wrongGender ? (playerGender ? " " + t("hOnly", { g: t(s.gender, {}, L) }, L) : "") : wrongAge ? (playerAge ? " " + t("hOtherAge", {}, L) : "") : ""}</span></label>`; }).join("")).join("") +
-      `<div class="muted" style="font-size:12px;margin-top:4px">${t("limits", {}, L)} ${LIMITS.map((g) => `${g.label} ${used[g.key] || 0}/${g.max}`).join(" · ")}
-        <br>${t("athletics", {}, L)} ${(used.tf || 0) + (used.relay || 0)}/5 · ${t("total", {}, L)} ${(used.tf || 0) + (used.relay || 0) + (used.games || 0)}/8</div>`;
+      (limitsOn() ? `<div class="muted" style="font-size:12px;margin-top:4px">${t("limits", {}, L)} ${LIMITS.map((g) => `${g.label} ${used[g.key] || 0}/${g.max}`).join(" · ")}
+        <br>${t("athletics", {}, L)} ${(used.tf || 0) + (used.relay || 0)}/5 · ${t("total", {}, L)} ${(used.tf || 0) + (used.relay || 0) + (used.games || 0)}/8</div>` : "");
   }
   $("player-sports").addEventListener("change", () => renderSportChecks("player"));
   ["prop-sports", "prop-age", "prop-gender"].forEach((id) => $(id).addEventListener("change", () => renderSportChecks("prop")));
@@ -1053,7 +1069,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       if (s.age && s.age !== age) return t("ageOnly", { sport: sportLabel(s), age: s.age }, lng);
       if (!genderOk(s, gender)) return t("genderOnly", { sport: sportLabel(s), g: t(s.gender, {}, lng) }, lng);
     }
-    for (const g of LIMITS) {
+    if (limitsOn()) for (const g of LIMITS) {
       const n = sportIds.filter((sid) => g.types.includes((Store.get("sports", sid) || {}).type)).length;
       if (n > g.max) return t("limit", { max: g.max, label: g.label, n }, lng);
     }
