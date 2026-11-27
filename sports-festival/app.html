@@ -350,6 +350,7 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
       </div>
       <div class="panel" id="review-panel" hidden>
         <h2>Proposals to review <small>Accept adds the player to the squad list as proposed (not confirmed)</small></h2>
+        <div class="row-btns" id="sum-row" hidden style="margin:0 0 10px"><button class="btn small" type="button" id="sum-img">📷 Summary image for WhatsApp</button></div>
         <div class="table-wrap" id="review-list"></div>
       </div>
     </div>
@@ -1374,12 +1375,49 @@ body.readonly .split { grid-template-columns: minmax(0, 1fr); }
     $("prop-save").textContent = t("bSave"); $("prop-cancel").hidden = false;
     $("prop-form").scrollIntoView({ behavior: "smooth", block: "start" }); $("prop-name").focus();
   }
+
+  // Owner only: proposals received, as a PNG to share on WhatsApp
+  function drawSummary() {
+    const list = Store.list("proposals").sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    const W = 1080, P = 56, c = document.createElement("canvas"), x = c.getContext("2d");
+    const F = (w, z) => `${w} ${z}px "Segoe UI", Roboto, Arial, sans-serif`;
+    const wrap = (t, w, f) => { x.font = f; const out = []; let line = ""; for (const word of t.split(" ")) { const tr = line ? line + " " + word : word; if (x.measureText(tr).width > w && line) { out.push(line); line = word; } else line = tr; } if (line) out.push(line); return out; };
+    const rows = list.map((r) => { const ev = (r.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean).map(sportLabel);
+      return { r, sp: wrap(ev.length ? ev.join("  •  ") : "No sports", W - P * 2 - 70, F(400, 28)), by: [r.ref ? "EPF " + r.ref : "", r.dept, r.proposedBy ? "by " + r.proposedBy : ""].filter(Boolean).join(" · ") }; });
+    const head = 250, rh = (o) => 60 + o.sp.length * 38 + (o.by ? 38 : 0) + 24;
+    const H = head + rows.reduce((a, o) => a + rh(o), 0) + 110; c.width = W; c.height = H;
+    x.fillStyle = "#f4f6fa"; x.fillRect(0, 0, W, H); x.fillStyle = "#0f2346"; x.fillRect(0, 0, W, head - 30);
+    x.fillStyle = "#e4561b"; x.fillRect(0, head - 36, W, 6);
+    const h = house(); x.fillStyle = "#ffffff"; x.font = F(700, 30); x.fillText("PROPOSALS RECEIVED", P, 72);
+    x.font = F(800, 56); x.fillText((h.name || "House").toUpperCase(), P, 140);
+    x.font = F(400, 28); x.fillStyle = "#cfd8ea"; x.fillText(`${list.length} player${list.length === 1 ? "" : "s"} · ${new Date().toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`, P, 188);
+    let y = head;
+    rows.forEach((o, i) => { const hgt = rh(o); x.fillStyle = "#ffffff"; x.fillRect(P - 16, y - 8, W - P * 2 + 32, hgt - 12);
+      x.fillStyle = "#e4561b"; x.font = F(800, 34); x.fillText(String(i + 1), P, y + 40);
+      x.fillStyle = "#0f2346"; x.font = F(700, 36); x.fillText(o.r.name + (o.r.gender || o.r.age ? "" : ""), P + 70, y + 40);
+      x.font = F(400, 26); x.fillStyle = "#6b7280"; const meta = [o.r.gender, o.r.age].filter(Boolean).join(" · "); if (meta) x.fillText(meta, W - P - x.measureText(meta).width, y + 40);
+      let yy = y + 40; x.fillStyle = "#1f2937"; x.font = F(400, 28); o.sp.forEach((l) => { yy += 38; x.fillText(l, P + 70, yy); });
+      if (o.by) { yy += 38; x.fillStyle = "#6b7280"; x.font = F(400, 24); x.fillText(o.by, P + 70, yy); }
+      y += hgt; });
+    x.fillStyle = "#6b7280"; x.font = F(400, 24); x.fillText("Received and waiting for review by the house organiser.", P, H - 50);
+    return c;
+  }
+  $("sum-img").addEventListener("click", () => {
+    const c = drawSummary(), name = `proposals-${new Date().toISOString().slice(0, 10)}.png`;
+    c.toBlob(async (b) => {
+      const f = new File([b], name, { type: "image/png" });
+      try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "Proposals received" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      notice("Summary image downloaded — attach it in WhatsApp.", "ok");
+    }, "image/png");
+  });
   function renderReview() {
     renderMine();
     const list = Store.list("proposals").sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
     const panel = $("review-panel"); panel.hidden = !Store.canEdit();
     $("c-propose").textContent = Store.canEdit() && list.length ? list.length : "";
     if (panel.hidden) return;
+    $("sum-row").hidden = !isOwner() || !list.length;
     if (!list.length) { $("review-list").innerHTML = `<div class="empty">No proposals waiting. Share this page's <b>Propose a player</b> tab with your house members.</div>`; return; }
     $("review-list").innerHTML = `<table><tbody>${list.map((r) => {
       const evs = (r.sportIds || []).map((id) => Store.get("sports", id)).filter(Boolean);
